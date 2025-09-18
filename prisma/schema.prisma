@@ -1,0 +1,13 @@
+// schema.prisma
+// Configuración inicial para usar variables de entorno del archivo .env
+
+datasource db {
+  provider = "postgresql" 
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
