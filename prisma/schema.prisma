@@ -10,4 +10,201 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Alumno {
+  id_alumno         Int           @id @default(autoincrement())
+  foto              String?
+  nombre            String
+  apellido          String
+  genero            String?
+  fechaNacimiento   DateTime?
+  nacionalidad      String?
+  telefono          String?
+  direccion         String?
+  municipio         String?
+  departamento      String?
+  nivelEducativo    String?
+  id_responsable    Int?
+  responsable       Responsable? @relation(fields: [id_responsable], references: [id_responsable])
+  alumnoDetalle     Alumno_Detalle?
+  notas             Notas[]
+  cursos            Curso[] @relation("AlumnoCurso")
+}
+
+model Responsable {
+  id_responsable    Int           @id @default(autoincrement())
+  nombre            String
+  apellido          String
+  dui               String?
+  lugarTrabajo      String?
+  profesionOficio   String?
+  telefono          String?
+  direccion         String?
+  id_parentesco     Int?
+  parentesco        Parentesco?   @relation(fields: [id_parentesco], references: [id_parentesco])
+  alumnos           Alumno[]
+}
+
+model Parentesco {
+  id_parentesco     Int           @id @default(autoincrement())
+  nombre            String
+  responsables      Responsable[]
+}
+
+model Alumno_Detalle {
+  id_alumno         Int           @id
+  repiteGrado       String?
+  condicionado      String?
+  enfermedades      String?
+  medicamentoPrescrito String?
+  curso             String?
+  estadoCivil       String?
+  medioTransporte   String?
+  distanciaResidencia String?
+  numeroMiembrosFamilia Int?
+  tieneHijos        String?
+  convivencia       String?
+  dependenciaEconomica String?
+  alumno            Alumno        @relation(fields: [id_alumno], references: [id_alumno])
+}
+
+model Jornada {
+  id_jornada        Int           @id @default(autoincrement())
+  nombre            String
+  gradoAcademico    Grado_Academico[]
+}
+
+model Grado_Academico {
+  id_grado_academico Int          @id @default(autoincrement())
+  nombre            String
+  opcion            String?
+  n_anios           Int?
+  nota_minima       Float?
+  id_jornada        Int?
+  rcup              Boolean?
+  jornada           Jornada?      @relation(fields: [id_jornada], references: [id_jornada])
+  curso             Curso[]
+}
+
+model Curso {
+  id_curso          Int           @id @default(autoincrement())
+  nombre            String
+  seccion           String?
+  id_grado_academico Int?
+  id_orientador     Int?
+  cupo              Int?
+  aula              String?
+  id_alumno         Int?
+  id_asignatura     Int?
+  gradoAcademico    Grado_Academico? @relation(fields: [id_grado_academico], references: [id_grado_academico])
+  orientador        Orientador?   @relation(fields: [id_orientador], references: [id_orientador])
+  alumno            Alumno?       @relation("AlumnoCurso", fields: [id_alumno], references: [id_alumno])
+  asignatura        Asignatura?   @relation(fields: [id_asignatura], references: [id_asignatura])
+  historialCurso    Historial_curso_orientador[]
+}
+
+model Historial_curso_orientador {
+  id_historial_curso_orientador Int @id @default(autoincrement())
+  id_curso          Int
+  id_orientador     Int
+  anio_academico    String?
+  fecha_asignacion  DateTime?
+  fecha_fin         DateTime?
+  curso             Curso         @relation(fields: [id_curso], references: [id_curso])
+  orientador        Orientador    @relation(fields: [id_orientador], references: [id_orientador])
+}
+
+model Asignatura {
+  id_asignatura     Int           @id @default(autoincrement())
+  nombre            String
+  orden_en_reporte  String?
+  horas_semanas     Float?
+  id_metodo_evaluacion Int?
+  id_tipo_asignatura Int?
+  id_sistema_evaluacion Int?
+  metodoEvaluacion  Metodo_evaluacion? @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
+  tipoAsignatura    Tipo_Asignatura?   @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
+  sistemaEvaluacion Sistema_Evaluacion? @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
+  curso             Curso[]
+  notas             Notas[]
+}
+
+model Metodo_evaluacion {
+  id_metodo_evaluacion  Int        @id @default(autoincrement())
+  nombre                String
+  asignaturas           Asignatura[]
+}
+
+model Tipo_Asignatura {
+  id_tipo_asignatura Int          @id @default(autoincrement())
+  nombre            String
+  asignaturas       Asignatura[]
+}
+
+model Sistema_Evaluacion {
+  id_sistema_evaluacion Int       @id @default(autoincrement())
+  nombre            String
+  etapas            Int?
+  asignaturas       Asignatura[]
+}
+
+model Notas {
+  id_nota        Int        @id @default(autoincrement())
+  id_asignatura  Int
+  trimestre      String?
+  id_actividad   Int?
+  calificacion   Float?
+  fecha_registro DateTime?
+  id_alumno      Int
+  asignatura     Asignatura @relation(fields: [id_asignatura], references: [id_asignatura])
+  actividad      Actividad? @relation(fields: [id_actividad], references: [id_actividad])
+  alumno         Alumno     @relation(fields: [id_alumno], references: [id_alumno])
+}
+
+model Actividad {
+  id_actividad      Int           @id @default(autoincrement())
+  nombre            String
+  puntaje_maximo    Float?
+  puntaje_minimo    Float?
+  id_tipo_actividad Int
+  tipoActividad     Tipo_actividad @relation(fields: [id_tipo_actividad], references: [id_tipo_actividad])
+  notas             Notas[]
+}
+
+model Tipo_actividad {
+  id_tipo_actividad Int           @id @default(autoincrement())
+  nombre            String
+  actividades       Actividad[]
+}
+
+model Administrativo {
+  id_administrativo Int           @id @default(autoincrement())
+  id_cargo_administrativo Int?
+  nombre            String
+  apellido          String
+  direccion         String?
+  dui               String?
+  telefono          String?
+  email             String?
+  modalidad         String?
+  cargoAdministrativo Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
+}
+
+model Cargo_administrativo {
+  id_cargo_administrativo Int     @id @default(autoincrement())
+  nombre            String
+  administrativos   Administrativo[]
+  orientadores      Orientador[]
+}
+
+model Orientador {
+  id_orientador     Int           @id @default(autoincrement())
+  nombre            String
+  dui               String?
+  telefono          String?
+  id_cargo_administrativo Int?
+  cargoAdministrativo Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
+  cursos            Curso[]
+  historialCurso    Historial_curso_orientador[]
+}
+
 
