@@ -184,9 +184,15 @@ model Administrativo {
   direccion         String?
   dui               String?
   telefono          String?
-  email             String?
+  email             String?   @unique
+  password          String
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
   modalidad         String?
   cargoAdministrativo Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
+
+  @@map("administrativos")
 }
 
 model Cargo_administrativo {
@@ -201,10 +207,14 @@ model Orientador {
   nombre            String
   dui               String?
   telefono          String?
+  email             String   @unique  
+  password          String   
   id_cargo_administrativo Int?
   cargoAdministrativo Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
   cursos            Curso[]
   historialCurso    Historial_curso_orientador[]
+
+  @@map("orientadores")
 }
 
 
