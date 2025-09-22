@@ -184,7 +184,7 @@ model Administrativo {
   direccion         String?
   dui               String?
   telefono          String?
-  email             String?   @unique
+  email             String   @unique
   password          String
   activo            Boolean  @default(true)
   createdAt         DateTime @default(now())
