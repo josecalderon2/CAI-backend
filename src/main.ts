@@ -15,11 +15,23 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
 
-  // Swagger
+  // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('API Colegio Amigos de Israel')
     .setDescription('Documentación de la API para pruebas')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Ingresa el token JWT',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .addSecurityRequirements('JWT-auth')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

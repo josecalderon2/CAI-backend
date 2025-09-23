@@ -31,16 +31,15 @@ export class AuthController {
   // Perfil del usuario autenticado
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   getMe(@Req() req: any) {
     return req.user;
   }
 
-  // Ejemplos de protección por rol:
   @Get('solo-admin')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Admin')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   adminOnly() {
     return { ok: true, area: 'Solo Admin' };
   }
@@ -48,7 +47,7 @@ export class AuthController {
   @Get('solo-pa')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('P.A')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   paOnly() {
     return { ok: true, area: 'Solo P.A' };
   }
@@ -56,7 +55,7 @@ export class AuthController {
   @Get('solo-orientador')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Orientador')
-  @ApiBearerAuth()
+  @ApiBearerAuth('JWT-auth')
   orientadorOnly() {
     return { ok: true, area: 'Solo Orientador' };
   }
