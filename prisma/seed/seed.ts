@@ -28,7 +28,11 @@ async function seedCargos() {
   return { adminId, paId, oriId };
 }
 
-async function seedUsuarios(cargos: { adminId: number; paId: number; oriId: number }) {
+async function seedUsuarios(cargos: {
+  adminId: number;
+  paId: number;
+  oriId: number;
+}) {
   const passAdmin = await bcrypt.hash('Admin123*', 10);
   const passPA = await bcrypt.hash('Pa12345*', 10);
   const passOri = await bcrypt.hash('Ori12345*', 10);
@@ -64,12 +68,20 @@ async function seedUsuarios(cargos: { adminId: number; paId: number; oriId: numb
   // ORIENTADOR (ahora con id_cargo_administrativo obligatorio)
   await prisma.orientador.upsert({
     where: { email: 'orientador@colegio.edu' },
-    update: { password: passOri, id_cargo_administrativo: cargos.oriId },
+    update: {
+      password: passOri,
+      id_cargo_administrativo: cargos.oriId,
+      apellido: 'Gómez',
+      activo: true,
+      nombre: 'Orlando',
+    },
     create: {
       nombre: 'Orlando',
+      apellido: 'Orientador',
       email: 'orientador@colegio.edu',
       password: passOri,
       id_cargo_administrativo: cargos.oriId,
+      activo: true,
     },
   });
 
