@@ -40,7 +40,14 @@ async function seedUsuarios(cargos: {
   // ADMIN
   await prisma.administrativo.upsert({
     where: { email: 'admin@colegio.edu' },
-    update: { password: passAdmin, id_cargo_administrativo: cargos.adminId },
+    update: {
+      password: passAdmin,
+      id_cargo_administrativo: cargos.adminId,
+      direccion: 'Santa Ana',
+      dui: '00000000-0',
+      telefono: '7000-0000',
+      modalidad: 'Presencial',
+    },
     create: {
       nombre: 'Ada',
       apellido: 'Admin',
@@ -48,13 +55,24 @@ async function seedUsuarios(cargos: {
       password: passAdmin,
       id_cargo_administrativo: cargos.adminId,
       activo: true,
+      direccion: 'Santa Ana',
+      dui: '00000000-0',
+      telefono: '7000-0000',
+      modalidad: 'Presencial',
     },
   });
 
   // P.A
   await prisma.administrativo.upsert({
     where: { email: 'pa@colegio.edu' },
-    update: { password: passPA, id_cargo_administrativo: cargos.paId },
+    update: {
+      password: passPA,
+      id_cargo_administrativo: cargos.paId,
+      direccion: 'Santa Ana',
+      dui: '11111111-1',
+      telefono: '7000-0001',
+      modalidad: 'Presencial',
+    },
     create: {
       nombre: 'Paola',
       apellido: 'Asist',
@@ -62,10 +80,14 @@ async function seedUsuarios(cargos: {
       password: passPA,
       id_cargo_administrativo: cargos.paId,
       activo: true,
+      direccion: 'Santa Ana',
+      dui: '11111111-1',
+      telefono: '7000-0001',
+      modalidad: 'Presencial',
     },
   });
 
-  // ORIENTADOR (ahora con id_cargo_administrativo obligatorio)
+  // ORIENTADOR (id_cargo_administrativo, dui, telefono y direccion obligatorios)
   await prisma.orientador.upsert({
     where: { email: 'orientador@colegio.edu' },
     update: {
@@ -74,6 +96,9 @@ async function seedUsuarios(cargos: {
       apellido: 'Gómez',
       activo: true,
       nombre: 'Orlando',
+      dui: '22222222-2',
+      telefono: '7000-0002',
+      direccion: 'Colonia Escalón, San Salvador',
     },
     create: {
       nombre: 'Orlando',
@@ -82,6 +107,9 @@ async function seedUsuarios(cargos: {
       password: passOri,
       id_cargo_administrativo: cargos.oriId,
       activo: true,
+      dui: '22222222-2',
+      telefono: '7000-0002',
+      direccion: 'Colonia Escalón, San Salvador',
     },
   });
 

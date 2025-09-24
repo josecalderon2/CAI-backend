@@ -207,6 +207,7 @@ model Orientador {
   nombre                 String
   apellido               String        
   dui                    String
+  direccion              String
   telefono               String
   email                  String   @unique  
   password               String   
