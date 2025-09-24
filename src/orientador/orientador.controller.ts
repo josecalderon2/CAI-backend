@@ -9,10 +9,12 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { OrientadorService } from './orientador.service';
 import { CreateOrientadorDto } from './dto/create-orientador.dto';
 import { UpdateOrientadorDto } from './dto/update-orientador.dto';
+import { UpdatePerfilOrientadorDto } from './dto/update-perfil.dto';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -20,6 +22,7 @@ import {
   ApiCreatedResponse,
   ApiNotFoundResponse,
   ApiQuery,
+  ApiOperation,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
@@ -32,22 +35,55 @@ import { Roles } from '../auth/roles.decorator';
 export class OrientadorController {
   constructor(private readonly service: OrientadorService) {}
 
+  // --- PERFIL (self) PRIMERO para evitar colisión con :id ---
+  @Patch('profile')
+  @ApiOperation({
+    summary: 'Actualizar perfil (nombre, apellido y/o password)',
+  })
+  @ApiOkResponse({ description: 'Perfil de orientador actualizado' })
+  updatePerfil(@Body() dto: UpdatePerfilOrientadorDto, @Req() req: any) {
+    const selfId = req.user?.id_orientador ?? req.user?.id ?? req.user?.sub;
+    return this.service.updatePerfil(Number(selfId), dto);
+  }
+
   @Roles('Admin')
   @Post()
-  @ApiCreatedResponse({ description: 'Orientador creado' })
+  @ApiCreatedResponse({
+    description:
+      'Orientador creado (password auto 4 dígitos enviado al usuario)',
+  })
   create(@Body() dto: CreateOrientadorDto) {
     return this.service.create(dto);
   }
 
   @Roles('Admin')
   @Get()
-  @ApiOkResponse({ description: 'Lista de orientadores' })
+  @ApiOkResponse({ description: 'Lista de orientadores (paginada)' })
+  @ApiQuery({ name: 'page', required: false, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, example: 10 })
   @ApiQuery({ name: 'activo', required: false, type: Boolean })
   @ApiQuery({ name: 'q', required: false })
-  findAll(@Query('activo') activo?: string, @Query('q') q?: string) {
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('activo') activo?: string,
+    @Query('q') q?: string,
+  ) {
     const activoBool =
-      activo === 'true' ? true : activo === 'false' ? false : undefined;
-    return this.service.findAll({ activo: activoBool, q });
+      typeof activo === 'string'
+        ? activo === 'true'
+          ? true
+          : activo === 'false'
+            ? false
+            : undefined
+        : undefined;
+
+    return this.service.findAll({
+      page: Number(page),
+      limit: Number(limit),
+      activo: activoBool,
+      q,
+    });
   }
 
   @Roles('Admin')

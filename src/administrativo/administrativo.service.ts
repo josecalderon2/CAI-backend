@@ -4,7 +4,9 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAdministrativoDto } from './dto/create-administrativo.dto';
 import { UpdateAdministrativoDto } from './dto/update-administrativo.dto';
+import { UpdatePerfilDto } from './dto/update-perfil.dto';
 import * as bcrypt from 'bcrypt';
+import { MailService } from '../mail/mail.service';
 
 const ADMIN_SELECT = {
   id_administrativo: true,
@@ -26,18 +28,29 @@ const ADMIN_SELECT = {
 
 @Injectable()
 export class AdministrativoService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mail: MailService,
+  ) {}
 
   private async hashPassword(plain: string) {
     const salt = await bcrypt.genSalt(10);
     return bcrypt.hash(plain, salt);
   }
 
-  async create(dto: CreateAdministrativoDto) {
+  private generate4DigitPassword(): string {
+    // 1000 - 9999 (4 dígitos)
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  }
+
+  async create(dto: CreateAdministrativoDto, creatorEmail: string) {
     try {
       const data: any = { ...dto };
       if (data.email) data.email = data.email.trim().toLowerCase();
-      data.password = await this.hashPassword(dto.password);
+
+      // Siempre ignoramos dto.password y generamos una de 4 dígitos
+      const generatedPassword = this.generate4DigitPassword();
+      data.password = await this.hashPassword(generatedPassword);
 
       // Pre-chequeo de unicidad de email
       if (data.email) {
@@ -47,12 +60,20 @@ export class AdministrativoService {
         if (exists) throw new ConflictException('El email ya está en uso');
       }
 
-      return await this.prisma.administrativo.create({
+      const created = await this.prisma.administrativo.create({
         data,
         select: ADMIN_SELECT,
       });
+
+      // Enviar correo al usuario
+      await this.mail.sendPasswordToUser({
+        to: created.email,
+        newUserName: `${created.nombre} ${created.apellido}`.trim(),
+        generatedPassword,
+      });
+
+      return created;
     } catch (e) {
-      // Manejo fino de P2002
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
@@ -126,7 +147,6 @@ export class AdministrativoService {
       if (data.email) data.email = data.email.trim().toLowerCase();
       if (dto.password) data.password = await this.hashPassword(dto.password);
 
-      // Si quieren cambiar el email, validar que no exista en otro registro
       if (data.email) {
         const other = await this.prisma.administrativo.findUnique({
           where: { email: data.email },
@@ -144,7 +164,6 @@ export class AdministrativoService {
         select: ADMIN_SELECT,
       });
     } catch (e) {
-      // Por si se escapa el P2002 en condiciones de carrera
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
@@ -159,6 +178,26 @@ export class AdministrativoService {
       throw e;
     }
   }
+
+  // Actualizar PERFIL (solo nombre, apellido, password)
+  async updatePerfil(selfId: number, dto: UpdatePerfilDto) {
+    const data: any = {};
+    if (dto.nombre !== undefined) data.nombre = dto.nombre;
+    if (dto.apellido !== undefined) data.apellido = dto.apellido;
+    if (dto.password) data.password = await this.hashPassword(dto.password);
+
+    if (Object.keys(data).length === 0) {
+      // No-op, podrías tirar BadRequestException si prefieres
+      return this.findOne(selfId);
+    }
+
+    return this.prisma.administrativo.update({
+      where: { id_administrativo: selfId },
+      data,
+      select: ADMIN_SELECT,
+    });
+  }
+
   async softDelete(id: number) {
     return this.prisma.administrativo.update({
       where: { id_administrativo: id },

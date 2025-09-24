@@ -7,8 +7,10 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateOrientadorDto } from './dto/create-orientador.dto';
 import { UpdateOrientadorDto } from './dto/update-orientador.dto';
+import { UpdatePerfilOrientadorDto } from './dto/update-perfil.dto';
 import * as bcrypt from 'bcrypt';
 import { Prisma } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
 
 const ORIENTADOR_SELECT = {
   id_orientador: true,
@@ -26,28 +28,47 @@ const ORIENTADOR_SELECT = {
 
 @Injectable()
 export class OrientadorService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mail: MailService,
+  ) {}
 
   private async hashPassword(plain: string) {
     const salt = await bcrypt.genSalt(10);
     return bcrypt.hash(plain, salt);
   }
 
+  private generate4DigitPassword(): string {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+  }
+
   async create(dto: CreateOrientadorDto) {
     try {
       const data: any = { ...dto };
       data.email = data.email.trim().toLowerCase();
-      data.password = await this.hashPassword(dto.password);
+
+      // SIEMPRE ignoramos dto.password -> generamos una de 4 dígitos
+      const generatedPassword = this.generate4DigitPassword();
+      data.password = await this.hashPassword(generatedPassword);
 
       const exists = await this.prisma.orientador.findUnique({
         where: { email: data.email },
       });
       if (exists) throw new ConflictException('El email ya está en uso');
 
-      return await this.prisma.orientador.create({
+      const created = await this.prisma.orientador.create({
         data,
         select: ORIENTADOR_SELECT,
       });
+
+      // Enviar al usuario creado
+      await this.mail.sendPasswordToUser({
+        to: created.email,
+        newUserName: `${created.nombre} ${created.apellido}`.trim(),
+        generatedPassword,
+      });
+
+      return created;
     } catch (e) {
       if (
         e instanceof Prisma.PrismaClientKnownRequestError &&
@@ -59,7 +80,17 @@ export class OrientadorService {
     }
   }
 
-  async findAll(params: { activo?: boolean; q?: string }) {
+  // (Opcional) listado con paginación y búsqueda como en administrativo
+  async findAll(params: {
+    page?: number;
+    limit?: number;
+    activo?: boolean;
+    q?: string;
+  }) {
+    const page = Math.max(1, Number(params.page ?? 1));
+    const limit = Math.min(100, Math.max(1, Number(params.limit ?? 10)));
+    const skip = (page - 1) * limit;
+
     const where: any = {};
     if (typeof params.activo === 'boolean') where.activo = params.activo;
     if (params.q) {
@@ -72,11 +103,18 @@ export class OrientadorService {
       ];
     }
 
-    return this.prisma.orientador.findMany({
-      where,
-      select: ORIENTADOR_SELECT,
-      orderBy: { id_orientador: 'desc' },
-    });
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.orientador.findMany({
+        where,
+        select: ORIENTADOR_SELECT,
+        skip,
+        take: limit,
+        orderBy: { id_orientador: 'desc' },
+      }),
+      this.prisma.orientador.count({ where }),
+    ]);
+
+    return { page, limit, total, pages: Math.ceil(total / limit), items };
   }
 
   async findOne(id: number) {
@@ -94,6 +132,18 @@ export class OrientadorService {
       if (data.email) data.email = data.email.trim().toLowerCase();
       if (dto.password) data.password = await this.hashPassword(dto.password);
 
+      // Verifica que el email no esté en otro registro
+      if (data.email) {
+        const other = await this.prisma.orientador.findUnique({
+          where: { email: data.email },
+        });
+        if (other && other.id_orientador !== id) {
+          throw new ConflictException(
+            'El email ya está en uso por otro usuario',
+          );
+        }
+      }
+
       return await this.prisma.orientador.update({
         where: { id_orientador: id },
         data,
@@ -108,6 +158,22 @@ export class OrientadorService {
       }
       throw new InternalServerErrorException('Error al actualizar orientador');
     }
+  }
+
+  // Perfil (self-service)
+  async updatePerfil(selfId: number, dto: UpdatePerfilOrientadorDto) {
+    const data: any = {};
+    if (dto.nombre !== undefined) data.nombre = dto.nombre;
+    if (dto.apellido !== undefined) data.apellido = dto.apellido;
+    if (dto.password) data.password = await this.hashPassword(dto.password);
+
+    if (Object.keys(data).length === 0) return this.findOne(selfId);
+
+    return this.prisma.orientador.update({
+      where: { id_orientador: selfId },
+      data,
+      select: ORIENTADOR_SELECT,
+    });
   }
 
   async softDelete(id: number) {

@@ -38,10 +38,13 @@ export class CreateAdministrativoDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ minLength: 8 })
+  @ApiPropertyOptional({
+    description:
+      'IGNORADO: la contraseña se genera automáticamente (4 dígitos).',
+  })
+  @IsOptional()
   @IsString()
-  @MinLength(8)
-  password: string;
+  password?: string;
 
   @ApiPropertyOptional()
   @IsOptional()

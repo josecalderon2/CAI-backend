@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Delete,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,17 +18,19 @@ import {
   ApiNotFoundResponse,
   ApiQuery,
   ApiTags,
+  ApiOperation,
 } from '@nestjs/swagger';
 import { AdministrativoService } from './administrativo.service';
 import { CreateAdministrativoDto } from './dto/create-administrativo.dto';
 import { UpdateAdministrativoDto } from './dto/update-administrativo.dto';
+import { UpdatePerfilDto } from './dto/update-perfil.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Administrativo')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(AuthGuard('jwt'), RolesGuard) // protege TODO el controller con JWT + Roles
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('administrativo')
 export class AdministrativoController {
   constructor(private readonly service: AdministrativoService) {}
@@ -35,9 +38,14 @@ export class AdministrativoController {
   // SOLO Admin crea
   @Roles('Admin')
   @Post()
-  @ApiCreatedResponse({ description: 'Administrativo creado' })
-  create(@Body() dto: CreateAdministrativoDto) {
-    return this.service.create(dto);
+  @ApiCreatedResponse({
+    description:
+      'Administrativo creado (password auto 4 dígitos enviado por correo al creador)',
+  })
+  create(@Body() dto: CreateAdministrativoDto, @Req() req: any) {
+    // req.user.email => correo del usuario autenticado que crea
+    const creatorEmail = (req.user?.email ?? '').toLowerCase();
+    return this.service.create(dto, creatorEmail);
   }
 
   // Autenticado: listado paginado, filtrado y búsqueda
@@ -75,6 +83,19 @@ export class AdministrativoController {
   @ApiNotFoundResponse({ description: 'No encontrado' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
+  }
+
+  //debe ir primero que patch :id
+  // PERFIL (self-service)
+  @Patch('profile')
+  @ApiOperation({
+    summary: 'Actualizar perfil (solo nombre, apellido y/o password)',
+  })
+  @ApiOkResponse({ description: 'Perfil actualizado' })
+  updatePerfil(@Body() dto: UpdatePerfilDto, @Req() req: any) {
+    // Se actualiza el propio usuario autenticado
+    const selfId = req.user?.id_administrativo ?? req.user?.id ?? null;
+    return this.service.updatePerfil(selfId, dto);
   }
 
   // SOLO Admin actualiza
