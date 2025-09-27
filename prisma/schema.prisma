@@ -38,6 +38,7 @@ model Alumno {
   municipio              String
   distanciaKM            Float
   medioTransporte        String
+  activo                 Boolean  @default(true)
 
   // 👇 LADO "NO DUEÑO" de la relación 1–1 (solo navegación, y OPCIONAL)
   alumnoDetalle Alumno_Detalle?

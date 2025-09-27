@@ -1,0 +1,247 @@
+Endpoints
+1) Crear alumno (activo por defecto)
+
+POST /alumnos
+
+Body (ejemplo completo, válido):
+
+{
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "genero": "Masculino",
+  "fechaNacimiento": "2014-03-15",
+  "nacionalidad": "Salvadoreña",
+  "telefono": "7777-8888",
+  "edad": 10,
+  "partidaNumero": "PN-123456",
+  "folio": "F-45",
+  "libro": "L-9",
+  "anioPartida": "2014",
+  "departamentoNacimiento": "San Salvador",
+  "municipioNacimiento": "San Salvador",
+  "tipoSangre": "O+",
+  "problemaFisico": "Ninguno",
+  "observacionesMedicas": "Sin observaciones",
+  "centroAsistencial": "Clínica Familiar Pérez",
+  "medicoNombre": "Dra. Ana Gómez",
+  "medicoTelefono": "2222-3333",
+  "zonaResidencia": "Urbana",
+  "direccion": "Col. Las Flores, Pasaje A #12",
+  "departamento": "San Salvador",
+  "municipio": "San Salvador",
+  "distanciaKM": 2.5,
+  "medioTransporte": "Microbús escolar",
+  "alumnoDetalle": {
+    "repiteGrado": "No",
+    "condicionado": "No",
+    "capacidadPago": true,
+    "tieneHermanos": true,
+    "detalleHermanos": { "hermanos": 2, "enMismoCentro": 1 },
+    "viveCon": "Padres",
+    "dependenciaEconomica": "Padre y madre",
+    "custodiaLegal": "Padres"
+  },
+  "responsables": [
+    {
+      "nombre": "María",
+      "apellido": "López",
+      "dui": "01234567-8",
+      "telefono": "7000-1111",
+      "email": "maria.lopez@example.com",
+      "tipo": "Madre",
+      "fechaNacimiento": "1989-06-20",
+      "departamentoNacimiento": "La Libertad",
+      "municipioNacimiento": "Santa Tecla",
+      "estadoFamiliar": "Casada",
+      "zonaResidencia": "Urbana",
+      "direccion": "Col. Las Flores, Pasaje A #12",
+      "profesion": "Contadora",
+      "ultimoGradoEstudiado": "Licenciatura",
+      "ocupacion": "Independiente",
+      "religion": "Católica",
+      "firmaFoto": true
+    },
+    {
+      "nombre": "Carlos",
+      "apellido": "Pérez",
+      "dui": "98765432-1",
+      "telefono": "7000-2222",
+      "email": "carlos.perez@example.com",
+      "tipo": "EncargadoTransporte",
+      "fechaNacimiento": "1987-02-10",
+      "departamentoNacimiento": "San Salvador",
+      "municipioNacimiento": "Mejicanos",
+      "estadoFamiliar": "Casado",
+      "zonaResidencia": "Urbana",
+      "direccion": "Col. Las Flores, Pasaje A #12",
+      "profesion": "Motorista",
+      "ultimoGradoEstudiado": "Bachillerato",
+      "ocupacion": "Empleado",
+      "religion": "Católica",
+      "firmaFoto": true
+    }
+  ]
+}
+
+
+Reglas:
+
+Máximo 1 responsable con tipo = "EncargadoTransporte".
+
+Si el parentesco (tipo) no existe, se crea automáticamente.
+
+Respuestas:
+
+201 Created → objeto Alumno (incluye alumnoDetalle y responsables)
+
+400 Bad Request → errores de validación
+
+409 Conflict → si hay reglas de negocio que no se cumplan (p.ej., más de 1 encargado de transporte)
+
+2) Listar alumnos activos (alias del listado principal)
+
+GET /alumnos
+
+GET /alumnos/activos
+
+Respuesta: 200 OK → Alumno[]
+
+3) Listar alumnos inactivos
+
+GET /alumnos/inactivos
+
+Respuesta: 200 OK → Alumno[]
+
+4) Obtener un alumno por ID
+
+GET /alumnos/:id
+
+Respuesta:
+
+200 OK → objeto Alumno
+
+404 Not Found si no existe
+
+5) Actualizar un alumno
+
+PUT /alumnos/:id
+
+Body: cualquier subset de los campos del create (los que envíes se actualizan).
+
+Notas:
+
+Si envías responsables, el backend reemplaza todos los responsables por los enviados.
+
+Puedes enviar alumnoDetalle para upsert (crea/actualiza).
+
+Respuesta:
+
+200 OK → objeto Alumno actualizado
+
+400 Bad Request / 404 Not Found
+
+6) Desactivar (soft delete)
+
+DELETE /alumnos/:id
+
+Efecto: pone activo = false.
+
+Respuesta:
+
+200 OK → objeto Alumno (ya inactivo)
+
+404 Not Found si no existe
+
+7) Activar (soft restore)
+
+PATCH /alumnos/:id/activar
+
+Efecto: pone activo = true.
+
+Respuesta:
+
+200 OK → objeto Alumno (ya activo)
+
+404 Not Found si no existe
+
+Formato de errores (NestJS)
+
+400 Bad Request (validación):
+
+{
+  "statusCode": 400,
+  "message": [
+    "nombre must be a string",
+    "fechaNacimiento must be a valid ISO 8601 date string"
+  ],
+  "error": "Bad Request"
+}
+
+
+404 Not Found:
+
+{
+  "statusCode": 404,
+  "message": "Alumno con id 123 no encontrado",
+  "error": "Not Found"
+}
+
+Reglas y tips para el Frontend
+
+Fechas: enviar como "YYYY-MM-DD" (o ISO completo).
+
+Números: distanciaKM debe ser number (no string).
+
+Opcionales: si no tienes valor, omite el campo (no mandes null).
+
+Responsables:
+
+El campo tipo (ej. "Padre", "Madre", "EncargadoTransporte") es clave; el backend crea el parentesco si no existe.
+
+Al hacer PUT, si mandas responsables, se reemplazan todos por los que envías.
+
+Activo:
+
+No necesitas mandar activo al crear: queda en true.
+
+Para desactivar: DELETE /alumnos/:id
+
+Para activar: PATCH /alumnos/:id/activar
+
+Ejemplos rápidos (fetch/axios)
+
+Crear
+
+await fetch('/alumnos', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(payload) // usar el JSON de arriba
+});
+
+
+Listar activos
+
+const res = await fetch('/alumnos');
+const data = await res.json(); // Alumno[]
+
+
+Actualizar
+
+await fetch('/alumnos/123', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    telefono: "7777-0000",
+    alumnoDetalle: { condicionado: "No" }
+  })
+});
+
+
+Desactivar
+
+await fetch('/alumnos/123', { method: 'DELETE' });
+
+
+Activar
+
+await fetch('/alumnos/123/activar', { method: 'PATCH' });

@@ -27,7 +27,11 @@ async function seedCargos() {
   return { adminId, paId, oriId };
 }
 
-async function seedUsuarios(cargos: { adminId: number; paId: number; oriId: number }) {
+async function seedUsuarios(cargos: {
+  adminId: number;
+  paId: number;
+  oriId: number;
+}) {
   const passAdmin = await bcrypt.hash('Admin123*', 10);
   const passPA = await bcrypt.hash('Pa12345*', 10);
   const passOri = await bcrypt.hash('Ori12345*', 10);
@@ -35,7 +39,11 @@ async function seedUsuarios(cargos: { adminId: number; paId: number; oriId: numb
   // ADMIN
   await prisma.administrativo.upsert({
     where: { email: 'admin@colegio.edu' },
-    update: { password: passAdmin, id_cargo_administrativo: cargos.adminId, activo: true },
+    update: {
+      password: passAdmin,
+      id_cargo_administrativo: cargos.adminId,
+      activo: true,
+    },
     create: {
       nombre: 'Ada',
       apellido: 'Admin',
@@ -49,7 +57,11 @@ async function seedUsuarios(cargos: { adminId: number; paId: number; oriId: numb
   // P.A
   await prisma.administrativo.upsert({
     where: { email: 'pa@colegio.edu' },
-    update: { password: passPA, id_cargo_administrativo: cargos.paId, activo: true },
+    update: {
+      password: passPA,
+      id_cargo_administrativo: cargos.paId,
+      activo: true,
+    },
     create: {
       nombre: 'Paola',
       apellido: 'Asist',
@@ -84,7 +96,7 @@ const PARENTESCOS_BASE = [
   'Tutor legal',
   'Otro',
 ] as const;
-type ParNombre = typeof PARENTESCOS_BASE[number];
+type ParNombre = (typeof PARENTESCOS_BASE)[number];
 
 async function seedParentescos(): Promise<Record<ParNombre, number>> {
   const out: Partial<Record<ParNombre, number>> = {};
@@ -104,7 +116,9 @@ async function seedParentescos(): Promise<Record<ParNombre, number>> {
   return out as Record<ParNombre, number>;
 }
 
-async function seedAlumnoConResponsables(parentescos: Record<ParNombre, number>) {
+async function seedAlumnoConResponsables(
+  parentescos: Record<ParNombre, number>,
+) {
   // Alumno de ejemplo (usa todos los campos requeridos de tu schema)
   const fechaNacimiento = new Date('2012-05-15');
 
@@ -142,6 +156,7 @@ async function seedAlumnoConResponsables(parentescos: Record<ParNombre, number>)
         municipio: 'Santa Ana',
         distanciaKM: 3.5,
         medioTransporte: 'Bus',
+        activo: true,
 
         firmaPadre: false,
         firmaMadre: false,

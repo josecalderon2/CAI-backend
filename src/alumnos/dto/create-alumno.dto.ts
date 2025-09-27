@@ -44,11 +44,11 @@ export class AlumnoDetalleDto {
   @IsOptional() @IsString() medicamentoPrescrito?: string;
   @IsOptional() @IsString() observaciones?: string;
 
-  // En schema: Boolean requeridos
   @IsBoolean() capacidadPago: boolean;
   @IsBoolean() tieneHermanos: boolean;
 
-  @IsOptional() detalleHermanos?: any; // Json
+  // Json
+  @IsOptional() detalleHermanos?: any;
   @IsOptional() @IsString() viveCon?: string;
   @IsOptional() @IsString() dependenciaEconomica?: string;
   @IsOptional() @IsString() custodiaLegal?: string;
@@ -56,7 +56,8 @@ export class AlumnoDetalleDto {
 
 /** ====== ALUMNO (CREATE) ====== **/
 export class CreateAlumnoDto {
-  @IsOptional() @IsString() photo_link?: string;
+  // schema: photo String?
+  @IsOptional() @IsString() photo?: string;
 
   @IsString() nombre: string;
   @IsString() apellido: string;
@@ -66,7 +67,7 @@ export class CreateAlumnoDto {
   @IsString() nacionalidad: string;
   @IsString() telefono: string;
 
-  @IsOptional() @IsInt() edad?: number;
+  @IsOptional() @Type(() => Number) @IsInt() edad?: number;
 
   @IsString() partidaNumero: string;
   @IsString() folio: string;
@@ -93,7 +94,7 @@ export class CreateAlumnoDto {
   @Type(() => Number) @IsNumber() distanciaKM: number;
   @IsString() medioTransporte: string;
 
-  // En schema tienen default(false) -> opcionales en DTO
+  // en schema default(false) → opcionales
   @IsOptional() @IsBoolean() firmaPadre?: boolean;
   @IsOptional() @IsBoolean() firmaMadre?: boolean;
   @IsOptional() @IsBoolean() firmaResponsable?: boolean;
@@ -112,7 +113,8 @@ export class CreateAlumnoDto {
 
 /** ====== ALUMNO (UPDATE) ====== **/
 export class UpdateAlumnoDto {
-  @IsOptional() @IsString() photo_link?: string;
+  // schema: photo String?
+  @IsOptional() @IsString() photo?: string;
 
   @IsOptional() @IsString() nombre?: string;
   @IsOptional() @IsString() apellido?: string;
@@ -121,7 +123,8 @@ export class UpdateAlumnoDto {
   @IsOptional() @IsDateString() fechaNacimiento?: string;
   @IsOptional() @IsString() nacionalidad?: string;
   @IsOptional() @IsString() telefono?: string;
-  @IsOptional() @IsInt() edad?: number;
+
+  @IsOptional() @Type(() => Number) @IsInt() edad?: number;
 
   @IsOptional() @IsString() partidaNumero?: string;
   @IsOptional() @IsString() folio?: string;
@@ -151,6 +154,9 @@ export class UpdateAlumnoDto {
   @IsOptional() @IsBoolean() firmaPadre?: boolean;
   @IsOptional() @IsBoolean() firmaMadre?: boolean;
   @IsOptional() @IsBoolean() firmaResponsable?: boolean;
+
+  // permitir cambiar estado desde update (opcional)
+  @IsOptional() @IsBoolean() activo?: boolean;
 
   @IsOptional()
   @ValidateNested()
