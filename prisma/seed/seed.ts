@@ -42,7 +42,10 @@ async function seedUsuarios(cargos: {
     update: {
       password: passAdmin,
       id_cargo_administrativo: cargos.adminId,
-      activo: true,
+      direccion: 'Santa Ana',
+      dui: '00000000-0',
+      telefono: '7000-0000',
+      modalidad: 'Presencial',
     },
     create: {
       nombre: 'Ada',
@@ -51,6 +54,10 @@ async function seedUsuarios(cargos: {
       password: passAdmin,
       id_cargo_administrativo: cargos.adminId,
       activo: true,
+      direccion: 'Santa Ana',
+      dui: '00000000-0',
+      telefono: '7000-0000',
+      modalidad: 'Presencial',
     },
   });
 
@@ -60,7 +67,10 @@ async function seedUsuarios(cargos: {
     update: {
       password: passPA,
       id_cargo_administrativo: cargos.paId,
-      activo: true,
+      direccion: 'Santa Ana',
+      dui: '11111111-1',
+      telefono: '7000-0001',
+      modalidad: 'Presencial',
     },
     create: {
       nombre: 'Paola',
@@ -69,18 +79,36 @@ async function seedUsuarios(cargos: {
       password: passPA,
       id_cargo_administrativo: cargos.paId,
       activo: true,
+      direccion: 'Santa Ana',
+      dui: '11111111-1',
+      telefono: '7000-0001',
+      modalidad: 'Presencial',
     },
   });
 
-  // ORIENTADOR
+  // ORIENTADOR (id_cargo_administrativo, dui, telefono y direccion obligatorios)
   await prisma.orientador.upsert({
     where: { email: 'orientador@colegio.edu' },
-    update: { password: passOri, id_cargo_administrativo: cargos.oriId },
+    update: {
+      password: passOri,
+      id_cargo_administrativo: cargos.oriId,
+      apellido: 'Gómez',
+      activo: true,
+      nombre: 'Orlando',
+      dui: '22222222-2',
+      telefono: '7000-0002',
+      direccion: 'Colonia Escalón, San Salvador',
+    },
     create: {
       nombre: 'Orlando',
+      apellido: 'Orientador',
       email: 'orientador@colegio.edu',
       password: passOri,
       id_cargo_administrativo: cargos.oriId,
+      activo: true,
+      dui: '22222222-2',
+      telefono: '7000-0002',
+      direccion: 'Colonia Escalón, San Salvador',
     },
   });
 

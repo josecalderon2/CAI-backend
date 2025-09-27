@@ -1,4 +1,3 @@
-// auth/auth.service.ts
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -10,7 +9,7 @@ const ALLOWED_ROLES: Role[] = ['Admin', 'P.A', 'Orientador'];
 
 function mapCargoToRole(nombre?: string | null): Role {
   const n = (nombre ?? '').trim();
-  // Normalizamos simples
+  // Normalizamos nombres comunes a nuestros roles
   if (n.toLowerCase() === 'admin') return 'Admin';
   if (n.toLowerCase() === 'p.a' || n.toLowerCase() === 'pa') return 'P.A';
   if (n.toLowerCase() === 'orientador') return 'Orientador';
@@ -24,7 +23,9 @@ export class AuthService {
     private jwt: JwtService,
   ) {}
 
-  private async findUserByEmail(email: string): Promise<
+  private async findUserByEmail(
+    email: string,
+  ): Promise<
     | { origen: 'ADMINISTRATIVO'; record: any; role: Role }
     | { origen: 'ORIENTADOR'; record: any; role: Role }
     | null
@@ -65,6 +66,15 @@ export class AuthService {
     const { origen, record, role } = hit;
     const ok = await bcrypt.compare(dto.password, record.password);
     if (!ok) throw new UnauthorizedException('Credenciales inválidas');
+    // debe estar activo
+    if (record.activo === false) {
+      // Mensaje específico por tipo de cuenta
+      const mensaje =
+        origen === 'ADMINISTRATIVO'
+          ? 'Cuenta administrativa desactivada. Contacte al administrador.'
+          : 'Cuenta de orientador desactivada. Contacte al administrador.';
+      throw new UnauthorizedException(mensaje);
+    }
 
     const nombre =
       (record.nombre ?? '').toString().trim() ||
@@ -73,7 +83,10 @@ export class AuthService {
 
     return {
       tipo: origen,
-      id: origen === 'ADMINISTRATIVO' ? record.id_administrativo : record.id_orientador,
+      id:
+        origen === 'ADMINISTRATIVO'
+          ? record.id_administrativo
+          : record.id_orientador,
       email: record.email,
       nombre,
       role,
@@ -83,7 +96,7 @@ export class AuthService {
   async signToken(user: AuthUser) {
     const payload = {
       sub: `${user.tipo}:${user.id}`,
-      ...user, // tipo, id, email, nombre, role
+      ...user,
     };
     return {
       access_token: await this.jwt.signAsync(payload, {

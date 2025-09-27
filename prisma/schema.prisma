@@ -177,10 +177,10 @@ model Tipo_Asignatura {
 }
 
 model Sistema_Evaluacion {
-  id_sistema_evaluacion Int          @id @default(autoincrement())
-  nombre                String
-  etapas                Int?
-  asignaturas           Asignatura[]
+  id_sistema_evaluacion Int       @id @default(autoincrement())
+  nombre            String
+  etapas            Int
+  asignaturas       Asignatura[]
 }
 
 model Notas {
@@ -215,18 +215,18 @@ model Tipo_actividad {
 model Administrativo {
   id_administrativo       Int                   @id @default(autoincrement())
   id_cargo_administrativo Int?
-  nombre                  String
-  apellido                String
-  direccion               String?
-  dui                     String?
-  telefono                String?
-  email                   String                @unique
-  password                String
-  activo                  Boolean               @default(true)
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
-  modalidad               String?
-  cargoAdministrativo     Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
+  nombre            String
+  apellido          String
+  direccion         String
+  dui               String
+  telefono          String
+  email             String   @unique
+  password          String
+  activo            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  modalidad         String
+  cargoAdministrativo Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
 
   @@map("administrativos")
 }
@@ -239,16 +239,22 @@ model Cargo_administrativo {
 }
 
 model Orientador {
-  id_orientador           Int                          @id @default(autoincrement())
-  nombre                  String
-  dui                     String?
-  telefono                String?
-  email                   String                       @unique
-  password                String
-  id_cargo_administrativo Int?
-  cargoAdministrativo     Cargo_administrativo?        @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
-  cursos                  Curso[]
-  historialCurso          Historial_curso_orientador[]
+  id_orientador          Int           @id @default(autoincrement())
+  nombre                 String
+  apellido               String        
+  dui                    String
+  direccion              String
+  telefono               String
+  email                  String   @unique  
+  password               String   
+  id_cargo_administrativo Int
+  cargoAdministrativo    Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
+  cursos                 Curso[]
+  historialCurso         Historial_curso_orientador[]
+  activo                 Boolean  @default(true) 
 
   @@map("orientadores")
 }
+
+
+
