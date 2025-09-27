@@ -8,161 +8,134 @@ import {
   IsArray,
   IsNumber,
   IsEmail,
+  Matches,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /** ====== RELACIONES ====== **/
 export class ResponsableDto {
-  @IsString() nombre: string;
-  @IsString() apellido: string;
+  @ApiProperty() @IsString() nombre: string;
+  @ApiProperty() @IsString() apellido: string;
 
-  @IsString() dui: string;
-  @IsString() telefono: string;
-  @IsEmail() email: string;
+  @ApiProperty({ example: '01234567-8' })
+  @Matches(/^\d{8}-\d$/, { message: 'Formato de DUI inválido' })
+  dui: string;
 
-  // "Padre" | "Madre" | "Responsable" | "EncargadoTransporte"
-  @IsString() tipo: string;
+  @ApiProperty({ example: '77777777' })
+  @Matches(/^\d{8}$/, { message: 'Teléfono debe tener 8 dígitos' })
+  telefono: string;
 
-  @IsDateString() fechaNacimiento: string;
-  @IsString() departamentoNacimiento: string;
-  @IsString() municipioNacimiento: string;
-  @IsString() estadoFamiliar: string;
-  @IsString() zonaResidencia: string;
-  @IsString() direccion: string;
-  @IsString() profesion: string;
-  @IsString() ultimoGradoEstudiado: string;
-  @IsString() ocupacion: string;
-  @IsString() religion: string;
-  @IsBoolean() firmaFoto: boolean;
+  @ApiProperty() @IsEmail() email: string;
+
+  @ApiProperty({
+    enum: ['Padre', 'Madre', 'Responsable', 'EncargadoTransporte'],
+  })
+  @IsString()
+  tipo: string;
+
+  @ApiProperty() @IsDateString() fechaNacimiento: string;
+  @ApiProperty() @IsString() departamentoNacimiento: string;
+  @ApiProperty() @IsString() municipioNacimiento: string;
+  @ApiProperty() @IsString() estadoFamiliar: string;
+  @ApiProperty() @IsString() zonaResidencia: string;
+  @ApiProperty() @IsString() direccion: string;
+  @ApiProperty() @IsString() profesion: string;
+  @ApiProperty() @IsString() ultimoGradoEstudiado: string;
+  @ApiProperty() @IsString() ocupacion: string;
+  @ApiProperty() @IsString() religion: string;
+
+  @ApiProperty() @IsBoolean() firmaFoto: boolean;
 }
 
 export class AlumnoDetalleDto {
-  @IsString() repiteGrado: string;
-  @IsString() condicionado: string;
+  @ApiProperty() @IsString() repiteGrado: string;
+  @ApiProperty() @IsString() condicionado: string;
 
-  @IsOptional() @IsString() enfermedades?: string;
-  @IsOptional() @IsString() medicamentoPrescrito?: string;
-  @IsOptional() @IsString() observaciones?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() enfermedades?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  medicamentoPrescrito?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() observaciones?: string;
 
-  @IsBoolean() capacidadPago: boolean;
-  @IsBoolean() tieneHermanos: boolean;
+  @ApiProperty() @IsBoolean() capacidadPago: boolean;
+  @ApiProperty() @IsBoolean() tieneHermanos: boolean;
 
-  // Json
-  @IsOptional() detalleHermanos?: any;
-  @IsOptional() @IsString() viveCon?: string;
-  @IsOptional() @IsString() dependenciaEconomica?: string;
-  @IsOptional() @IsString() custodiaLegal?: string;
+  @ApiPropertyOptional({ description: 'Detalle en formato JSON' })
+  @IsOptional()
+  detalleHermanos?: any;
+
+  @ApiPropertyOptional() @IsOptional() @IsString() viveCon?: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  dependenciaEconomica?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() custodiaLegal?: string;
 }
 
 /** ====== ALUMNO (CREATE) ====== **/
 export class CreateAlumnoDto {
-  // schema: photo String?
-  @IsOptional() @IsString() photo?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() photo?: string;
 
-  @IsString() nombre: string;
-  @IsString() apellido: string;
+  @ApiProperty() @IsString() nombre: string;
+  @ApiProperty() @IsString() apellido: string;
 
-  @IsString() genero: string;
-  @IsDateString() fechaNacimiento: string;
-  @IsString() nacionalidad: string;
-  @IsString() telefono: string;
+  @ApiProperty() @IsString() genero: string;
+  @ApiProperty() @IsDateString() fechaNacimiento: string;
+  @ApiProperty() @IsString() nacionalidad: string;
 
-  @IsOptional() @Type(() => Number) @IsInt() edad?: number;
+  @ApiProperty()
+  @Matches(/^\d{8}$/, { message: 'Teléfono debe tener 8 dígitos' })
+  telefono: string;
 
-  @IsString() partidaNumero: string;
-  @IsString() folio: string;
-  @IsString() libro: string;
-  @IsString() anioPartida: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  edad?: number;
 
-  @IsString() departamentoNacimiento: string;
-  @IsString() municipioNacimiento: string;
+  @ApiProperty() @IsString() partidaNumero: string;
+  @ApiProperty() @IsString() folio: string;
+  @ApiProperty() @IsString() libro: string;
+  @ApiProperty() @IsString() anioPartida: string;
 
-  @IsString() tipoSangre: string;
-  @IsString() problemaFisico: string;
-  @IsString() observacionesMedicas: string;
+  @ApiProperty() @IsString() departamentoNacimiento: string;
+  @ApiProperty() @IsString() municipioNacimiento: string;
 
-  @IsString() centroAsistencial: string;
-  @IsString() medicoNombre: string;
-  @IsString() medicoTelefono: string;
+  @ApiProperty() @IsString() tipoSangre: string;
+  @ApiProperty() @IsString() problemaFisico: string;
+  @ApiProperty() @IsString() observacionesMedicas: string;
 
-  @IsString() zonaResidencia: string;
-  @IsString() direccion: string;
+  @ApiProperty() @IsString() centroAsistencial: string;
+  @ApiProperty() @IsString() medicoNombre: string;
 
-  @IsString() departamento: string;
-  @IsString() municipio: string;
+  @ApiProperty({ example: '77777777' })
+  @Matches(/^\d{8}$/, { message: 'Teléfono debe tener 8 dígitos' })
+  medicoTelefono: string;
 
-  @Type(() => Number) @IsNumber() distanciaKM: number;
-  @IsString() medioTransporte: string;
+  @ApiProperty() @IsString() zonaResidencia: string;
+  @ApiProperty() @IsString() direccion: string;
 
-  // en schema default(false) → opcionales
-  @IsOptional() @IsBoolean() firmaPadre?: boolean;
-  @IsOptional() @IsBoolean() firmaMadre?: boolean;
-  @IsOptional() @IsBoolean() firmaResponsable?: boolean;
+  @ApiProperty() @IsString() departamento: string;
+  @ApiProperty() @IsString() municipio: string;
 
+  @ApiProperty() @Type(() => Number) @IsNumber() distanciaKM: number;
+  @ApiProperty() @IsString() medioTransporte: string;
+
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() firmaPadre?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() firmaMadre?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() firmaResponsable?: boolean;
+
+  @ApiPropertyOptional({ type: () => AlumnoDetalleDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => AlumnoDetalleDto)
   alumnoDetalle?: AlumnoDetalleDto;
 
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ResponsableDto)
-  responsables?: ResponsableDto[];
-}
-
-/** ====== ALUMNO (UPDATE) ====== **/
-export class UpdateAlumnoDto {
-  // schema: photo String?
-  @IsOptional() @IsString() photo?: string;
-
-  @IsOptional() @IsString() nombre?: string;
-  @IsOptional() @IsString() apellido?: string;
-
-  @IsOptional() @IsString() genero?: string;
-  @IsOptional() @IsDateString() fechaNacimiento?: string;
-  @IsOptional() @IsString() nacionalidad?: string;
-  @IsOptional() @IsString() telefono?: string;
-
-  @IsOptional() @Type(() => Number) @IsInt() edad?: number;
-
-  @IsOptional() @IsString() partidaNumero?: string;
-  @IsOptional() @IsString() folio?: string;
-  @IsOptional() @IsString() libro?: string;
-  @IsOptional() @IsString() anioPartida?: string;
-
-  @IsOptional() @IsString() departamentoNacimiento?: string;
-  @IsOptional() @IsString() municipioNacimiento?: string;
-
-  @IsOptional() @IsString() tipoSangre?: string;
-  @IsOptional() @IsString() problemaFisico?: string;
-  @IsOptional() @IsString() observacionesMedicas?: string;
-
-  @IsOptional() @IsString() centroAsistencial?: string;
-  @IsOptional() @IsString() medicoNombre?: string;
-  @IsOptional() @IsString() medicoTelefono?: string;
-
-  @IsOptional() @IsString() zonaResidencia?: string;
-  @IsOptional() @IsString() direccion?: string;
-
-  @IsOptional() @IsString() departamento?: string;
-  @IsOptional() @IsString() municipio?: string;
-
-  @IsOptional() @Type(() => Number) @IsNumber() distanciaKM?: number;
-  @IsOptional() @IsString() medioTransporte?: string;
-
-  @IsOptional() @IsBoolean() firmaPadre?: boolean;
-  @IsOptional() @IsBoolean() firmaMadre?: boolean;
-  @IsOptional() @IsBoolean() firmaResponsable?: boolean;
-
-  // permitir cambiar estado desde update (opcional)
-  @IsOptional() @IsBoolean() activo?: boolean;
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => AlumnoDetalleDto)
-  alumnoDetalle?: AlumnoDetalleDto;
-
+  @ApiPropertyOptional({ type: () => [ResponsableDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
