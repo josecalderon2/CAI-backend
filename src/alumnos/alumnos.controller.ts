@@ -50,7 +50,7 @@ export class AlumnosController {
     return this.alumnosService.findAllInactive();
   }
 
-  @Roles('Admin', 'P.A')
+  @Roles('Admin', 'P.A', 'Orientador')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.alumnosService.findOne(id);
