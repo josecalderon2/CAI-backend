@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AdministrativoModule } from './administrativo/administrativo.module';
@@ -7,7 +8,12 @@ import { OrientadorModule } from './orientador/orientador.module';
 import { MailModule } from './mail/mail.module';
 
 @Module({
-  imports: [AdministrativoModule, AuthModule, OrientadorModule, MailModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    AdministrativoModule,
+    AuthModule,
+    OrientadorModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
