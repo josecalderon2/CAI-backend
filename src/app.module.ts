@@ -7,6 +7,7 @@ import { OrientadorModule } from './orientador/orientador.module';
 import { MailModule } from './mail/mail.module';
 import { AlumnosModule } from './alumnos/alumnos.module';
 import { ResponsablesModule } from './responsables/responsables.module';
+import { ParentescoModule } from './parentesco/parentesco.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ResponsablesModule } from './responsables/responsables.module';
     MailModule,
     AlumnosModule,
     ResponsablesModule,
+    ParentescoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

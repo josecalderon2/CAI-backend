@@ -275,7 +275,7 @@ export class AlumnosService {
             firma: responsableDto.firma,
             permiteTraslado: responsableDto.permiteTraslado,
             puedeRetirarAlumno: responsableDto.puedeRetirarAlumno,
-            // El campo contactoEmergencia se maneja en una migración posterior
+            contactoEmergencia: responsableDto.contactoEmergencia,
           },
           include: {
             responsable: true,
@@ -457,7 +457,7 @@ export class AlumnosService {
           firma: resp.firma || false,
           permiteTraslado: resp.permiteTraslado || false,
           puedeRetirarAlumno: resp.puedeRetirarAlumno || false,
-          // El campo contactoEmergencia se maneja en una migración posterior
+          contactoEmergencia: resp.contactoEmergencia || false,
         },
         include: {
           responsable: true,
