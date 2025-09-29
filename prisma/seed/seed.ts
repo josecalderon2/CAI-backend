@@ -46,7 +46,6 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '00000000-0',
       telefono: '7000-0000',
-      modalidad: 'Presencial',
     },
     create: {
       nombre: 'Ada',
@@ -58,7 +57,6 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '00000000-0',
       telefono: '7000-0000',
-      modalidad: 'Presencial',
     },
   });
 
@@ -71,7 +69,7 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '11111111-1',
       telefono: '7000-0001',
-      modalidad: 'Presencial',
+      
     },
     create: {
       nombre: 'Paola',
@@ -83,7 +81,6 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '11111111-1',
       telefono: '7000-0001',
-      modalidad: 'Presencial',
     },
   });
 

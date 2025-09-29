@@ -8,11 +8,13 @@ import { MailModule } from './mail/mail.module';
 import { AlumnosModule } from './alumnos/alumnos.module';
 import { ResponsablesModule } from './responsables/responsables.module';
 import { ParentescoModule } from './parentesco/parentesco.module';
+import { CargoAdministrativoModule } from './cargo-administrativo/cargo-administrativo.module';
 
 @Module({
   imports: [
     AdministrativoModule,
     AuthModule,
+    CargoAdministrativoModule,
     OrientadorModule,
     MailModule,
     AlumnosModule,
