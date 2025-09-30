@@ -1,21 +1,21 @@
-import { PrismaClient } from '@prisma/client';
+// prisma/seed/seed.ts
+import { PrismaClient, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function getOrCreateCargo(nombre: 'Admin' | 'P.A' | 'Orientador') {
-  const existing = await prisma.cargo_administrativo.findFirst({
+  // Si nombre NO es unique en DB, usamos findFirst+create. Si lo es, upsert con where:nombre.
+  const up = await prisma.cargo_administrativo.findFirst({
     where: { nombre },
     select: { id_cargo_administrativo: true },
   });
-
-  if (existing) return existing.id_cargo_administrativo;
+  if (up) return up.id_cargo_administrativo;
 
   const created = await prisma.cargo_administrativo.create({
     data: { nombre },
     select: { id_cargo_administrativo: true },
   });
-
   return created.id_cargo_administrativo;
 }
 
@@ -23,7 +23,6 @@ async function seedCargos() {
   const adminId = await getOrCreateCargo('Admin');
   const paId = await getOrCreateCargo('P.A');
   const oriId = await getOrCreateCargo('Orientador');
-
   console.log('Cargos OK:', { adminId, paId, oriId });
   return { adminId, paId, oriId };
 }
@@ -316,6 +315,10 @@ async function seedAlumnoEjemplo() {
 }
 
 async function main() {
+  console.log('DATABASE_URL:', process.env.DATABASE_URL);
+  await prisma.$connect();
+  console.log('Conectado a la BD ✅');
+
   const cargos = await seedCargos();
   await seedUsuarios(cargos);
   await seedParentescos();
@@ -324,9 +327,7 @@ async function main() {
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
+  .then(async () => prisma.$disconnect())
   .catch(async (e) => {
     console.error('Error en seed:', e);
     await prisma.$disconnect();
