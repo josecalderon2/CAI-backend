@@ -18,6 +18,7 @@ const ORIENTADOR_SELECT = {
   apellido: true,
   dui: true,
   telefono: true,
+  direccion: true,
   email: true,
   activo: true,
   id_cargo_administrativo: true,
