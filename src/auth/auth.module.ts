@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { RolesGuard } from './roles.guard';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ActividadesRecientesModule } from '../actividades-recientes/actividades-recientes.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { PrismaService } from '../../prisma/prisma.service';
       secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '8h' },
     }),
+    ActividadesRecientesModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, RolesGuard, PrismaService],

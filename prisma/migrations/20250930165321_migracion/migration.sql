@@ -250,8 +250,23 @@ CREATE TABLE "public"."orientadores" (
     "password" TEXT NOT NULL,
     "id_cargo_administrativo" INTEGER NOT NULL,
     "activo" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "orientadores_pkey" PRIMARY KEY ("id_orientador")
+);
+
+-- CreateTable
+CREATE TABLE "public"."actividades_recientes" (
+    "id_actividad" SERIAL NOT NULL,
+    "descripcion" TEXT NOT NULL,
+    "tipo" TEXT NOT NULL,
+    "fecha" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "entidad" TEXT,
+    "entidad_id" INTEGER,
+    "usuario" TEXT,
+
+    CONSTRAINT "actividades_recientes_pkey" PRIMARY KEY ("id_actividad")
 );
 
 -- CreateTable
@@ -291,6 +306,9 @@ CREATE UNIQUE INDEX "orientadores_dui_key" ON "public"."orientadores"("dui");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "orientadores_email_key" ON "public"."orientadores"("email");
+
+-- CreateIndex
+CREATE INDEX "actividades_recientes_fecha_idx" ON "public"."actividades_recientes"("fecha");
 
 -- CreateIndex
 CREATE INDEX "_AlumnoCurso_B_index" ON "public"."_AlumnoCurso"("B");

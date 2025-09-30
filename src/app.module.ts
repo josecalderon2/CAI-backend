@@ -9,6 +9,8 @@ import { AlumnosModule } from './alumnos/alumnos.module';
 import { ResponsablesModule } from './responsables/responsables.module';
 import { ParentescoModule } from './parentesco/parentesco.module';
 import { CargoAdministrativoModule } from './cargo-administrativo/cargo-administrativo.module';
+import { EstadisticasModule } from './estadisticas/estadisticas.module';
+import { ActividadesRecientesModule } from './actividades-recientes/actividades-recientes.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { CargoAdministrativoModule } from './cargo-administrativo/cargo-administ
     AlumnosModule,
     ResponsablesModule,
     ParentescoModule,
+    EstadisticasModule,
+    ActividadesRecientesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

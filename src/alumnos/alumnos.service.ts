@@ -11,12 +11,14 @@ import {
   UpdateAlumnoDto,
 } from './dto';
 import { ResponsablesService } from '../responsables/responsables.service';
+import { ActividadRegistroService } from '../actividades-recientes/actividad-registro.service';
 
 @Injectable()
 export class AlumnosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly responsablesService: ResponsablesService,
+    private readonly actividadRegistroService: ActividadRegistroService,
   ) {}
 
   /**
@@ -48,6 +50,13 @@ export class AlumnosService {
       if (responsables && responsables.length > 0) {
         await this.procesarResponsables(alumno.id_alumno, responsables, prisma);
       }
+
+      // 4. Registrar la actividad
+      const nombreCompleto = `${alumno.nombre} ${alumno.apellido}`;
+      await this.actividadRegistroService.registrarCreacionAlumno(
+        alumno.id_alumno,
+        nombreCompleto,
+      );
 
       // 4. Retornar alumno completo con relaciones
       try {
