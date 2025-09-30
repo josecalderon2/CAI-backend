@@ -110,17 +110,27 @@ export class OrientadorService {
     const limit = Math.min(100, Math.max(1, Number(params.limit ?? 10)));
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (typeof params.activo === 'boolean') where.activo = params.activo;
-    if (params.q) {
-      where.OR = [
-        { nombre: { contains: params.q, mode: 'insensitive' } },
-        { apellido: { contains: params.q, mode: 'insensitive' } },
-        { email: { contains: params.q, mode: 'insensitive' } },
-        { telefono: { contains: params.q, mode: 'insensitive' } },
-        { dui: { contains: params.q, mode: 'insensitive' } },
-      ];
-    }
+  const where: any = {};
+if (typeof params.activo === 'boolean') where.activo = params.activo;
+
+
+if (params.q) {
+  // 1. Dividimos el término de búsqueda en palabras individuales y eliminamos espacios vacíos.
+  const searchTerms = params.q.split(' ').filter(term => term.trim() !== '');
+
+  // 2. Usamos 'AND' para asegurar que el resultado coincida con TODAS las palabras.
+  where.AND = searchTerms.map(term => ({
+    // 3. Usamos 'OR' para que cada palabra pueda estar en CUALQUIERA de estos campos.
+    OR: [
+      { nombre: { contains: term, mode: 'insensitive' } },
+      { apellido: { contains: term, mode: 'insensitive' } },
+      { email: { contains: term, mode: 'insensitive' } },
+      // Puedes mantener dui y telefono si quieres que la búsqueda sea aún más amplia
+      { dui: { contains: term, mode: 'insensitive' } },
+      { telefono: { contains: term, mode: 'insensitive' } },
+    ],
+  }));
+}
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.orientador.findMany({
