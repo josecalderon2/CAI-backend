@@ -115,13 +115,17 @@ export class AdministrativoService {
     const where: any = {};
     if (typeof params.activo === 'boolean') where.activo = params.activo;
     if (params.q) {
-      where.OR = [
-        { nombre: { contains: params.q, mode: 'insensitive' } },
-        { apellido: { contains: params.q, mode: 'insensitive' } },
-        { email: { contains: params.q, mode: 'insensitive' } },
-        { telefono: { contains: params.q, mode: 'insensitive' } },
-        { dui: { contains: params.q, mode: 'insensitive' } },
-      ];
+      const searchTerms = params.q.split(' ').filter(term => term.trim() !== '');
+where.OR = searchTerms.map(term => ({
+
+      OR : [
+        { nombre: { contains: term, mode: 'insensitive' } },
+        { apellido: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { telefono: { contains: term, mode: 'insensitive' } },
+        { dui: { contains: term, mode: 'insensitive' } },
+      ],
+      }));
     }
 
     const [items, total] = await this.prisma.$transaction([
