@@ -12,12 +12,6 @@ import { ParentescoModule } from './parentesco/parentesco.module';
 
 @Module({
   imports: [
-<<<<<<< HEAD
-    ConfigModule.forRoot({ isGlobal: true }),
-    AdministrativoModule,
-    AuthModule,
-    OrientadorModule,
-=======
     AdministrativoModule,
     AuthModule,
     OrientadorModule,
@@ -25,7 +19,6 @@ import { ParentescoModule } from './parentesco/parentesco.module';
     AlumnosModule,
     ResponsablesModule,
     ParentescoModule,
->>>>>>> Carlos
   ],
   controllers: [AppController],
   providers: [AppService],
