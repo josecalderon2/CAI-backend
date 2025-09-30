@@ -18,7 +18,6 @@ const ADMIN_SELECT = {
   telefono: true,
   email: true,
   activo: true,
-  modalidad: true,
   createdAt: true,
   updatedAt: true,
   cargoAdministrativo: {

@@ -73,13 +73,7 @@ export class CreateAdministrativoDto {
   @IsString()
   password?: string;
 
-  @ApiPropertyOptional({
-    example: 'Presencial',
-    description: 'Modalidad de trabajo',
-  })
-  @IsOptional()
-  @IsString()
-  modalidad?: string;
+ 
 
   @ApiProperty({ example: 1, description: 'ID del cargo administrativo' })
   @Type(() => Number)
