@@ -18,7 +18,6 @@ const ADMIN_SELECT = {
   telefono: true,
   email: true,
   activo: true,
-  modalidad: true,
   createdAt: true,
   updatedAt: true,
   cargoAdministrativo: {
@@ -44,50 +43,64 @@ export class AdministrativoService {
   }
 
   async create(dto: CreateAdministrativoDto, creatorEmail: string) {
-    try {
-      const data: any = { ...dto };
-      if (data.email) data.email = data.email.trim().toLowerCase();
+  try {
+    const data: any = { ...dto };
+    if (data.email) data.email = data.email.trim().toLowerCase();
 
-      // Siempre ignoramos dto.password y generamos una de 4 dígitos
-      const generatedPassword = this.generate4DigitPassword();
-      data.password = await this.hashPassword(generatedPassword);
+    // Siempre ignoramos dto.password y generamos una de 4 dígitos
+    const generatedPassword = this.generate4DigitPassword();
+    data.password = await this.hashPassword(generatedPassword);
 
-      // Pre-chequeo de unicidad de email
-      if (data.email) {
-        const exists = await this.prisma.administrativo.findUnique({
-          where: { email: data.email },
-        });
-        if (exists) throw new ConflictException('El email ya está en uso');
-      }
-
-      const created = await this.prisma.administrativo.create({
-        data,
-        select: ADMIN_SELECT,
+    // Pre-chequeo de unicidad de email
+    if (data.email) {
+      const exists = await this.prisma.administrativo.findUnique({
+        where: { email: data.email },
       });
-
-      // Enviar correo al usuario
-      await this.mail.sendPasswordToUser({
-        to: created.email,
-        newUserName: `${created.nombre} ${created.apellido}`.trim(),
-        generatedPassword,
-      });
-
-      return created;
-    } catch (e) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
-        if (
-          Array.isArray((e.meta as any)?.target) &&
-          (e.meta as any).target.includes('email')
-        ) {
-          throw new ConflictException('El email ya está en uso');
-        }
-      }
-      throw e;
+      if (exists) throw new ConflictException('El email ya está en uso');
     }
+
+    // --- AÑADIDO: Verificación para DUI ---
+    if (data.dui) {
+      const exists = await this.prisma.administrativo.findUnique({
+        where: { dui: data.dui },
+      });
+      if (exists) throw new ConflictException('El DUI ya está en uso');
+    }
+    // --- FIN DE LA ADICIÓN ---
+
+    const created = await this.prisma.administrativo.create({
+      data,
+      select: ADMIN_SELECT,
+    });
+
+    // Enviar correo al usuario
+    await this.mail.sendPasswordToUser({
+      to: created.email,
+      newUserName: `${created.nombre} ${created.apellido}`.trim(),
+      generatedPassword,
+    });
+
+    return created;
+  } catch (e) {
+    // --- REEMPLAZADO: Bloque catch mejorado ---
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      // P2002 es el código de error de Prisma para una violación de restricción única.
+      const field = (e.meta as any)?.target?.[0]; // Obtiene el nombre del campo que falló
+      
+      if (field === 'email') {
+        throw new ConflictException('El correo electrónico ya está en uso');
+      } else if (field === 'dui') {
+        throw new ConflictException('El DUI ya está en uso');
+      } else {
+        // Un mensaje genérico si es otro campo único
+        throw new ConflictException(`El campo '${field}' ya tiene un valor registrado`);
+      }
+    }
+    // Re-lanza cualquier otro tipo de error
+    throw e;
+    // --- FIN DEL REEMPLAZO ---
   }
+}
 
   async findAll(params: {
     page?: number;
@@ -102,13 +115,17 @@ export class AdministrativoService {
     const where: any = {};
     if (typeof params.activo === 'boolean') where.activo = params.activo;
     if (params.q) {
-      where.OR = [
-        { nombre: { contains: params.q, mode: 'insensitive' } },
-        { apellido: { contains: params.q, mode: 'insensitive' } },
-        { email: { contains: params.q, mode: 'insensitive' } },
-        { telefono: { contains: params.q, mode: 'insensitive' } },
-        { dui: { contains: params.q, mode: 'insensitive' } },
-      ];
+      const searchTerms = params.q.split(' ').filter(term => term.trim() !== '');
+where.OR = searchTerms.map(term => ({
+
+      OR : [
+        { nombre: { contains: term, mode: 'insensitive' } },
+        { apellido: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+        { telefono: { contains: term, mode: 'insensitive' } },
+        { dui: { contains: term, mode: 'insensitive' } },
+      ],
+      }));
     }
 
     const [items, total] = await this.prisma.$transaction([
@@ -145,7 +162,7 @@ export class AdministrativoService {
       const data: any = { ...dto };
 
       if (data.email) data.email = data.email.trim().toLowerCase();
-      if (dto.password) data.password = await this.hashPassword(dto.password);
+      
 
       if (data.email) {
         const other = await this.prisma.administrativo.findUnique({

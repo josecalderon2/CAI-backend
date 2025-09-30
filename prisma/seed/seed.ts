@@ -45,7 +45,6 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '00000000-0',
       telefono: '7000-0000',
-      modalidad: 'Presencial',
     },
     create: {
       nombre: 'Ada',
@@ -57,7 +56,6 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '00000000-0',
       telefono: '7000-0000',
-      modalidad: 'Presencial',
     },
   });
 
@@ -70,7 +68,7 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '11111111-1',
       telefono: '7000-0001',
-      modalidad: 'Presencial',
+      
     },
     create: {
       nombre: 'Paola',
@@ -82,7 +80,6 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '11111111-1',
       telefono: '7000-0001',
-      modalidad: 'Presencial',
     },
   });
 
@@ -115,176 +112,206 @@ async function seedUsuarios(cargos: {
   console.log('Usuarios OK (Admin, P.A, Orientador)');
 }
 
-const PARENTESCOS_BASE = [
-  'Padre',
-  'Madre',
-  'Hermano/a',
-  'Abuelo/a',
-  'Tío/a',
-  'Tutor legal',
-  'Otro',
-] as const;
-type ParNombre = (typeof PARENTESCOS_BASE)[number];
+async function seedParentescos() {
+  // Crear tipos de parentescos comunes
+  const parentescos = [
+    'Padre',
+    'Madre',
+    'Abuelo/a',
+    'Tío/a',
+    'Hermano/a',
+    'Tutor legal',
+    'Responsable de transporte',
+    'Contacto de emergencia',
+  ];
 
-async function seedParentescos(): Promise<Record<ParNombre, number>> {
-  const out: Partial<Record<ParNombre, number>> = {};
-
-  for (const nombre of PARENTESCOS_BASE) {
-    // nombre es @unique en tu schema → upsert directo por nombre
-    const up = await prisma.parentesco.upsert({
-      where: { nombre } as Prisma.ParentescoWhereUniqueInput,
+  for (const nombre of parentescos) {
+    await prisma.parentesco.upsert({
+      where: { nombre },
       update: {},
       create: { nombre },
-      select: { id_parentesco: true },
     });
-    out[nombre] = up.id_parentesco;
   }
 
-  console.log('Parentescos OK:', out);
-  return out as Record<ParNombre, number>;
+  console.log('Parentescos OK');
 }
 
-async function seedAlumnoConResponsables(
-  parentescos: Record<ParNombre, number>,
-) {
-  // Alumno de ejemplo (usa todos los campos requeridos de tu schema)
-  const fechaNacimiento = new Date('2012-05-15');
+async function seedTipoActividades() {
+  // Crear tipos de actividades para evaluaciones
+  const tipos = [
+    'Examen parcial',
+    'Examen final',
+    'Laboratorio',
+    'Tarea',
+    'Proyecto',
+    'Participación',
+  ];
 
-  let alumno = await prisma.alumno.findFirst({
-    where: { nombre: 'Carlos', apellido: 'Pérez', fechaNacimiento },
-    select: { id_alumno: true },
+  for (const nombre of tipos) {
+    // Buscar primero si existe
+    const existente = await prisma.tipo_actividad.findFirst({
+      where: { nombre },
+    });
+
+    // Si no existe, crearlo
+    if (!existente) {
+      await prisma.tipo_actividad.create({
+        data: { nombre },
+      });
+    }
+  }
+
+  console.log('Tipos de actividad OK');
+}
+
+async function seedAlumnoEjemplo() {
+  // 1. Crear responsables del alumno
+  const responsablePadre = await prisma.responsable.upsert({
+    where: { dui: '01234567-8' },
+    update: {},
+    create: {
+      nombre: 'Ronald Antonio',
+      apellido: 'Acosta Flores',
+      dui: '01234567-8',
+      telefono: '7986-9463',
+      email: 'ronald.acosta@ejemplo.com',
+      direccion: 'Prado Real calle A casa 15, Santa Ana',
+      lugarTrabajo: 'Empresa ABC',
+      profesionOficio: 'Ingeniero',
+      ultimoGradoEstudiado: 'Universidad',
+      ocupacion: 'Gerente de proyectos',
+      religion: 'Católica',
+      zonaResidencia: 'Urbana',
+      estadoFamiliar: 'Casado',
+    },
   });
 
-  if (!alumno) {
-    alumno = await prisma.alumno.create({
-      data: {
-        photo: null,
-        nombre: 'Carlos',
-        apellido: 'Pérez',
-        genero: 'Masculino',
-        fechaNacimiento,
-        nacionalidad: 'Salvadoreña',
-        telefono: '7000-0001',
-        edad: 12, // opcional
-        partidaNumero: '123456',
-        folio: '45',
-        libro: 'A-12',
-        anioPartida: '2012',
-        departamentoNacimiento: 'Santa Ana',
-        municipioNacimiento: 'Santa Ana',
-        tipoSangre: 'O+',
-        problemaFisico: 'Ninguno',
-        observacionesMedicas: 'N/A',
-        centroAsistencial: 'Unidad de Salud Santa Ana',
-        medicoNombre: 'Dra. López',
-        medicoTelefono: '2222-1111',
-        zonaResidencia: 'Urbana',
-        direccion: 'Col. Las Magnolias, #123',
-        departamento: 'Santa Ana',
-        municipio: 'Santa Ana',
-        distanciaKM: 3.5,
-        medioTransporte: 'Bus',
-        activo: true,
+  const responsableMadre = await prisma.responsable.upsert({
+    where: { dui: '12345678-9' },
+    update: {},
+    create: {
+      nombre: 'Carmen Sonia',
+      apellido: 'Pineda de Acosta',
+      dui: '12345678-9',
+      telefono: '7123-4567',
+      email: 'carmen.pineda@ejemplo.com',
+      direccion: 'Prado Real calle A casa 15, Santa Ana',
+      lugarTrabajo: 'Empresa XYZ',
+      profesionOficio: 'Doctora',
+      ultimoGradoEstudiado: 'Universidad',
+      ocupacion: 'Médico general',
+      religion: 'Católica',
+      zonaResidencia: 'Urbana',
+      estadoFamiliar: 'Casada',
+    },
+  });
 
-        firmaPadre: false,
-        firmaMadre: false,
-        firmaResponsable: false,
+  const responsableEmergencia = await prisma.responsable.upsert({
+    where: { dui: '87654321-0' },
+    update: {},
+    create: {
+      nombre: 'Carlos Javier',
+      apellido: 'Sosa Pineda',
+      dui: '87654321-0',
+      telefono: '7777-7777',
+      direccion: 'Colonia Las Flores, Santa Ana',
+      profesionOficio: 'Comerciante',
+      ocupacion: 'Dueño de negocio',
+      estadoFamiliar: 'Soltero',
+    },
+  });
 
-        // Crear el detalle 1–1 (opcional, pero útil para probar)
-        alumnoDetalle: {
-          create: {
-            repiteGrado: 'No',
-            condicionado: 'No',
-            enfermedades: null,
-            medicamentoPrescrito: null,
-            observaciones: 'N/A',
-            capacidadPago: true,
-            tieneHermanos: true,
-            detalleHermanos: { cantidad: 2, edades: [8, 14] } as any,
-            viveCon: 'Padres',
-            dependenciaEconomica: 'Padres',
-            custodiaLegal: 'Padres',
-          },
+  // 2. Obtener IDs de parentescos
+  const parentescoPadre = await prisma.parentesco.findFirst({
+    where: { nombre: 'Padre' },
+  });
+
+  const parentescoMadre = await prisma.parentesco.findFirst({
+    where: { nombre: 'Madre' },
+  });
+
+  const parentescoTio = await prisma.parentesco.findFirst({
+    where: { nombre: 'Tío/a' },
+  });
+
+  // 3. Crear alumno con todos los campos
+  const alumnoCreado = await prisma.alumno.create({
+    data: {
+      nombre: 'Diego Antonio',
+      apellido: 'Acosta Pineda',
+      genero: 'M',
+      fechaNacimiento: '23/06/2010',
+      nacionalidad: 'Salvadoreña',
+      edad: 14,
+      partidaNumero: '123456',
+      folio: '123',
+      libro: '456',
+      anioPartida: '2010',
+      departamentoNacimiento: 'Santa Ana',
+      municipioNacimiento: 'Santa Ana',
+      tipoSangre: 'O+',
+      problemaFisico: 'No',
+      observacionesMedicas: 'Alérgico a la penicilina',
+      centroAsistencial: 'Hospital San Juan de Dios',
+      medicoNombre: 'Dr. Fernando Menjívar',
+      medicoTelefono: '2440-0000',
+      zonaResidencia: 'Urbana',
+      direccion: 'Prado Real calle A casa 15',
+      municipio: 'Santa Ana',
+      departamento: 'Santa Ana',
+      distanciaKM: 2.5,
+      medioTransporte: 'Microbús',
+      encargadoTransporte: 'Transporte Escolar Seguro',
+      encargadoTelefono: '7123-9876',
+      repiteGrado: false,
+      condicionado: false,
+      activo: true,
+      // Crear detalles del alumno
+      detalle: {
+        create: {
+          viveCon: 'Ambos Padres',
+          dependenciaEconomica: 'Padre y Madre',
+          capacidadPago: true,
+          hermanosEnColegio: JSON.stringify([
+            { nombre: 'Jimena Acosta', grado: '4-1' },
+          ]),
         },
       },
-      select: { id_alumno: true },
-    });
-    console.log('Alumno creado:', alumno.id_alumno);
-  } else {
-    console.log('Alumno ya existía:', alumno.id_alumno);
-  }
-
-  // Responsables (Padre y Madre) — evitamos duplicar usando DUI + alumnoId
-  const padreDui = '01234567-8';
-  const madreDui = '12345678-9';
-
-  const padre = await prisma.responsable.findFirst({
-    where: { dui: padreDui, alumnoId: alumno.id_alumno },
-    select: { id: true },
+      // Relacionar con responsables
+      responsables: {
+        create: [
+          {
+            responsableId: responsablePadre.id_responsable,
+            parentescoId: parentescoPadre?.id_parentesco,
+            esPrincipal: true,
+            firma: true,
+            permiteTraslado: true,
+            puedeRetirarAlumno: true,
+          },
+          {
+            responsableId: responsableMadre.id_responsable,
+            parentescoId: parentescoMadre?.id_parentesco,
+            esPrincipal: false,
+            firma: true,
+            permiteTraslado: true,
+            puedeRetirarAlumno: true,
+          },
+          {
+            responsableId: responsableEmergencia.id_responsable,
+            parentescoId: parentescoTio?.id_parentesco,
+            parentescoLibre: 'Tío',
+            esPrincipal: false,
+            firma: false,
+            permiteTraslado: false,
+            puedeRetirarAlumno: true,
+          },
+        ],
+      },
+    },
   });
 
-  if (!padre) {
-    await prisma.responsable.create({
-      data: {
-        nombre: 'Juan',
-        apellido: 'Pérez',
-        dui: padreDui,
-        telefono: '7000-1000',
-        email: 'juan.perez@example.com',
-        tipo: 'Padre',
-        fechaNacimiento: new Date('1985-01-10'),
-        departamentoNacimiento: 'Santa Ana',
-        municipioNacimiento: 'Santa Ana',
-        estadoFamiliar: 'Casado',
-        zonaResidencia: 'Urbana',
-        direccion: 'Col. Las Magnolias, #123',
-        profesion: 'Técnico',
-        ultimoGradoEstudiado: 'Bachillerato',
-        ocupacion: 'Empleado',
-        religion: 'Católica',
-        firmaFoto: true,
-        alumnoId: alumno.id_alumno,
-        parentescoId: parentescos['Padre'],
-      },
-    });
-    console.log('Responsable Padre creado');
-  } else {
-    console.log('Responsable Padre ya existía');
-  }
-
-  const madre = await prisma.responsable.findFirst({
-    where: { dui: madreDui, alumnoId: alumno.id_alumno },
-    select: { id: true },
-  });
-
-  if (!madre) {
-    await prisma.responsable.create({
-      data: {
-        nombre: 'María',
-        apellido: 'López',
-        dui: madreDui,
-        telefono: '7000-2000',
-        email: 'maria.lopez@example.com',
-        tipo: 'Madre',
-        fechaNacimiento: new Date('1987-07-22'),
-        departamentoNacimiento: 'Santa Ana',
-        municipioNacimiento: 'Santa Ana',
-        estadoFamiliar: 'Casado',
-        zonaResidencia: 'Urbana',
-        direccion: 'Col. Las Magnolias, #123',
-        profesion: 'Comerciante',
-        ultimoGradoEstudiado: 'Universitario',
-        ocupacion: 'Independiente',
-        religion: 'Católica',
-        firmaFoto: true,
-        alumnoId: alumno.id_alumno,
-        parentescoId: parentescos['Madre'],
-      },
-    });
-    console.log('Responsable Madre creado');
-  } else {
-    console.log('Responsable Madre ya existía');
-  }
+  console.log('Alumno de ejemplo creado:', alumnoCreado.id_alumno);
+  return alumnoCreado;
 }
 
 async function main() {
@@ -294,11 +321,9 @@ async function main() {
 
   const cargos = await seedCargos();
   await seedUsuarios(cargos);
-
-  const parentescos = await seedParentescos();
-  await seedAlumnoConResponsables(parentescos);
-
-  console.log('Seed COMPLETADO ✅');
+  await seedParentescos();
+  await seedTipoActividades();
+  await seedAlumnoEjemplo();
 }
 
 main()

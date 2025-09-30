@@ -1,0 +1,271 @@
+# EJEMPLOS DE USO DE LA API DE ALUMNOS
+
+## 1. CREAR UN ALUMNO NUEVO (POST /alumnos)
+
+```json
+{
+  "nombre": "Antonio",
+  "apellido": "Pérez",
+  "genero": "Masculino",
+  "fechaNacimiento": "15/03/2018",
+  "nacionalidad": "Salvadoreño",
+  "edad": 7,
+  "partidaNumero": "54321",
+  "folio": "32",
+  "libro": "78",
+  "anioPartida": "2018",
+  "departamentoNacimiento": "San Salvador",
+  "municipioNacimiento": "San Salvador",
+  "tipoSangre": "O+",
+  "problemaFisico": "Ninguno",
+  "observacionesMedicas": "Alergia leve al polen",
+  "centroAsistencial": "Hospital Nacional",
+  "medicoNombre": "Dr. Roberto Mendoza",
+  "medicoTelefono": "2222-3333",
+  "zonaResidencia": "Urbana",
+  "direccion": "Colonia Las Flores, Casa #15",
+  "municipio": "San Salvador",
+  "departamento": "San Salvador",
+  "distanciaKM": 3.5,
+  "medioTransporte": "Vehículo familiar",
+  "encargadoTransporte": "Juan Pérez",
+  "encargadoTelefono": "7777-8888",
+  "repiteGrado": false,
+  "condicionado": false,
+  "activo": true,
+  "detalle": {
+    "viveCon": "Padres",
+    "dependenciaEconomica": "Padre y madre",
+    "capacidadPago": true,
+    "tieneHermanosEnColegio": true,
+    "hermanosEnColegio": [
+      {
+        "nombre": "Gabriela",
+        "grado": "1er grado"
+      }
+    ]
+  },
+  "responsables": [
+    {
+      "parentescoLibre": "Padre",
+      "esPrincipal": true,
+      "firma": true,
+      "permiteTraslado": true,
+      "puedeRetirarAlumno": true,
+      "contactoEmergencia": true,
+      "datosResponsable": {
+        "nombre": "Juan",
+        "apellido": "Pérez",
+        "dui": "12345678-9",
+        "telefono": "7777-8888",
+        "email": "juan.perez@ejemplo.com",
+        "direccion": "Colonia Las Flores, Casa #15",
+        "lugarTrabajo": "Empresa ABC",
+        "profesionOficio": "Ingeniero",
+        "ultimoGradoEstudiado": "Universidad",
+        "ocupacion": "Gerente de Proyectos",
+        "religion": "Católica",
+        "zonaResidencia": "Urbana",
+        "estadoFamiliar": "Casado"
+      }
+    },
+    {
+      "parentescoLibre": "Madre",
+      "esPrincipal": false,
+      "firma": true,
+      "permiteTraslado": true,
+      "puedeRetirarAlumno": true,
+      "contactoEmergencia": true,
+      "datosResponsable": {
+        "nombre": "María",
+        "apellido": "López",
+        "dui": "98765432-1",
+        "telefono": "7777-9999",
+        "email": "maria.lopez@ejemplo.com",
+        "direccion": "Colonia Las Flores, Casa #15",
+        "lugarTrabajo": "Hospital Central",
+        "profesionOficio": "Médica",
+        "ultimoGradoEstudiado": "Universidad",
+        "ocupacion": "Pediatra",
+        "religion": "Católica",
+        "zonaResidencia": "Urbana",
+        "estadoFamiliar": "Casada"
+      }
+    }
+  ]
+}
+```
+
+## 2. CREAR UN ALUMNO CON RESPONSABLES EXISTENTES
+
+Si los responsables ya existen en la base de datos, el sistema los reutilizará basándose en el DUI:
+
+```json
+{
+  "nombre": "Carlos",
+  "apellido": "Pérez",
+  "genero": "Masculino",
+  "fechaNacimiento": "10/05/2016",
+  "nacionalidad": "Salvadoreño",
+  "edad": 9,
+  "activo": true,
+  "detalle": {
+    "viveCon": "Padres",
+    "tieneHermanosEnColegio": true,
+    "hermanosEnColegio": [
+      {
+        "nombre": "Antonio",
+        "grado": "1er grado"
+      }
+    ]
+  },
+  "responsables": [
+    {
+      "parentescoLibre": "Padre",
+      "esPrincipal": true,
+      "datosResponsable": {
+        "nombre": "Juan",
+        "apellido": "Pérez",
+        "dui": "12345678-9"
+      }
+    },
+    {
+      "parentescoLibre": "Madre",
+      "esPrincipal": false,
+      "datosResponsable": {
+        "nombre": "María",
+        "apellido": "López",
+        "dui": "98765432-1"
+      }
+    }
+  ]
+}
+```
+
+## 3. ACTUALIZAR DATOS BÁSICOS DE UN ALUMNO (PATCH /alumnos/{id})
+
+```json
+{
+  "nombre": "Antonio José",
+  "apellido": "Pérez González",
+  "edad": 8,
+  "tipoSangre": "A+",
+  "observacionesMedicas": "Alergia al maní"
+}
+```
+
+## 4. ACTUALIZAR DATOS DEL ALUMNO Y SU DETALLE
+
+```json
+{
+  "nombre": "Antonio José",
+  "detalle": {
+    "viveCon": "Padres y abuela",
+    "tieneHermanosEnColegio": true,
+    "hermanosEnColegio": [
+      {
+        "nombre": "Gabriela",
+        "grado": "1er grado"
+      },
+      {
+        "nombre": "Carlos",
+        "grado": "3er grado"
+      }
+    ]
+  }
+}
+```
+
+## 5. AGREGAR UN NUEVO RESPONSABLE A UN ALUMNO EXISTENTE
+
+```json
+{
+  "responsables": [
+    {
+      "parentescoLibre": "Tía",
+      "esPrincipal": false,
+      "contactoEmergencia": true,
+      "datosResponsable": {
+        "nombre": "Ana",
+        "apellido": "Ramírez",
+        "dui": "11223344-5",
+        "telefono": "6543-2109",
+        "email": "ana.ramirez@ejemplo.com"
+      }
+    }
+  ]
+}
+```
+
+## 6. AGREGAR UN RESPONSABLE EXISTENTE A UN ALUMNO 
+
+```json
+{
+  "responsables": [
+    {
+      "parentescoLibre": "Abuelo",
+      "esPrincipal": false,
+      "contactoEmergencia": true,
+      "datosResponsable": {
+        "nombre": "Roberto",
+        "apellido": "López",
+        "dui": "55566677-8"
+      }
+    }
+  ]
+}
+```
+
+Si ya existe un responsable con ese DUI, se reutilizará en lugar de crear uno nuevo.
+
+## 7. ACTUALIZAR LA RELACIÓN CON UN RESPONSABLE (PATCH /alumnos/{id}/responsables/{responsableId})
+
+```json
+{
+  "esPrincipal": true,
+  "firma": true,
+  "permiteTraslado": false,
+  "puedeRetirarAlumno": true,
+  "contactoEmergencia": true,
+  "parentescoLibre": "Tutor legal"
+}
+```
+
+## 8. DESACTIVAR UN ALUMNO (DELETE /alumnos/{id})
+
+No requiere body, solo el ID en la URL. Esta operación realiza un soft delete, marcando al alumno como inactivo.
+
+## 9. REACTIVAR UN ALUMNO (PATCH /alumnos/{id}/restore)
+
+No requiere body, solo el ID en la URL. Marca al alumno como activo nuevamente.
+
+## 10. ELIMINAR UN RESPONSABLE DE UN ALUMNO (DELETE /alumnos/{id}/responsables/{responsableId})
+
+No requiere body, solo los IDs en la URL:
+- {id}: ID del alumno
+- {responsableId}: ID de la relación alumno-responsable (no el ID del responsable)
+
+Esta operación solo elimina la relación entre el alumno y el responsable, no elimina al responsable de la base de datos.
+
+## 11. OBTENER TODOS LOS ALUMNOS (GET /alumnos)
+
+No requiere body.
+
+Parámetros opcionales:
+- incluirInactivos=true: Incluye también los alumnos inactivos (soft-deleted)
+
+## 12. OBTENER UN ALUMNO POR ID (GET /alumnos/{id})
+
+No requiere body, solo el ID en la URL.
+
+# NOTAS IMPORTANTES
+
+1. **Soft Delete**: Al "eliminar" un alumno, solo se cambia su estado a inactivo, no se borra de la base de datos.
+
+2. **Responsables Duplicados**: El sistema evita crear responsables duplicados basándose en el DUI. Si se intenta crear un responsable con un DUI existente, se reutilizará el responsable existente.
+
+3. **Relación con Responsables**: Cuando se elimina la relación entre un alumno y un responsable, el responsable sigue existiendo en la base de datos y mantiene sus relaciones con otros alumnos.
+
+4. **Actualizaciones Parciales**: El método PATCH permite actualizar solo los campos que se incluyen en la solicitud, sin afectar los demás campos.
+
+5. **Transacciones**: Todas las operaciones complejas (crear/actualizar alumnos con sus relaciones) se realizan dentro de transacciones para garantizar la integridad de los datos.
