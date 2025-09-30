@@ -226,7 +226,6 @@ CREATE TABLE "public"."administrativos" (
     "activo" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "modalidad" TEXT NOT NULL,
 
     CONSTRAINT "administrativos_pkey" PRIMARY KEY ("id_administrativo")
 );
@@ -282,7 +281,13 @@ CREATE INDEX "AlumnoResponsable_responsableId_idx" ON "public"."AlumnoResponsabl
 CREATE UNIQUE INDEX "AlumnoResponsable_alumnoId_responsableId_key" ON "public"."AlumnoResponsable"("alumnoId", "responsableId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "administrativos_dui_key" ON "public"."administrativos"("dui");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "administrativos_email_key" ON "public"."administrativos"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "orientadores_dui_key" ON "public"."orientadores"("dui");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "orientadores_email_key" ON "public"."orientadores"("email");
