@@ -266,6 +266,21 @@ model Orientador {
   cursos                  Curso[]
   historialCurso          Historial_curso_orientador[]
   activo                  Boolean                      @default(true)
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
 
   @@map("orientadores")
+}
+
+model ActividadReciente {
+  id_actividad Int      @id @default(autoincrement())
+  descripcion  String   @db.Text
+  tipo         String   // 'success', 'info', 'warning'
+  fecha        DateTime @default(now())
+  entidad      String?  // Puede ser 'alumno', 'responsable', 'administrativo', etc.
+  entidad_id   Int?     // ID de la entidad relacionada, si aplica
+  usuario      String?  // Email del usuario que realizó la acción
+
+  @@index([fecha])
+  @@map("actividades_recientes")
 }

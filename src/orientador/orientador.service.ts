@@ -21,6 +21,8 @@ const ORIENTADOR_SELECT = {
   direccion: true,
   email: true,
   activo: true,
+  createdAt: true,
+  updatedAt: true,
   id_cargo_administrativo: true,
   cargoAdministrativo: {
     select: { id_cargo_administrativo: true, nombre: true },
@@ -39,65 +41,71 @@ export class OrientadorService {
     return bcrypt.hash(plain, salt);
   }
 
-  private generate4DigitPassword(): string {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+  private generate8DigitPassword(): string {
+    // 10000000 - 99999999 (8 dígitos)
+    return Math.floor(10000000 + Math.random() * 90000000).toString();
   }
 
   async create(dto: CreateOrientadorDto) {
-  try {
-    const data: any = { ...dto };
-    data.email = data.email.trim().toLowerCase();
+    try {
+      const data: any = { ...dto };
+      data.email = data.email.trim().toLowerCase();
 
-    // SIEMPRE ignoramos dto.password -> generamos una de 4 dígitos
-    const generatedPassword = this.generate4DigitPassword();
-    data.password = await this.hashPassword(generatedPassword);
+      // SIEMPRE ignoramos dto.password -> generamos una de 8 dígitos
+      const generatedPassword = this.generate8DigitPassword();
+      data.password = await this.hashPassword(generatedPassword);
 
-    // Pre-chequeo de unicidad de email
-    const emailExists = await this.prisma.orientador.findUnique({
-      where: { email: data.email },
-    });
-    if (emailExists) throw new ConflictException('El email ya está en uso');
-
-    // --- AÑADIDO: Verificación para DUI ---
-    if (data.dui) {
-      const duiExists = await this.prisma.orientador.findUnique({
-        where: { dui: data.dui },
+      // Pre-chequeo de unicidad de email
+      const emailExists = await this.prisma.orientador.findUnique({
+        where: { email: data.email },
       });
-      if (duiExists) throw new ConflictException('El DUI ya está en uso');
-    }
-    // --- FIN DE LA ADICIÓN ---
+      if (emailExists) throw new ConflictException('El email ya está en uso');
 
-    const created = await this.prisma.orientador.create({
-      data,
-      select: ORIENTADOR_SELECT,
-    });
-
-    // Enviar al usuario creado
-    await this.mail.sendPasswordToUser({
-      to: created.email,
-      newUserName: `${created.nombre} ${created.apellido}`.trim(),
-      generatedPassword,
-    });
-
-    return created;
-  } catch (e) {
-    // --- REEMPLAZADO: Bloque catch mejorado ---
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-      const field = (e.meta as any)?.target?.[0]; // Obtiene el nombre del campo que falló
-      
-      if (field === 'email') {
-        throw new ConflictException('El correo electrónico ya está en uso');
-      } else if (field === 'dui') {
-        throw new ConflictException('El DUI ya está en uso');
-      } else {
-        throw new ConflictException(`El campo '${field}' ya tiene un valor registrado`);
+      // --- AÑADIDO: Verificación para DUI ---
+      if (data.dui) {
+        const duiExists = await this.prisma.orientador.findUnique({
+          where: { dui: data.dui },
+        });
+        if (duiExists) throw new ConflictException('El DUI ya está en uso');
       }
+      // --- FIN DE LA ADICIÓN ---
+
+      const created = await this.prisma.orientador.create({
+        data,
+        select: ORIENTADOR_SELECT,
+      });
+
+      // Enviar al usuario creado
+      await this.mail.sendPasswordToUser({
+        to: created.email,
+        newUserName: `${created.nombre} ${created.apellido}`.trim(),
+        generatedPassword,
+      });
+
+      return created;
+    } catch (e) {
+      // --- REEMPLAZADO: Bloque catch mejorado ---
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        const field = (e.meta as any)?.target?.[0]; // Obtiene el nombre del campo que falló
+
+        if (field === 'email') {
+          throw new ConflictException('El correo electrónico ya está en uso');
+        } else if (field === 'dui') {
+          throw new ConflictException('El DUI ya está en uso');
+        } else {
+          throw new ConflictException(
+            `El campo '${field}' ya tiene un valor registrado`,
+          );
+        }
+      }
+      // Re-lanza cualquier otro tipo de error
+      throw e;
+      // --- FIN DEL REEMPLAZO ---
     }
-    // Re-lanza cualquier otro tipo de error
-    throw e;
-    // --- FIN DEL REEMPLAZO ---
   }
-}
 
   // (Opcional) listado con paginación y búsqueda como en administrativo
   async findAll(params: {
@@ -110,27 +118,28 @@ export class OrientadorService {
     const limit = Math.min(100, Math.max(1, Number(params.limit ?? 10)));
     const skip = (page - 1) * limit;
 
-  const where: any = {};
-if (typeof params.activo === 'boolean') where.activo = params.activo;
+    const where: any = {};
+    if (typeof params.activo === 'boolean') where.activo = params.activo;
 
+    if (params.q) {
+      // 1. Dividimos el término de búsqueda en palabras individuales y eliminamos espacios vacíos.
+      const searchTerms = params.q
+        .split(' ')
+        .filter((term) => term.trim() !== '');
 
-if (params.q) {
-  // 1. Dividimos el término de búsqueda en palabras individuales y eliminamos espacios vacíos.
-  const searchTerms = params.q.split(' ').filter(term => term.trim() !== '');
-
-  // 2. Usamos 'AND' para asegurar que el resultado coincida con TODAS las palabras.
-  where.AND = searchTerms.map(term => ({
-    // 3. Usamos 'OR' para que cada palabra pueda estar en CUALQUIERA de estos campos.
-    OR: [
-      { nombre: { contains: term, mode: 'insensitive' } },
-      { apellido: { contains: term, mode: 'insensitive' } },
-      { email: { contains: term, mode: 'insensitive' } },
-      // Puedes mantener dui y telefono si quieres que la búsqueda sea aún más amplia
-      { dui: { contains: term, mode: 'insensitive' } },
-      { telefono: { contains: term, mode: 'insensitive' } },
-    ],
-  }));
-}
+      // 2. Usamos 'AND' para asegurar que el resultado coincida con TODAS las palabras.
+      where.AND = searchTerms.map((term) => ({
+        // 3. Usamos 'OR' para que cada palabra pueda estar en CUALQUIERA de estos campos.
+        OR: [
+          { nombre: { contains: term, mode: 'insensitive' } },
+          { apellido: { contains: term, mode: 'insensitive' } },
+          { email: { contains: term, mode: 'insensitive' } },
+          // Puedes mantener dui y telefono si quieres que la búsqueda sea aún más amplia
+          { dui: { contains: term, mode: 'insensitive' } },
+          { telefono: { contains: term, mode: 'insensitive' } },
+        ],
+      }));
+    }
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.orientador.findMany({
@@ -159,7 +168,6 @@ if (params.q) {
     try {
       const data: any = { ...dto };
       if (data.email) data.email = data.email.trim().toLowerCase();
-     
 
       // Verifica que el email no esté en otro registro
       if (data.email) {

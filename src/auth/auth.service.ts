@@ -4,6 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { AuthUser, Role } from './types/auth-user';
+import { ActividadRegistroService } from '../actividades-recientes/actividad-registro.service';
 
 const ALLOWED_ROLES: Role[] = ['Admin', 'P.A', 'Orientador'];
 
@@ -21,6 +22,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private actividadRegistroService: ActividadRegistroService,
   ) {}
 
   private async findUserByEmail(
@@ -98,6 +100,13 @@ export class AuthService {
       sub: `${user.tipo}:${user.id}`,
       ...user,
     };
+
+    // Registrar actividad de inicio de sesión
+    await this.actividadRegistroService.registrarInicioSesion(
+      user.email,
+      user.role,
+    );
+
     return {
       access_token: await this.jwt.signAsync(payload, {
         secret: process.env.JWT_SECRET,
