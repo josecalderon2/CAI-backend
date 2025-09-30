@@ -6,7 +6,15 @@ import { IsOptional, IsString, MinLength, IsBoolean } from 'class-validator';
 export class UpdateAdministrativoDto extends PartialType(
   CreateAdministrativoDto,
 ) {
- 
+  @ApiPropertyOptional({
+    minLength: 8,
+    description: 'Si se envía, se re-hashéa',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
+
   @ApiPropertyOptional({
     description: 'Permite activar/desactivar (soft delete)',
   })

@@ -57,7 +57,15 @@ export class CreateOrientadorDto {
   @IsEmail()
   email: string;
 
-  
+  @ApiPropertyOptional({
+    example: 'Secreta123*',
+    description: 'Opcional; si no se envía, el sistema genera una temporal',
+  })
+  @emptyToUndefined()
+  @IsOptional()
+  @IsString()
+  password?: string;
+
   @ApiProperty({ example: 3, description: 'FK de cargo_administrativo' })
   @Type(() => Number)
   @IsInt()

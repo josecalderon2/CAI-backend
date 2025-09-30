@@ -43,60 +43,42 @@ export class OrientadorService {
   }
 
   async create(dto: CreateOrientadorDto) {
-  try {
-    const data: any = { ...dto };
-    data.email = data.email.trim().toLowerCase();
+    try {
+      const data: any = { ...dto };
+      data.email = data.email.trim().toLowerCase();
 
-    // SIEMPRE ignoramos dto.password -> generamos una de 4 dígitos
-    const generatedPassword = this.generate4DigitPassword();
-    data.password = await this.hashPassword(generatedPassword);
+      // SIEMPRE ignoramos dto.password -> generamos una de 4 dígitos
+      const generatedPassword = this.generate4DigitPassword();
+      data.password = await this.hashPassword(generatedPassword);
 
-    // Pre-chequeo de unicidad de email
-    const emailExists = await this.prisma.orientador.findUnique({
-      where: { email: data.email },
-    });
-    if (emailExists) throw new ConflictException('El email ya está en uso');
-
-    // --- AÑADIDO: Verificación para DUI ---
-    if (data.dui) {
-      const duiExists = await this.prisma.orientador.findUnique({
-        where: { dui: data.dui },
+      const exists = await this.prisma.orientador.findUnique({
+        where: { email: data.email },
       });
-      if (duiExists) throw new ConflictException('El DUI ya está en uso');
-    }
-    // --- FIN DE LA ADICIÓN ---
+      if (exists) throw new ConflictException('El email ya está en uso');
 
-    const created = await this.prisma.orientador.create({
-      data,
-      select: ORIENTADOR_SELECT,
-    });
+      const created = await this.prisma.orientador.create({
+        data,
+        select: ORIENTADOR_SELECT,
+      });
 
-    // Enviar al usuario creado
-    await this.mail.sendPasswordToUser({
-      to: created.email,
-      newUserName: `${created.nombre} ${created.apellido}`.trim(),
-      generatedPassword,
-    });
+      // Enviar al usuario creado
+      await this.mail.sendPasswordToUser({
+        to: created.email,
+        newUserName: `${created.nombre} ${created.apellido}`.trim(),
+        generatedPassword,
+      });
 
-    return created;
-  } catch (e) {
-    // --- REEMPLAZADO: Bloque catch mejorado ---
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-      const field = (e.meta as any)?.target?.[0]; // Obtiene el nombre del campo que falló
-      
-      if (field === 'email') {
-        throw new ConflictException('El correo electrónico ya está en uso');
-      } else if (field === 'dui') {
-        throw new ConflictException('El DUI ya está en uso');
-      } else {
-        throw new ConflictException(`El campo '${field}' ya tiene un valor registrado`);
+      return created;
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException('El email ya está en uso');
       }
+      throw new InternalServerErrorException('Error al crear orientador');
     }
-    // Re-lanza cualquier otro tipo de error
-    throw e;
-    // --- FIN DEL REEMPLAZO ---
   }
-}
 
   // (Opcional) listado con paginación y búsqueda como en administrativo
   async findAll(params: {
@@ -148,7 +130,7 @@ export class OrientadorService {
     try {
       const data: any = { ...dto };
       if (data.email) data.email = data.email.trim().toLowerCase();
-     
+      if (dto.password) data.password = await this.hashPassword(dto.password);
 
       // Verifica que el email no esté en otro registro
       if (data.email) {

@@ -63,9 +63,23 @@ export class CreateAdministrativoDto {
   @IsEmail()
   email: string;
 
+  @ApiPropertyOptional({
+    description:
+      'Opcional: si no se envía, el sistema genera una contraseña temporal de 4 dígitos.',
+    example: 'Admin123*',
+  })
+  @emptyToUndefined()
+  @IsOptional()
+  @IsString()
+  password?: string;
 
-
- 
+  @ApiPropertyOptional({
+    example: 'Presencial',
+    description: 'Modalidad de trabajo',
+  })
+  @IsOptional()
+  @IsString()
+  modalidad?: string;
 
   @ApiProperty({ example: 1, description: 'ID del cargo administrativo' })
   @Type(() => Number)

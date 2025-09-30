@@ -233,13 +233,14 @@ model Administrativo {
   nombre                  String
   apellido                String
   direccion               String
-  dui                     String                @unique
+  dui                     String
   telefono                String
   email                   String                @unique
   password                String
   activo                  Boolean               @default(true)
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
+  modalidad               String
   cargoAdministrativo     Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
 
   @@map("administrativos")
@@ -256,7 +257,7 @@ model Orientador {
   id_orientador           Int                          @id @default(autoincrement())
   nombre                  String
   apellido                String
-  dui                     String                       @unique
+  dui                     String
   direccion               String
   telefono                String
   email                   String                       @unique
