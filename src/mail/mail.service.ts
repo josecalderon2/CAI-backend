@@ -73,4 +73,38 @@ export class MailService {
       throw err;
     }
   }
+
+  async sendPasswordResetEmail(opts: {
+    to: string;
+    nombre: string;
+    rol: string;
+    resetUrl: string;
+    minutos?: number; // default 15
+  }) {
+    const from = process.env.MAIL_FROM || process.env.EMAIL_USER || 'no-reply@example.com';
+    const subject = 'Recuperación de acceso';
+    const minutos = opts.minutos ?? 15;
+
+    const html = `
+      <p>Hola <b>${opts.nombre}</b> (<i>${opts.rol}</i>),</p>
+      <p>Hemos recibido una solicitud para restablecer tu contraseña.</p>
+      <ol>
+        <li>Haz clic en el siguiente enlace (vigente por ${minutos} minutos):</li>
+      </ol>
+      <p><a href="${opts.resetUrl}">${opts.resetUrl}</a></p>
+      <p>Si no fuiste tú, ignora este mensaje; tu cuenta seguirá segura.</p>
+      <br/>
+      <p>Atentamente,</p>
+      <p><b>Equipo de soporte CAI</b></p>
+    `;
+
+    const info = await this.transporter.sendMail({
+      from,
+      to: opts.to,
+      subject,
+      html,
+    });
+    this.logger.log(`Correo de reset enviado a ${opts.to}: ${info.messageId}`);
+    return info;
+  }
 }
