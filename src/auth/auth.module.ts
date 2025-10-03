@@ -7,6 +7,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { RolesGuard } from './roles.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActividadesRecientesModule } from '../actividades-recientes/actividades-recientes.module';
+import { PasswordResetCleanupService } from './password-reset.cleanup.service';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { ActividadesRecientesModule } from '../actividades-recientes/actividades
     ActividadesRecientesModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RolesGuard, PrismaService],
+  providers: [AuthService, JwtStrategy, RolesGuard, PrismaService, PasswordResetCleanupService],
   exports: [AuthService],
 })
 export class AuthModule {}
