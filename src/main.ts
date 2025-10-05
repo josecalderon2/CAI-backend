@@ -15,6 +15,9 @@ async function bootstrap() {
     }),
   );
 
+  // Prefijo global: TODAS las rutas quedan /api/...
+  app.setGlobalPrefix('api');
+
   // HABILITAR CORS para Vite (5173)
   app.enableCors({
     origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
