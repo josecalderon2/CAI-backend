@@ -17,7 +17,7 @@ model Alumno {
   // foto      Bytes? (removido para optimización)
 
   genero                 String?
-  fechaNacimiento        String?  // formato: DD/MM/YYYY para ser más manejable
+  fechaNacimiento        String? // formato: DD/MM/YYYY para ser más manejable
   nacionalidad           String?
   edad                   Int?
   partidaNumero          String?
@@ -40,9 +40,9 @@ model Alumno {
   medioTransporte        String?
   encargadoTransporte    String?
   encargadoTelefono      String?
-  repiteGrado            Boolean   @default(false)
-  condicionado           Boolean   @default(false)
-  activo Boolean @default(true)
+  repiteGrado            Boolean @default(false)
+  condicionado           Boolean @default(false)
+  activo                 Boolean @default(true)
 
   detalle Alumno_Detalle?
 
@@ -53,12 +53,12 @@ model Alumno {
 }
 
 model Alumno_Detalle {
-  alumnoId             Int      @id
-  viveCon              String?
-  dependenciaEconomica String?
-  capacidadPago        Boolean?
+  alumnoId               Int      @id
+  viveCon                String?
+  dependenciaEconomica   String?
+  capacidadPago          Boolean?
   tieneHermanosEnColegio Boolean? @default(false)
-  hermanosEnColegio    Json?     // Estructura: [{"nombre": "Nombre", "grado": "Grado"}]
+  hermanosEnColegio      Json? // Estructura: [{"nombre": "Nombre", "grado": "Grado"}]
 
   alumno Alumno @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
 }
@@ -241,6 +241,7 @@ model Administrativo {
   createdAt               DateTime              @default(now())
   updatedAt               DateTime              @updatedAt
   cargoAdministrativo     Cargo_administrativo? @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
+  PasswordResetToken      PasswordResetToken[]
 
   @@map("administrativos")
 }
@@ -268,6 +269,7 @@ model Orientador {
   activo                  Boolean                      @default(true)
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
+  PasswordResetToken      PasswordResetToken[]
 
   @@map("orientadores")
 }
@@ -275,12 +277,32 @@ model Orientador {
 model ActividadReciente {
   id_actividad Int      @id @default(autoincrement())
   descripcion  String   @db.Text
-  tipo         String   // 'success', 'info', 'warning'
+  tipo         String // 'success', 'info', 'warning'
   fecha        DateTime @default(now())
-  entidad      String?  // Puede ser 'alumno', 'responsable', 'administrativo', etc.
-  entidad_id   Int?     // ID de la entidad relacionada, si aplica
-  usuario      String?  // Email del usuario que realizó la acción
+  entidad      String? // Puede ser 'alumno', 'responsable', 'administrativo', etc.
+  entidad_id   Int? // ID de la entidad relacionada, si aplica
+  usuario      String? // Email del usuario que realizó la acción
 
   @@index([fecha])
   @@map("actividades_recientes")
+}
+
+model PasswordResetToken {
+  id           Int       @id @default(autoincrement())
+  adminId      Int?
+  orientadorId Int?
+  tokenHash    String    @db.VarChar(128)
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+  ip           String?   @db.VarChar(64)
+  userAgent    String?
+
+  administrativo Administrativo? @relation(fields: [adminId], references: [id_administrativo], onDelete: Cascade)
+  orientador     Orientador?     @relation(fields: [orientadorId], references: [id_orientador], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([orientadorId])
+  @@index([tokenHash])
+  @@index([expiresAt])
 }
