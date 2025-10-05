@@ -12,6 +12,7 @@ import { ParentescoModule } from './parentesco/parentesco.module';
 import { CargoAdministrativoModule } from './cargo-administrativo/cargo-administrativo.module';
 import { EstadisticasModule } from './estadisticas/estadisticas.module';
 import { ActividadesRecientesModule } from './actividades-recientes/actividades-recientes.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ActividadesRecientesModule } from './actividades-recientes/actividades-
     ParentescoModule,
     EstadisticasModule,
     ActividadesRecientesModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],

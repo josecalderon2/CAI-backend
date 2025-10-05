@@ -29,26 +29,22 @@ export class AuthService {
     private mail: MailService,
   ) {}
 
-  // 👇 NUEVO
   private hashToken(token: string) {
     return crypto.createHash('sha256').update(token).digest('hex');
   }
 
   // genera el link correcto (front si hay FRONTEND_URL; si no, API con o sin prefijo)
-private buildResetUrl(plainToken: string) {
-  const base = (process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000')
-    .replace(/\/+$/, '');
+  private buildResetUrl(plainToken: string) {
+    const base = (process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000')
+      .replace(/\/+$/, '');
 
-  if (process.env.FRONTEND_URL) {
-    // el front muestra el formulario y hará el POST a la API
-    return `${base}/reset-password?token=${plainToken}`;
+    if (process.env.FRONTEND_URL) {
+      return `${base}/reset-password?token=${plainToken}`;
+    }
+    const prefix = (process.env.API_PREFIX || '').replace(/^\/|\/$/g, ''); // "api" | ""
+    const path = prefix ? `/${prefix}/auth/reset-password` : `/auth/reset-password`;
+    return `${base}${path}?token=${plainToken}`;
   }
-
-  const prefix = (process.env.API_PREFIX || '').replace(/^\/|\/$/g, ''); // "api" | ""
-  const path = prefix ? `/${prefix}/auth/reset-password` : `/auth/reset-password`;
-  return `${base}${path}?token=${plainToken}`;
-}
-
 
   private async findUserByEmail(
     email: string,
@@ -149,36 +145,50 @@ private buildResetUrl(plainToken: string) {
    * Genera un token de un solo uso, lo guarda hasheado en BD y envía
    * un correo con el link de recuperación. No revela si el email existe.
    */
-  // --- FORGOT PASSWORD (solo Admin) ---
+  // Mantiene solo el ÚLTIMO token por usuario. Limpia expirados del owner.
+
 async forgotPassword(email: string, meta?: { ip?: string; userAgent?: string }) {
   const hit = await this.findUserByEmail(email);
-  if (!hit) return; // mensaje genérico
+  if (!hit) return; // mensaje genérico: no revelar existencia
 
   const { origen, record, role } = hit;
 
   const plainToken = crypto.randomBytes(32).toString('hex');
-  const tokenHash  = crypto.createHash('sha256').update(plainToken).digest('hex');
+  const tokenHash  = this.hashToken(plainToken);
   const expiresAt  = new Date(Date.now() + 15 * 60 * 1000);
 
-  await this.prisma.passwordResetToken.create({
-    data: {
-      adminId:      origen === 'ADMINISTRATIVO' ? record.id_administrativo : null,
-      orientadorId: origen === 'ORIENTADOR'     ? record.id_orientador     : null,
-      tokenHash,
-      expiresAt,
-      ip: meta?.ip,
-      userAgent: meta?.userAgent,
-    },
-  });
+  // Filtro por dueño (admin u orientador) para limpiar y crear
+  const ownerWhere =
+    origen === 'ADMINISTRATIVO'
+      ? { adminId: record.id_administrativo }
+      : { orientadorId: record.id_orientador };
 
-  // Limpia tokens expirados del mismo usuario (higiene)
-  await this.prisma.passwordResetToken.deleteMany({
-    where: {
-      adminId:      origen === 'ADMINISTRATIVO' ? record.id_administrativo : null,
-      orientadorId: origen === 'ORIENTADOR'     ? record.id_orientador     : null,
-      usedAt: null,
-      expiresAt: { lt: new Date() },
-    },
+  // Transacción para evitar carreras: creamos el nuevo y borramos los otros
+  const created = await this.prisma.$transaction(async (tx) => {
+    // 1) elimina tokens expirados de este owner (por higiene)
+    await tx.passwordResetToken.deleteMany({
+      where: { ...ownerWhere, expiresAt: { lt: new Date() } },
+    });
+
+    // 2) crea el NUEVO token
+    const row = await tx.passwordResetToken.create({
+      data: {
+        ...(origen === 'ADMINISTRATIVO'
+          ? { adminId: record.id_administrativo }
+          : { orientadorId: record.id_orientador }),
+        tokenHash,
+        expiresAt,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+      },
+    });
+
+    // 3) elimina cualquier otro token activo (no usado) del mismo owner
+    await tx.passwordResetToken.deleteMany({
+      where: { ...ownerWhere, usedAt: null, id: { not: row.id } },
+    });
+
+    return row;
   });
 
   const resetUrl = this.buildResetUrl(plainToken);
@@ -195,6 +205,8 @@ async forgotPassword(email: string, meta?: { ip?: string; userAgent?: string }) 
     resetUrl,
     minutos: 15,
   });
+
+  return { id: created.id };
 }
 
 async verifyResetToken(plainToken: string) {
@@ -210,64 +222,59 @@ async verifyResetToken(plainToken: string) {
 }
 
 async resetPassword(plainToken: string, newPassword: string) {
-  const tokenHash = crypto.createHash('sha256').update(plainToken).digest('hex');
+  const tokenHash = this.hashToken(plainToken);
 
+  // recupera el token y dueño
   const record = await this.prisma.passwordResetToken.findFirst({
     where: { tokenHash, usedAt: null },
     include: {
-      administrativo: { include: { cargoAdministrativo: true } },
+      administrativo: true,
       orientador: true,
     },
   });
 
   if (!record) throw new BadRequestException('Token inválido o ya usado');
   if (record.expiresAt.getTime() < Date.now()) {
+    // token expirado → bórralo y avisa
+    await this.prisma.passwordResetToken.delete({ where: { id: record.id } });
     throw new BadRequestException('Token expirado');
   }
 
   const hashed = await bcrypt.hash(newPassword, 10);
 
-  if (record.administrativo) {
-    // (Opcional) si quieres forzar que solo Admin pueda usarlo:
-    // const cargo = record.administrativo.cargoAdministrativo?.nombre ?? '';
-    // if (mapCargoToRole(cargo) !== 'Admin' && mapCargoToRole(cargo) !== 'P.A') throw new BadRequestException('No autorizado');
+  // Filtro por dueño
+  const ownerWhere = record.adminId
+    ? { adminId: record.adminId }
+    : { orientadorId: record.orientadorId! };
 
-    await this.prisma.$transaction([
-      this.prisma.administrativo.update({
-        where: { id_administrativo: record.adminId! },
+  await this.prisma.$transaction(async (tx) => {
+    // 1) actualiza contraseña en la tabla correspondiente
+    if (record.adminId) {
+      await tx.administrativo.update({
+        where: { id_administrativo: record.adminId },
         data: { password: hashed },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      }),
-      this.prisma.passwordResetToken.updateMany({
-        where: { adminId: record.adminId!, usedAt: null, id: { not: record.id } },
-        data: { usedAt: new Date() },
-      }),
-    ]);
-    return true;
-  }
-
-  if (record.orientador) {
-    await this.prisma.$transaction([
-      this.prisma.orientador.update({
+      });
+    } else {
+      await tx.orientador.update({
         where: { id_orientador: record.orientadorId! },
         data: { password: hashed },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      }),
-      this.prisma.passwordResetToken.updateMany({
-        where: { orientadorId: record.orientadorId!, usedAt: null, id: { not: record.id } },
-        data: { usedAt: new Date() },
-      }),
-    ]);
-    return true;
-  }
+      });
+    }
 
-  throw new BadRequestException('Token inconsistente');
+    // 2) elimina el token usado
+    await tx.passwordResetToken.delete({ where: { id: record.id } });
+
+    // 3) elimina EXPIRADOS del mismo owner (por higiene)
+    await tx.passwordResetToken.deleteMany({
+      where: { ...ownerWhere, expiresAt: { lt: new Date() } },
+    });
+
+    // 4) elimina CUALQUIER OTRO token aún activo del mismo owner
+    await tx.passwordResetToken.deleteMany({
+      where: { ...ownerWhere, usedAt: null },
+    });
+  });
+
+  return true;
 }
-
 }
