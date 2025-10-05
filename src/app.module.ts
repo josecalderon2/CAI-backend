@@ -20,7 +20,8 @@ import appConfig from './config/app.config';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [appConfig],
-      envFilePath: process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
+      envFilePath:
+        process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
     }),
     AdministrativoModule,
     AuthModule,

@@ -20,8 +20,8 @@ async function bootstrap() {
 
   // Configuración de CORS para desarrollo y producción
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-  const origins = frontendUrl.split(',').map(url => url.trim());
-  
+  const origins = frontendUrl.split(',').map((url) => url.trim());
+
   app.enableCors({
     origin: origins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

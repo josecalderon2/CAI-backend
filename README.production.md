@@ -61,6 +61,7 @@ pm2 monit
 ## Documentación API
 
 La documentación de la API estará disponible en:
+
 - Ruta: `/api`
 - Ejemplo: `https://api.colegioamigosdeisrael.cl/api`
 
