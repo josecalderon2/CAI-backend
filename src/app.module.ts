@@ -13,9 +13,15 @@ import { CargoAdministrativoModule } from './cargo-administrativo/cargo-administ
 import { EstadisticasModule } from './estadisticas/estadisticas.module';
 import { ActividadesRecientesModule } from './actividades-recientes/actividades-recientes.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import appConfig from './config/app.config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [appConfig],
+      envFilePath: process.env.NODE_ENV === 'production' ? '.env.production' : '.env',
+    }),
     AdministrativoModule,
     AuthModule,
     CargoAdministrativoModule,

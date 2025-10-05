@@ -18,9 +18,12 @@ async function bootstrap() {
   // Prefijo global: TODAS las rutas quedan /api/...
   //app.setGlobalPrefix('api');
 
-  // HABILITAR CORS para Vite (5173)
+  // Configuración de CORS para desarrollo y producción
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const origins = frontendUrl.split(',').map(url => url.trim());
+  
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: origins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: false, // true solo si usaras cookies; con Bearer puede ser false
