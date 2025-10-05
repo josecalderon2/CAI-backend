@@ -16,7 +16,7 @@ async function bootstrap() {
   );
 
   // Prefijo global: TODAS las rutas quedan /api/...
-  app.setGlobalPrefix('api');
+  //app.setGlobalPrefix('api');
 
   // HABILITAR CORS para Vite (5173)
   app.enableCors({
