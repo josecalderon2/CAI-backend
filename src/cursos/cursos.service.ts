@@ -11,6 +11,7 @@ const CURSO_SELECT = {
   id_curso: true,
   nombre: true,
   seccion: true,
+  descripcion: true,
   id_grado_academico: true,
   id_orientador: true,
   cupo: true,
@@ -75,6 +76,7 @@ export class CursosService {
         OR: [
           { nombre: { contains: term, mode: 'insensitive' } },
           { seccion: { contains: term, mode: 'insensitive' } },
+          { descripcion: { contains: term, mode: 'insensitive' } },
           { aula: { contains: term, mode: 'insensitive' } },
           { orientador: { nombre: { contains: term, mode: 'insensitive' } } },
           { orientador: { apellido: { contains: term, mode: 'insensitive' } } },

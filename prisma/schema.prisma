@@ -140,6 +140,7 @@ model Curso {
   id_curso           Int     @id @default(autoincrement())
   nombre             String
   seccion            String?
+  descripcion        String?
   id_grado_academico Int?
   id_orientador      Int?
   cupo               Int?

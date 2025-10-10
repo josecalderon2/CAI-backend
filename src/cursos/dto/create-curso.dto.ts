@@ -13,6 +13,11 @@ export class CreateCursoDto {
   @IsString()
   seccion?: string;
 
+  @ApiPropertyOptional({ example: 'Descripción del curso' })
+  @IsOptional()
+  @IsString()
+  descripcion?: string;
+
   @ApiPropertyOptional({ example: 1, description: 'FK a Grado_Academico' })
   @IsOptional()
   @Type(() => Number)
