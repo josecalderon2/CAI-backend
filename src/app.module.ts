@@ -14,6 +14,7 @@ import { EstadisticasModule } from './estadisticas/estadisticas.module';
 import { ActividadesRecientesModule } from './actividades-recientes/actividades-recientes.module';
 import { CursosModule } from './cursos/cursos.module';
 import { GradoAcademicoModule } from './grado-academico/grado-academico.module';
+import { JornadasModule } from './jornadas/jornadas.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -29,6 +30,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     EstadisticasModule,
     CursosModule,
     GradoAcademicoModule,
+    JornadasModule,
     ActividadesRecientesModule,
     ScheduleModule.forRoot(),
   ],
