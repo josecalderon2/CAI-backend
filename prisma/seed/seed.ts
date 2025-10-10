@@ -68,7 +68,6 @@ async function seedUsuarios(cargos: {
       direccion: 'Santa Ana',
       dui: '11111111-1',
       telefono: '7000-0001',
-      
     },
     create: {
       nombre: 'Paola',
@@ -162,6 +161,19 @@ async function seedTipoActividades() {
   }
 
   console.log('Tipos de actividad OK');
+}
+
+async function seedJornadas() {
+  const jornadas = ['Diurna'];
+
+  for (const nombre of jornadas) {
+    const exists = await prisma.jornada.findFirst({ where: { nombre } });
+    if (!exists) {
+      await prisma.jornada.create({ data: { nombre } });
+    }
+  }
+
+  console.log('Jornadas OK:', jornadas);
 }
 
 async function seedAlumnoEjemplo() {
@@ -317,9 +329,10 @@ async function seedAlumnoEjemplo() {
 async function main() {
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
   await prisma.$connect();
-  console.log('Conectado a la BD ✅');
+  console.log('Conectado a la BD');
 
   const cargos = await seedCargos();
+  await seedJornadas();
   await seedUsuarios(cargos);
   await seedParentescos();
   await seedTipoActividades();

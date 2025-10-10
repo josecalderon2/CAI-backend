@@ -12,6 +12,8 @@ import { ParentescoModule } from './parentesco/parentesco.module';
 import { CargoAdministrativoModule } from './cargo-administrativo/cargo-administrativo.module';
 import { EstadisticasModule } from './estadisticas/estadisticas.module';
 import { ActividadesRecientesModule } from './actividades-recientes/actividades-recientes.module';
+import { CursosModule } from './cursos/cursos.module';
+import { GradoAcademicoModule } from './grado-academico/grado-academico.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -25,6 +27,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     ResponsablesModule,
     ParentescoModule,
     EstadisticasModule,
+    CursosModule,
+    GradoAcademicoModule,
     ActividadesRecientesModule,
     ScheduleModule.forRoot(),
   ],

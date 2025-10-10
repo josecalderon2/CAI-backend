@@ -144,12 +144,12 @@ model Curso {
   id_orientador      Int?
   cupo               Int?
   aula               String?
-  id_asignatura      Int?
 
   gradoAcademico Grado_Academico?             @relation(fields: [id_grado_academico], references: [id_grado_academico])
   orientador     Orientador?                  @relation(fields: [id_orientador], references: [id_orientador])
   alumnos        Alumno[]                     @relation("AlumnoCurso")
-  asignatura     Asignatura?                  @relation(fields: [id_asignatura], references: [id_asignatura])
+  asignaturas    Asignatura[]
+  activo         Boolean?                     @default(true)
   historialCurso Historial_curso_orientador[]
 }
 
@@ -172,10 +172,11 @@ model Asignatura {
   id_metodo_evaluacion  Int?
   id_tipo_asignatura    Int?
   id_sistema_evaluacion Int?
+  id_curso              Int?
   metodoEvaluacion      Metodo_evaluacion?  @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
   tipoAsignatura        Tipo_Asignatura?    @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
   sistemaEvaluacion     Sistema_Evaluacion? @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
-  curso                 Curso[]
+  curso                 Curso?               @relation(fields: [id_curso], references: [id_curso])
   notas                 Notas[]
 }
 
