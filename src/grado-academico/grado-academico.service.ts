@@ -10,6 +10,7 @@ const SELECT = {
   n_anios: true,
   nota_minima: true,
   id_jornada: true,
+  rcup: true,
 };
 
 @Injectable()
