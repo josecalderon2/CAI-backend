@@ -38,7 +38,7 @@ export class GradoAcademicoController {
     return this.service.create(dto);
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A')
   @Get()
   @ApiOkResponse({ description: 'Lista de grados académicos' })
   @ApiQuery({ name: 'page', required: false })
@@ -48,7 +48,7 @@ export class GradoAcademicoController {
     return this.service.findAll(query);
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);

@@ -24,6 +24,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CursoCuposDto, ListaCursosCuposDto } from './dto/curso-cupos.dto';
 
 @ApiTags('Cursos')
 @ApiBearerAuth('JWT-auth')
@@ -39,7 +40,7 @@ export class CursosController {
     return this.service.create(dto);
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A')
   @Get()
   @ApiOkResponse({ description: 'Lista de cursos' })
   @ApiQuery({ name: 'page', required: false })
@@ -49,13 +50,13 @@ export class CursosController {
     return this.service.findAll(query as any);
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A')
   @Get('stats')
   stats() {
     return this.service.stats();
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.service.findOne(id);
@@ -77,5 +78,28 @@ export class CursosController {
   @Patch(':id/restore')
   restore(@Param('id', ParseIntPipe) id: number) {
     return this.service.restore(id);
+  }
+
+  @Roles('Admin', 'P.A')
+  @Get('cupos/listado')
+  @ApiOkResponse({
+    description: 'Lista de cursos con información detallada de cupos',
+    type: ListaCursosCuposDto,
+  })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'q', required: false })
+  findAllCupos(@Query() query: ListCursosDto) {
+    return this.service.findAllCursosCupos(query);
+  }
+
+  @Roles('Admin', 'P.A')
+  @Get(':id/cupos')
+  @ApiOkResponse({
+    description: 'Información detallada de cupos para un curso específico',
+    type: CursoCuposDto,
+  })
+  findCursoConCupos(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findCursoCupos(id);
   }
 }
