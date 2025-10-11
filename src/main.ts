@@ -20,7 +20,7 @@ async function bootstrap() {
 
   // HABILITAR CORS para Vite (5173)
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: ['http://192.168.0.7:5173'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: false, // true solo si usaras cookies; con Bearer puede ser false

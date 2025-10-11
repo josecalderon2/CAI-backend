@@ -98,6 +98,26 @@ export class AuthController {
     return { message: 'If the email exists, a reset link was sent.' };
   }
 
+    @Get('reset-password')
+    @ApiOperation({ summary: 'Validar token de recuperación de contraseña' })
+    @ApiQuery({ name: 'token', type: String, required: true })
+    @ApiResponse({ status: 200, description: 'Token válido' })
+    @ApiResponse({ status: 400, description: 'Token inválido o expirado' })
+    async validateResetToken(@Query('token') token: string) {
+      try {
+        await this.auth.verifyResetToken(token);
+        return {
+          message: 'Token is valid',
+          statusCode: 200,
+        };
+      } catch (e) {
+        return {
+          message: e.message || 'Invalid or expired token',
+          statusCode: 400,
+        };
+      }
+    }
+
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Restablecer contraseña con token' })

@@ -35,15 +35,9 @@ export class AuthService {
 
   // genera el link correcto (front si hay FRONTEND_URL; si no, API con o sin prefijo)
   private buildResetUrl(plainToken: string) {
-    const base = (process.env.FRONTEND_URL || process.env.APP_URL || 'http://localhost:3000')
-      .replace(/\/+$/, '');
-
-    if (process.env.FRONTEND_URL) {
-      return `${base}/reset-password?token=${plainToken}`;
-    }
-    const prefix = (process.env.API_PREFIX || '').replace(/^\/|\/$/g, ''); // "api" | ""
-    const path = prefix ? `/${prefix}/auth/reset-password` : `/auth/reset-password`;
-    return `${base}${path}?token=${plainToken}`;
+    // Usa siempre la URL del frontend
+    const base = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    return `${base}/reset-password?token=${plainToken}`;
   }
 
   private async findUserByEmail(
