@@ -177,8 +177,9 @@ model Asignatura {
   metodoEvaluacion      Metodo_evaluacion?  @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
   tipoAsignatura        Tipo_Asignatura?    @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
   sistemaEvaluacion     Sistema_Evaluacion? @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
-  curso                 Curso?               @relation(fields: [id_curso], references: [id_curso])
+  curso                 Curso?              @relation(fields: [id_curso], references: [id_curso])
   notas                 Notas[]
+  orientadores          AsignaturaOrientador[]
 }
 
 model Metodo_evaluacion {
@@ -268,6 +269,7 @@ model Orientador {
   cargoAdministrativo     Cargo_administrativo?        @relation(fields: [id_cargo_administrativo], references: [id_cargo_administrativo])
   cursos                  Curso[]
   historialCurso          Historial_curso_orientador[]
+  asignaturas             AsignaturaOrientador[]
   activo                  Boolean                      @default(true)
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
@@ -307,4 +309,22 @@ model PasswordResetToken {
   @@index([orientadorId])
   @@index([tokenHash])
   @@index([expiresAt])
+}
+
+model AsignaturaOrientador {
+  id_asignatura_orientador Int        @id @default(autoincrement())
+  id_asignatura            Int
+  id_orientador            Int
+  anio_academico           String?
+  activo                   Boolean    @default(true)
+  fecha_asignacion         DateTime   @default(now())
+  fecha_fin                DateTime?
+  
+  // Relaciones
+  asignatura               Asignatura @relation(fields: [id_asignatura], references: [id_asignatura])
+  orientador               Orientador @relation(fields: [id_orientador], references: [id_orientador])
+  
+  @@unique([id_asignatura, id_orientador, anio_academico])
+  @@index([id_asignatura])
+  @@index([id_orientador])
 }

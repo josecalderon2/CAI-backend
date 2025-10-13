@@ -15,6 +15,7 @@ import { ActividadesRecientesModule } from './actividades-recientes/actividades-
 import { CursosModule } from './cursos/cursos.module';
 import { GradoAcademicoModule } from './grado-academico/grado-academico.module';
 import { JornadasModule } from './jornadas/jornadas.module';
+import { AsignaturasModule } from './asignaturas/asignaturas.module';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -32,6 +33,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     GradoAcademicoModule,
     JornadasModule,
     ActividadesRecientesModule,
+    AsignaturasModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
