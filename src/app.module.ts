@@ -17,7 +17,9 @@ import { GradoAcademicoModule } from './grado-academico/grado-academico.module';
 import { JornadasModule } from './jornadas/jornadas.module';
 import { AsignaturasModule } from './asignaturas/asignaturas.module';
 import { ScheduleModule } from '@nestjs/schedule';
-
+import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion.module';
+import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
+import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 @Module({
   imports: [
     AdministrativoModule,
@@ -34,6 +36,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     JornadasModule,
     ActividadesRecientesModule,
     AsignaturasModule,
+    MetodosEvaluacionModule,
+    TiposAsignaturaModule,
+    SistemasEvaluacionModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
