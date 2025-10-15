@@ -158,11 +158,21 @@ model Historial_curso_orientador {
   id_historial_curso_orientador Int        @id @default(autoincrement())
   id_curso                      Int
   id_orientador                 Int
+  es_orientador                 Boolean     @default(false)
+  id_asignatura                 Int?        // null => principal, valor => docente de materia
+
   anio_academico                String?
   fecha_asignacion              DateTime?
   fecha_fin                     DateTime?
-  curso                         Curso      @relation(fields: [id_curso], references: [id_curso])
-  orientador                    Orientador @relation(fields: [id_orientador], references: [id_orientador])
+
+  curso       Curso      @relation(fields: [id_curso], references: [id_curso])
+  orientador  Orientador @relation(fields: [id_orientador], references: [id_orientador])
+
+  asignatura  Asignatura? @relation("AsignaturaHistorial", fields: [id_asignatura], references: [id_asignatura])
+
+  @@index([id_curso, id_orientador, id_asignatura])
+  @@index([anio_academico])
+  @@index([fecha_asignacion, fecha_fin])
 }
 
 model Asignatura {
@@ -174,12 +184,16 @@ model Asignatura {
   id_tipo_asignatura    Int?
   id_sistema_evaluacion Int?
   id_curso              Int?
+
   metodoEvaluacion      Metodo_evaluacion?  @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
   tipoAsignatura        Tipo_Asignatura?    @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
   sistemaEvaluacion     Sistema_Evaluacion? @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
   curso                 Curso?              @relation(fields: [id_curso], references: [id_curso])
+
   notas                 Notas[]
   orientadores          AsignaturaOrientador[]
+
+  historialDocente      Historial_curso_orientador[] @relation("AsignaturaHistorial")
 }
 
 model Metodo_evaluacion {

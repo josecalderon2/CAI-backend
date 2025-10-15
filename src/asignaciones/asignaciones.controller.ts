@@ -32,6 +32,8 @@ import {
   AsignacionResponse,
   PaginadoAsignaciones,
 } from './dto/asignacion.response';
+import { HistorialParamsDto } from './dto/historial-params.dto';
+import { LogNormalizeQueryPipe } from './dto/pipes/log-normalize-query.pipe';
 
 @ApiTags('Asignaciones')
 @ApiBearerAuth('JWT-auth')
@@ -76,6 +78,13 @@ export class AsignacionesController {
   @ApiOkResponse({ type: PaginadoAsignaciones })
   findAll(@Query() query: ListDtoExt) {
     return this.service.findAll(query);
+  }
+
+  @Roles('Admin')
+  @Get('historial')
+  @ApiOperation({ summary: 'Obtener el historial de las asignaciones' })
+  getHistorial(@Query(new LogNormalizeQueryPipe()) query: HistorialParamsDto) {
+    return this.service.getHistorial(query);
   }
 
   // DETAIL
