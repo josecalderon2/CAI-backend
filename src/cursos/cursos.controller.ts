@@ -20,6 +20,7 @@ import {
   ApiOkResponse,
   ApiCreatedResponse,
   ApiQuery,
+  ApiOperation,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
@@ -32,6 +33,17 @@ import { CursoCuposDto, ListaCursosCuposDto } from './dto/curso-cupos.dto';
 @Controller('cursos')
 export class CursosController {
   constructor(private readonly service: CursosService) {}
+
+  // --- ENDPOINT PARA LISTAR TODOS LOS CURSOS ACTIVOS (para selects/dropdowns) ---
+  @Roles('Admin', 'P.A')
+  @Get('all')
+  @ApiOperation({
+    summary: 'Listar todos los cursos activos (para selects/dropdowns)',
+  })
+  @ApiOkResponse({ description: 'Lista simple de cursos activos' })
+  findAllSimple() {
+    return this.service.findAllSimple();
+  }
 
   @Roles('Admin')
   @Post()

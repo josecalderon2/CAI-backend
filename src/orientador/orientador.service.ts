@@ -46,6 +46,19 @@ export class OrientadorService {
     return Math.floor(10000000 + Math.random() * 90000000).toString();
   }
 
+  // Método para listar todos los orientadores de forma simplificada (para selectores/dropdowns)
+  async findAllSimple() {
+    return this.prisma.orientador.findMany({
+      where: { activo: true },
+      select: {
+        id_orientador: true,
+        nombre: true,
+        apellido: true,
+      },
+      orderBy: { apellido: 'asc' },
+    });
+  }
+
   async create(dto: CreateOrientadorDto) {
     try {
       const data: any = { ...dto };

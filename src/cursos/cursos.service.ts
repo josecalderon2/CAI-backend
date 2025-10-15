@@ -26,6 +26,26 @@ const CURSO_SELECT = {
 export class CursosService {
   constructor(private prisma: PrismaService) {}
 
+  // Método para listar todos los cursos de forma simplificada (para selectores/dropdowns)
+  async findAllSimple() {
+    return this.prisma.curso.findMany({
+      where: { activo: true },
+      select: {
+        id_curso: true,
+        nombre: true,
+        seccion: true,
+        gradoAcademico: {
+          select: { nombre: true },
+        },
+      },
+      orderBy: [
+        { gradoAcademico: { nombre: 'asc' } },
+        { nombre: 'asc' },
+        { seccion: 'asc' },
+      ],
+    });
+  }
+
   async create(dto: CreateCursoDto) {
     const { id_grado_academico, id_orientador, ...rest } = dto as any;
     const data: any = { ...rest };

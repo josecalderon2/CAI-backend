@@ -37,6 +37,7 @@ import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluac
     JornadasModule,
     ActividadesRecientesModule,
     AsignaturasModule,
+    AsignacionesModule,
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,

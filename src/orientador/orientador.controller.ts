@@ -35,6 +35,17 @@ import { Roles } from '../auth/roles.decorator';
 export class OrientadorController {
   constructor(private readonly service: OrientadorService) {}
 
+  // --- ENDPOINT PARA LISTAR TODOS LOS ORIENTADORES (para selects/dropdowns) ---
+  @Roles('Admin', 'P.A')
+  @Get('all')
+  @ApiOperation({
+    summary: 'Listar todos los orientadores activos (para selects/dropdowns)',
+  })
+  @ApiOkResponse({ description: 'Lista simple de orientadores activos' })
+  findAllSimple() {
+    return this.service.findAllSimple();
+  }
+
   // --- PERFIL (self) PRIMERO para evitar colisión con :id ---
   @Patch('profile')
   @ApiOperation({
