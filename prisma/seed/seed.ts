@@ -5,7 +5,6 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function getOrCreateCargo(nombre: 'Admin' | 'P.A' | 'Orientador') {
-  // Si nombre NO es unique en DB, usamos findFirst+create. Si lo es, upsert con where:nombre.
   const up = await prisma.cargo_administrativo.findFirst({
     where: { nombre },
     select: { id_cargo_administrativo: true },
@@ -36,7 +35,6 @@ async function seedUsuarios(cargos: {
   const passPA = await bcrypt.hash('Pa12345*', 10);
   const passOri = await bcrypt.hash('Ori12345*', 10);
 
-  // ADMIN
   await prisma.administrativo.upsert({
     where: { email: 'admin@colegio.edu' },
     update: {
@@ -59,7 +57,6 @@ async function seedUsuarios(cargos: {
     },
   });
 
-  // P.A
   await prisma.administrativo.upsert({
     where: { email: 'pa@colegio.edu' },
     update: {
@@ -82,7 +79,6 @@ async function seedUsuarios(cargos: {
     },
   });
 
-  // ORIENTADOR (id_cargo_administrativo, dui, telefono y direccion obligatorios)
   await prisma.orientador.upsert({
     where: { email: 'orientador@colegio.edu' },
     update: {
@@ -112,7 +108,6 @@ async function seedUsuarios(cargos: {
 }
 
 async function seedParentescos() {
-  // Crear tipos de parentescos comunes
   const parentescos = [
     'Padre',
     'Madre',
@@ -136,7 +131,6 @@ async function seedParentescos() {
 }
 
 async function seedTipoActividades() {
-  // Crear tipos de actividades para evaluaciones
   const tipos = [
     'Examen parcial',
     'Examen final',
@@ -147,12 +141,10 @@ async function seedTipoActividades() {
   ];
 
   for (const nombre of tipos) {
-    // Buscar primero si existe
     const existente = await prisma.tipo_actividad.findFirst({
       where: { nombre },
     });
 
-    // Si no existe, crearlo
     if (!existente) {
       await prisma.tipo_actividad.create({
         data: { nombre },
@@ -177,31 +169,27 @@ async function seedJornadas() {
 }
 
 async function seedGradosAcademicos() {
-  // Crear grados académicos básicos
   const grados = [
     { nombre: 'Primera Infancia', nota_minima: 7.0 },
     { nombre: 'Primaria', nota_minima: 7.0 },
     { nombre: 'Secundaria', nota_minima: 7.0 },
   ];
 
-  // Obtener la jornada diurna (si existe)
   const jornada = await prisma.jornada.findFirst({
     where: { nombre: 'Diurna' },
   });
 
   for (const grado of grados) {
-    // Verificar si ya existe
     const exists = await prisma.grado_Academico.findFirst({
       where: { nombre: grado.nombre },
     });
 
     if (!exists) {
-      // Crear el grado académico
       await prisma.grado_Academico.create({
         data: {
           nombre: grado.nombre,
           nota_minima: grado.nota_minima,
-          id_jornada: jornada?.id_jornada, // Conectar con la jornada si existe
+          id_jornada: jornada?.id_jornada,
         },
       });
     }
@@ -211,7 +199,6 @@ async function seedGradosAcademicos() {
 }
 
 async function seedAlumnoEjemplo() {
-  // 1. Crear responsables del alumno
   const responsablePadre = await prisma.responsable.upsert({
     where: { dui: '01234567-8' },
     update: {},
@@ -267,7 +254,6 @@ async function seedAlumnoEjemplo() {
     },
   });
 
-  // 2. Obtener IDs de parentescos
   const parentescoPadre = await prisma.parentesco.findFirst({
     where: { nombre: 'Padre' },
   });
@@ -280,7 +266,6 @@ async function seedAlumnoEjemplo() {
     where: { nombre: 'Tío/a' },
   });
 
-  // 3. Crear alumno con todos los campos
   const alumnoCreado = await prisma.alumno.create({
     data: {
       nombre: 'Diego Antonio',
@@ -312,7 +297,6 @@ async function seedAlumnoEjemplo() {
       repiteGrado: false,
       condicionado: false,
       activo: true,
-      // Crear detalles del alumno
       detalle: {
         create: {
           viveCon: 'Ambos Padres',
@@ -323,7 +307,6 @@ async function seedAlumnoEjemplo() {
           ]),
         },
       },
-      // Relacionar con responsables
       responsables: {
         create: [
           {
@@ -368,9 +351,7 @@ async function seedMetodosEvaluacion() {
       where: { nombre },
     });
     if (!existente) {
-      await prisma.metodo_evaluacion.create({
-        data: { nombre },
-      });
+      await prisma.metodo_evaluacion.create({ data: { nombre } });
     }
   }
   console.log('Métodos de Evaluación OK');
@@ -378,19 +359,19 @@ async function seedMetodosEvaluacion() {
 
 async function seedTiposAsignatura() {
   const tipos = [
-    'Basica', 'Formativa', 'Conductual',
-    'Especial', 'Asistencia', 'PAES',
+    'Basica',
+    'Formativa',
+    'Conductual',
+    'Especial',
+    'Asistencia',
+    'PAES',
   ];
 
   for (const nombre of tipos) {
     const existente = await prisma.tipo_Asignatura.findFirst({
       where: { nombre },
     });
-    if (!existente) {
-      await prisma.tipo_Asignatura.create({
-        data: { nombre },
-      });
-    }
+    if (!existente) await prisma.tipo_Asignatura.create({ data: { nombre } });
   }
   console.log('Tipos de Asignatura OK');
 }
@@ -422,8 +403,354 @@ async function seedSistemasEvaluacion() {
   console.log('Sistemas de Evaluación OK');
 }
 
+async function ensureOrientadorExtra(
+  email: string,
+  nombre: string,
+  apellido: string,
+  cargos: { oriId: number },
+) {
+  const exists = await prisma.orientador.findUnique({ where: { email } });
+  if (exists) return exists;
 
+  const pass = await bcrypt.hash('Ori2*12345', 10);
+  return prisma.orientador.create({
+    data: {
+      nombre,
+      apellido,
+      email,
+      password: pass,
+      id_cargo_administrativo: cargos.oriId,
+      activo: true,
+      dui: '33333333-3',
+      telefono: '7000-0003',
+      direccion: 'Col. Escalón, San Salvador',
+    },
+  });
+}
 
+async function getOrCreateCurso(
+  nombre: string,
+  seccion: string,
+  id_grado_academico: number | undefined,
+  id_orientador: number,
+  cupo = 30,
+  aula?: string,
+) {
+  const found = await prisma.curso.findFirst({ where: { nombre, seccion } });
+  if (found) {
+    if (
+      found.id_orientador !== id_orientador ||
+      found.cupo !== cupo ||
+      (aula && found.aula !== aula)
+    ) {
+      return prisma.curso.update({
+        where: { id_curso: found.id_curso },
+        data: { id_orientador, cupo, aula },
+      });
+    }
+    return found;
+  }
+  return prisma.curso.create({
+    data: {
+      nombre,
+      seccion,
+      id_grado_academico,
+      id_orientador,
+      cupo,
+      aula,
+      activo: true,
+    },
+  });
+}
+
+async function getCatalogIds() {
+  const metodo = await prisma.metodo_evaluacion.findFirst({
+    where: { nombre: 'Numerico' },
+  });
+  const tipo = await prisma.tipo_Asignatura.findFirst({
+    where: { nombre: 'Basica' },
+  });
+  const sistema = await prisma.sistema_Evaluacion.findFirst({
+    where: { nombre: 'Educacion Basica - 4' },
+  });
+  if (!metodo || !tipo || !sistema) {
+    throw new Error(
+      'Faltan catálogos: metodo_evaluacion/tipo_Asignatura/sistema_Evaluacion. Corre primero los seeds de catálogos.',
+    );
+  }
+  return {
+    id_metodo_evaluacion: metodo.id_metodo_evaluacion,
+    id_tipo_asignatura: tipo.id_tipo_asignatura,
+    id_sistema_evaluacion: sistema.id_sistema_evaluacion,
+  };
+}
+
+async function getOrCreateAsignatura(
+  nombre: string,
+  id_curso: number,
+  extra: {
+    orden_en_reporte?: string;
+    horas_semanas?: number;
+    id_metodo_evaluacion: number;
+    id_tipo_asignatura: number;
+    id_sistema_evaluacion: number;
+  },
+) {
+  const found = await prisma.asignatura.findFirst({
+    where: { nombre, id_curso },
+  });
+  if (found) return found;
+
+  return prisma.asignatura.create({
+    data: {
+      nombre,
+      id_curso,
+      orden_en_reporte: extra.orden_en_reporte ?? null,
+      horas_semanas: extra.horas_semanas ?? 5,
+      id_metodo_evaluacion: extra.id_metodo_evaluacion,
+      id_tipo_asignatura: extra.id_tipo_asignatura,
+      id_sistema_evaluacion: extra.id_sistema_evaluacion,
+    },
+  });
+}
+
+async function upsertAsignacionAO(params: {
+  id_asignatura: number;
+  id_orientador: number;
+  anio_academico: string;
+  fecha_asignacion?: Date;
+  activo?: boolean;
+}) {
+  return prisma.asignaturaOrientador.upsert({
+    where: {
+      id_asignatura_id_orientador_anio_academico: {
+        id_asignatura: params.id_asignatura,
+        id_orientador: params.id_orientador,
+        anio_academico: params.anio_academico,
+      },
+    },
+    update: {
+      activo: params.activo ?? true,
+      fecha_asignacion: params.fecha_asignacion ?? new Date(),
+      fecha_fin: null,
+    },
+    create: {
+      id_asignatura: params.id_asignatura,
+      id_orientador: params.id_orientador,
+      anio_academico: params.anio_academico,
+      activo: params.activo ?? true,
+      fecha_asignacion: params.fecha_asignacion ?? new Date(),
+    },
+  });
+}
+
+async function seedCursosAsignaturasYAsignaciones(cargos: {
+  adminId: number;
+  paId: number;
+  oriId: number;
+}) {
+  const ori1 = await prisma.orientador.findUnique({
+    where: { email: 'orientador@colegio.edu' },
+  });
+  if (!ori1)
+    throw new Error('No existe orientador@colegio.edu. Revisa seedUsuarios()');
+
+  const ori2 = await ensureOrientadorExtra(
+    'maria.orientadora@colegio.edu',
+    'María',
+    'López',
+    cargos,
+  );
+
+  const primaria = await prisma.grado_Academico.findFirst({
+    where: { nombre: 'Primaria' },
+  });
+  if (!primaria)
+    throw new Error(
+      'No existe Grado_Academico "Primaria". Revisa seedGradosAcademicos().',
+    );
+
+  const curso5A = await getOrCreateCurso(
+    '5°',
+    'A',
+    primaria.id_grado_academico,
+    ori1.id_orientador,
+    35,
+    'A-5',
+  );
+  const curso6B = await getOrCreateCurso(
+    '6°',
+    'B',
+    primaria.id_grado_academico,
+    ori2.id_orientador,
+    32,
+    'B-6',
+  );
+
+  const cats = await getCatalogIds();
+
+  const mat5A = await getOrCreateAsignatura('Matemática I', curso5A.id_curso, {
+    ...cats,
+    orden_en_reporte: '01',
+    horas_semanas: 5,
+  });
+  const len5A = await getOrCreateAsignatura(
+    'Lenguaje y Literatura',
+    curso5A.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '02',
+      horas_semanas: 4,
+    },
+  );
+  const cie5A = await getOrCreateAsignatura(
+    'Ciencias Naturales',
+    curso5A.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '03',
+      horas_semanas: 3,
+    },
+  );
+
+  const mat6B = await getOrCreateAsignatura('Matemática II', curso6B.id_curso, {
+    ...cats,
+    orden_en_reporte: '01',
+    horas_semanas: 5,
+  });
+  const len6B = await getOrCreateAsignatura(
+    'Lenguaje y Literatura II',
+    curso6B.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '02',
+      horas_semanas: 4,
+    },
+  );
+  const soc6B = await getOrCreateAsignatura(
+    'Ciencias Sociales',
+    curso6B.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '03',
+      horas_semanas: 3,
+    },
+  );
+
+  const anio = '2025';
+  const fAsign = new Date('2025-01-15T12:00:00Z');
+
+  await upsertAsignacionAO({
+    id_asignatura: mat5A.id_asignatura,
+    id_orientador: ori1.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+
+  await upsertAsignacionAO({
+    id_asignatura: len5A.id_asignatura,
+    id_orientador: ori2.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+
+  await upsertAsignacionAO({
+    id_asignatura: mat6B.id_asignatura,
+    id_orientador: ori2.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+
+  await upsertAsignacionAO({
+    id_asignatura: soc6B.id_asignatura,
+    id_orientador: ori1.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+
+  console.log('Cursos/Asignaturas/Asignaciones OK:', {
+    cursos: [curso5A.id_curso, curso6B.id_curso],
+    asignaturas5A: [
+      mat5A.id_asignatura,
+      len5A.id_asignatura,
+      cie5A.id_asignatura,
+    ],
+    asignaturas6B: [
+      mat6B.id_asignatura,
+      len6B.id_asignatura,
+      soc6B.id_asignatura,
+    ],
+    orientadores: [ori1.id_orientador, ori2.id_orientador],
+  });
+}
+
+async function ensureMVAsignaciones() {
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_matviews
+        WHERE schemaname='public' AND matviewname='mv_asignaciones'
+      ) THEN
+        CREATE MATERIALIZED VIEW public.mv_asignaciones AS
+        SELECT
+          ao.id_asignatura_orientador,
+          ao.id_asignatura,
+          a.nombre                               AS nombre_asignatura,
+          a.horas_semanas,
+          ao.id_orientador,
+          (o.nombre || ' ' || o.apellido)        AS docente,
+          c.id_curso,
+          c.nombre                               AS curso,
+          c.seccion,
+          c.id_orientador                        AS orientador_principal_id,
+          (op.nombre || ' ' || op.apellido)      AS orientador_principal,
+          ao.anio_academico,
+          ao.fecha_asignacion,
+          ao.fecha_fin,
+          ao.activo,
+          CASE WHEN c.id_orientador = ao.id_orientador THEN TRUE ELSE FALSE END AS es_orientador
+        FROM public."AsignaturaOrientador" ao
+        JOIN public."Asignatura" a
+          ON a.id_asignatura = ao.id_asignatura
+        LEFT JOIN public."Curso" c
+          ON c.id_curso = a.id_curso
+        LEFT JOIN public."orientadores" o
+          ON o.id_orientador = ao.id_orientador
+        LEFT JOIN public."orientadores" op
+          ON op.id_orientador = c.id_orientador
+        WITH NO DATA;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS mv_asignaciones_pk
+    ON public.mv_asignaciones (id_asignatura_orientador);
+  `);
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_asignaciones;
+    `);
+    console.log('MV mv_asignaciones refrescada (CONCURRENTLY).');
+  } catch (e) {
+    console.warn(
+      'REFRESH CONCURRENTLY falló, usando REFRESH normal:',
+      (e as Error).message,
+    );
+    await prisma.$executeRawUnsafe(`
+      REFRESH MATERIALIZED VIEW public.mv_asignaciones;
+    `);
+    console.log('MV mv_asignaciones refrescada (normal).');
+  }
+
+  console.log('Materialized View OK: mv_asignaciones');
+}
 
 async function main() {
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
@@ -440,6 +767,9 @@ async function main() {
   await seedMetodosEvaluacion();
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
+  await seedCursosAsignaturasYAsignaciones(cargos);
+
+  await ensureMVAsignaciones();
 }
 
 main()

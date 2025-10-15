@@ -16,6 +16,7 @@ import { CursosModule } from './cursos/cursos.module';
 import { GradoAcademicoModule } from './grado-academico/grado-academico.module';
 import { JornadasModule } from './jornadas/jornadas.module';
 import { AsignaturasModule } from './asignaturas/asignaturas.module';
+import { AsignacionesModule } from './asignaciones/asignaciones.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion.module';
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
