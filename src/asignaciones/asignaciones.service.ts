@@ -8,6 +8,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAsignacionDto } from './dto/create-asignacion.dto';
 import { UpdateAsignacionDto } from './dto/update-asignacion.dto';
 import { ListDtoExt, EstadoAsignacion } from './dto/list-asignaciones.dto';
+import { HistorialParamsDto } from './dto/historial-params.dto';
+import {
+  PaginadoHistorialDto,
+  HistorialItemDto,
+} from './dto/historial-response.dto';
 import {
   PaginadoAsignaciones,
   AsignacionResponse,
@@ -15,7 +20,6 @@ import {
 import { toAsignacionResponse } from './mappers/asignacion.mapper';
 import { performance } from 'node:perf_hooks';
 
-// === Tipos/Mapper de la MV ===
 type MVRow = {
   id_asignatura_orientador: number;
   id_asignatura: number | null;
@@ -39,6 +43,7 @@ function mapMVRowToResponse(r: MVRow): AsignacionResponse {
   let estado: 'ACTIVO' | 'FINALIZADO' | 'INACTIVO' = 'ACTIVO';
   if (r.activo === false) estado = 'INACTIVO';
   else if (r.fecha_fin) estado = 'FINALIZADO';
+
   return {
     id_asignatura_orientador: r.id_asignatura_orientador,
     docente: {
@@ -75,7 +80,7 @@ function mapMVRowToResponse(r: MVRow): AsignacionResponse {
 export class AsignacionesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // --- REFRESH: materialized view ---
+  // REFRESH MV
   async refreshMV(concurrently = false): Promise<void> {
     if (concurrently) {
       await this.prisma.$executeRawUnsafe(
@@ -87,11 +92,8 @@ export class AsignacionesService {
       );
     }
   }
-
-  // --- REFRESH: coalescer/TTL ---
   private _mvRefreshing: Promise<void> | null = null;
   private _lastMVRefreshAt = 0;
-
   private async refreshMVCoalesced(concurrently = true) {
     if (this._mvRefreshing) {
       try {
@@ -116,14 +118,13 @@ export class AsignacionesService {
     })();
     await this._mvRefreshing;
   }
-
   private async refreshMVWithTTL(ttlMs = 3000, force = false) {
     const now = Date.now();
     if (!force && now - this._lastMVRefreshAt < ttlMs) return;
     await this.refreshMVCoalesced(true);
   }
 
-  // --- FIND ALL ---
+  // FIND ALL
   async findAll(query: ListDtoExt): Promise<PaginadoAsignaciones> {
     const T0 = performance.now();
     let refreshMs = 0;
@@ -184,13 +185,7 @@ export class AsignacionesService {
       }
 
       const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
-
-      const countSQL = `
-        SELECT COUNT(*)::int AS total
-        FROM public.mv_asignaciones
-        ${whereSQL};
-      `;
-
+      const countSQL = `SELECT COUNT(*)::int AS total FROM public.mv_asignaciones ${whereSQL};`;
       const dataSQL = `
         SELECT
           id_asignatura_orientador,
@@ -214,7 +209,6 @@ export class AsignacionesService {
         ORDER BY fecha_asignacion DESC NULLS LAST, id_asignatura_orientador DESC
         LIMIT $${p++} OFFSET $${p++};
       `;
-
       const paramsCount = [...params];
       const paramsData = [...params, pageSize, (page - 1) * pageSize];
 
@@ -278,13 +272,11 @@ export class AsignacionesService {
       orQ.push({ asignatura: { nombre: contains } });
       orQ.push({ asignatura: { curso: { nombre: contains } } });
     }
-
-    if (query.id_curso) {
+    if (query.id_curso)
       whereAO.asignatura = {
         ...(whereAO.asignatura ?? {}),
         id_curso: query.id_curso,
       };
-    }
 
     const whereFinal = orQ.length ? { AND: [whereAO, { OR: orQ }] } : whereAO;
 
@@ -336,7 +328,7 @@ export class AsignacionesService {
     } as any;
   }
 
-  // --- CREATE ---
+  // CREATE
   async create(dto: CreateAsignacionDto): Promise<AsignacionResponse> {
     const result = await this.prisma.$transaction(async (tx) => {
       const asignatura = await tx.asignatura.findUnique({
@@ -346,11 +338,10 @@ export class AsignacionesService {
       if (!asignatura) throw new NotFoundException('Asignatura no encontrada');
 
       const curso = asignatura.curso;
-      if (!curso) {
+      if (!curso)
         throw new BadRequestException(
           'La asignatura no está vinculada a un curso',
         );
-      }
 
       if (dto.id_curso && dto.id_curso !== curso.id_curso) {
         throw new BadRequestException(
@@ -367,7 +358,6 @@ export class AsignacionesService {
         },
         include: { orientador: true },
       });
-
       if (
         existenteActiva &&
         existenteActiva.id_orientador !== dto.id_orientador
@@ -419,42 +409,72 @@ export class AsignacionesService {
         },
       });
 
-      if (
-        dto.es_orientador === true &&
-        curso.id_orientador !== dto.id_orientador
-      ) {
+      // HISTORIAL SIEMPRE
+      {
         const now = new Date();
-        const historialActivo = await tx.historial_curso_orientador.findFirst({
-          where: { id_curso: curso.id_curso, fecha_fin: null },
-        });
-        if (historialActivo) {
-          await tx.historial_curso_orientador.update({
+        const fecha = dto.fecha_asignacion
+          ? new Date(dto.fecha_asignacion)
+          : now;
+
+        if (dto.es_orientador === true) {
+          const histActivo = await tx.historial_curso_orientador.findFirst({
             where: {
-              id_historial_curso_orientador:
-                historialActivo.id_historial_curso_orientador,
+              id_curso: curso.id_curso,
+              es_orientador: true,
+              fecha_fin: null,
             },
-            data: { fecha_fin: now },
           });
+          if (histActivo) {
+            await tx.historial_curso_orientador.update({
+              where: {
+                id_historial_curso_orientador:
+                  histActivo.id_historial_curso_orientador,
+              },
+              data: { fecha_fin: fecha },
+            });
+          }
+          await tx.historial_curso_orientador.create({
+            data: {
+              id_curso: curso.id_curso,
+              id_orientador: dto.id_orientador,
+              id_asignatura: asignatura.id_asignatura,
+              es_orientador: true,
+              anio_academico: dto.anio_academico,
+              fecha_asignacion: fecha,
+              fecha_fin: null,
+            },
+          });
+          if (curso.id_orientador !== dto.id_orientador) {
+            await tx.curso.update({
+              where: { id_curso: curso.id_curso },
+              data: { id_orientador: dto.id_orientador },
+            });
+          }
+        } else {
+          const existeDocenteAbierto =
+            await tx.historial_curso_orientador.findFirst({
+              where: {
+                id_curso: curso.id_curso,
+                id_orientador: dto.id_orientador,
+                id_asignatura: asignatura.id_asignatura,
+                es_orientador: false,
+                fecha_fin: null,
+              },
+            });
+          if (!existeDocenteAbierto) {
+            await tx.historial_curso_orientador.create({
+              data: {
+                id_curso: curso.id_curso,
+                id_orientador: dto.id_orientador,
+                id_asignatura: asignatura.id_asignatura,
+                es_orientador: false,
+                anio_academico: dto.anio_academico,
+                fecha_asignacion: fecha,
+                fecha_fin: null,
+              },
+            });
+          }
         }
-        await tx.historial_curso_orientador.create({
-          data: {
-            id_curso: curso.id_curso,
-            id_orientador: dto.id_orientador,
-            anio_academico: dto.anio_academico,
-            fecha_asignacion: dto.fecha_asignacion
-              ? new Date(dto.fecha_asignacion)
-              : now,
-            fecha_fin: null,
-          },
-        });
-        await tx.curso.update({
-          where: { id_curso: curso.id_curso },
-          data: { id_orientador: dto.id_orientador },
-        });
-        (curso as any).id_orientador = dto.id_orientador;
-        (curso as any).orientador = await tx.orientador.findUnique({
-          where: { id_orientador: dto.id_orientador },
-        });
       }
 
       const loaded = await tx.asignaturaOrientador.findUnique({
@@ -464,7 +484,6 @@ export class AsignacionesService {
           orientador: true,
         },
       });
-
       return loaded!;
     });
 
@@ -476,7 +495,7 @@ export class AsignacionesService {
     return toAsignacionResponse(result, curso, docente, asignatura);
   }
 
-  // --- FIND ONE ---
+  // FIND ONE
   async findOne(id_asignatura_orientador: number): Promise<AsignacionResponse> {
     const row = await this.prisma.asignaturaOrientador.findUnique({
       where: { id_asignatura_orientador },
@@ -494,7 +513,7 @@ export class AsignacionesService {
     return toAsignacionResponse(row, curso, docente, asignatura);
   }
 
-  // --- UPDATE (PATCH) ---
+  // UPDATE (PATCH)
   async update(
     id_asignatura_orientador: number,
     dto: UpdateAsignacionDto,
@@ -530,11 +549,18 @@ export class AsignacionesService {
       const targetDocenteId = dto.id_orientador ?? current.id_orientador;
 
       if (curso) {
+        const fecha = dto.fecha_asignacion
+          ? new Date(dto.fecha_asignacion)
+          : new Date();
+
         if (promoteToOrientador) {
-          const now = new Date();
           const historialActivo = await tx.historial_curso_orientador.findFirst(
             {
-              where: { id_curso: curso.id_curso, fecha_fin: null },
+              where: {
+                id_curso: curso.id_curso,
+                es_orientador: true,
+                fecha_fin: null,
+              },
             },
           );
           if (historialActivo) {
@@ -543,17 +569,18 @@ export class AsignacionesService {
                 id_historial_curso_orientador:
                   historialActivo.id_historial_curso_orientador,
               },
-              data: { fecha_fin: now },
+              data: { fecha_fin: fecha },
             });
           }
           await tx.historial_curso_orientador.create({
             data: {
               id_curso: curso.id_curso,
               id_orientador: targetDocenteId,
-              anio_academico: current.anio_academico,
-              fecha_asignacion: dto.fecha_asignacion
-                ? new Date(dto.fecha_asignacion)
-                : now,
+              id_asignatura: asignatura?.id_asignatura ?? null,
+              es_orientador: true,
+              anio_academico:
+                current.anio_academico ?? dto.anio_academico ?? null,
+              fecha_asignacion: fecha,
               fecha_fin: null,
             },
           });
@@ -567,10 +594,13 @@ export class AsignacionesService {
           });
         } else if (demoteFromOrientador) {
           if (curso.id_orientador && curso.id_orientador === targetDocenteId) {
-            const now = new Date();
             const historialActivo =
               await tx.historial_curso_orientador.findFirst({
-                where: { id_curso: curso.id_curso, fecha_fin: null },
+                where: {
+                  id_curso: curso.id_curso,
+                  es_orientador: true,
+                  fecha_fin: null,
+                },
               });
             if (historialActivo) {
               await tx.historial_curso_orientador.update({
@@ -578,7 +608,7 @@ export class AsignacionesService {
                   id_historial_curso_orientador:
                     historialActivo.id_historial_curso_orientador,
                 },
-                data: { fecha_fin: now },
+                data: { fecha_fin: fecha },
               });
             }
             await tx.curso.update({
@@ -587,6 +617,55 @@ export class AsignacionesService {
             });
             (curso as any).id_orientador = null;
             (curso as any).orientador = null;
+          }
+          const existeDocenteAbierto =
+            await tx.historial_curso_orientador.findFirst({
+              where: {
+                id_curso: curso.id_curso,
+                id_orientador: targetDocenteId,
+                id_asignatura: asignatura?.id_asignatura ?? null,
+                es_orientador: false,
+                fecha_fin: null,
+              },
+            });
+          if (!existeDocenteAbierto) {
+            await tx.historial_curso_orientador.create({
+              data: {
+                id_curso: curso.id_curso,
+                id_orientador: targetDocenteId,
+                id_asignatura: asignatura?.id_asignatura ?? null,
+                es_orientador: false,
+                anio_academico:
+                  current.anio_academico ?? dto.anio_academico ?? null,
+                fecha_asignacion: fecha,
+                fecha_fin: null,
+              },
+            });
+          }
+        } else if (dto.id_orientador) {
+          const existeDocenteAbierto =
+            await tx.historial_curso_orientador.findFirst({
+              where: {
+                id_curso: curso.id_curso,
+                id_orientador: dto.id_orientador,
+                id_asignatura: asignatura?.id_asignatura ?? null,
+                es_orientador: false,
+                fecha_fin: null,
+              },
+            });
+          if (!existeDocenteAbierto) {
+            await tx.historial_curso_orientador.create({
+              data: {
+                id_curso: curso.id_curso,
+                id_orientador: dto.id_orientador,
+                id_asignatura: asignatura?.id_asignatura ?? null,
+                es_orientador: false,
+                anio_academico:
+                  current.anio_academico ?? dto.anio_academico ?? null,
+                fecha_asignacion: fecha,
+                fecha_fin: null,
+              },
+            });
           }
         }
       }
@@ -625,6 +704,22 @@ export class AsignacionesService {
         },
       });
 
+      if (dto.activo === false || dto.fecha_fin) {
+        const cierre = dto.fecha_fin ? new Date(dto.fecha_fin) : new Date();
+        const cursoId = row.asignatura?.id_curso;
+        if (cursoId) {
+          await tx.historial_curso_orientador.updateMany({
+            where: {
+              id_curso: cursoId,
+              id_orientador: dto.id_orientador ?? current.id_orientador,
+              id_asignatura: row.asignatura?.id_asignatura ?? null,
+              fecha_fin: null,
+            },
+            data: { fecha_fin: cierre },
+          });
+        }
+      }
+
       return row;
     });
 
@@ -636,11 +731,11 @@ export class AsignacionesService {
     return toAsignacionResponse(updated, curso, docente, asignatura);
   }
 
-  // --- REMOVE (soft delete/cierre) ---
+  // REMOVE (soft close)
   async remove(id_asignatura_orientador: number): Promise<AsignacionResponse> {
     const row = await this.prisma.$transaction(async (tx) => {
       const now = new Date();
-      return tx.asignaturaOrientador.update({
+      const updated = await tx.asignaturaOrientador.update({
         where: { id_asignatura_orientador },
         data: { activo: false, fecha_fin: now },
         include: {
@@ -648,6 +743,21 @@ export class AsignacionesService {
           orientador: true,
         },
       });
+
+      const cursoId = updated.asignatura?.id_curso;
+      if (cursoId) {
+        await tx.historial_curso_orientador.updateMany({
+          where: {
+            id_curso: cursoId,
+            id_orientador: updated.id_orientador,
+            id_asignatura: updated.asignatura?.id_asignatura ?? null,
+            fecha_fin: null,
+          },
+          data: { fecha_fin: now },
+        });
+      }
+
+      return updated;
     });
 
     await this.refreshMVCoalesced(true);
@@ -655,7 +765,69 @@ export class AsignacionesService {
     const curso = row.asignatura?.curso ?? null;
     const docente = row.orientador ?? null;
     const asignatura = row.asignatura ?? null;
-
     return toAsignacionResponse(row, curso, docente, asignatura);
+  }
+
+  async getHistorial(query: HistorialParamsDto): Promise<PaginadoHistorialDto> {
+    const page = query.page ?? 1;
+    const pageSize = query.limit ?? 20;
+    const order = query.order ?? 'desc';
+
+    const where: any = {};
+    if (typeof query.id_curso === 'number') where.id_curso = query.id_curso;
+    if (typeof query.id_orientador === 'number')
+      where.id_orientador = query.id_orientador;
+
+    if (query.id_asignatura === null) where.id_asignatura = null;
+    else if (typeof query.id_asignatura === 'number')
+      where.id_asignatura = query.id_asignatura;
+
+    if (typeof query.es_orientador === 'boolean')
+      where.es_orientador = query.es_orientador;
+
+    if (query.anio_academico === null) where.anio_academico = null;
+    else if (typeof query.anio_academico === 'string')
+      where.anio_academico = query.anio_academico;
+
+    if (query.estado === 'abierto') where.fecha_fin = null;
+    else if (query.estado === 'cerrado') where.fecha_fin = { not: null };
+
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.historial_curso_orientador.count({ where }),
+      this.prisma.historial_curso_orientador.findMany({
+        where,
+        include: { curso: true, orientador: true, asignatura: true },
+        orderBy: [{ fecha_asignacion: order }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    const data: HistorialItemDto[] = rows.map((r) => ({
+      id_historial_curso_orientador: r.id_historial_curso_orientador,
+      curso: {
+        id_curso: r.curso.id_curso,
+        nombre: r.curso.nombre,
+        seccion: r.curso.seccion ?? null,
+      },
+      asignatura: {
+        id_asignatura: r.asignatura ? r.asignatura.id_asignatura : null,
+        nombre: r.asignatura ? r.asignatura.nombre : null,
+      },
+      orientador: {
+        id_orientador: r.orientador.id_orientador,
+        nombreCompleto:
+          `${r.orientador.nombre} ${r.orientador.apellido}`.trim(),
+      },
+      es_orientador: Boolean(r.es_orientador),
+      anio_academico: r.anio_academico ?? null,
+      fecha_asignacion: r.fecha_asignacion
+        ? r.fecha_asignacion.toISOString()
+        : null,
+      fecha_fin: r.fecha_fin ? r.fecha_fin.toISOString() : null,
+      abierto: r.fecha_fin === null,
+    }));
+
+    return { page, pageSize, total, count: data.length, data };
   }
 }
