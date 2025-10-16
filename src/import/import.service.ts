@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
 
 interface ImportResult {
   nombre: string;
@@ -21,6 +21,25 @@ export class ImportService {
   constructor(private readonly prisma: PrismaService) {}
 
   // ===== Helpers =====
+
+  /** Convierte string 'DD/MM/YYYY' o ISO a Date (o null). */
+  private toDate(val: any): Date | null {
+    const s = this.toNullableString(val);
+    if (!s) return null;
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [dd, mm, yyyy] = s.split('/');
+      const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  /** boolean con más aliases: si, sí, x, true, 1 */
+  private pickBool(r: any, snake: string, camel: string, def = false): boolean {
+    const v = r[snake] ?? r[camel];
+    return this.toBool(v, def);
+  }
 
   /** Normaliza headers/keys (lower, trim, espacios -> _) */
   private normalizeRow<T extends Record<string, any>>(row: T): T {
@@ -73,131 +92,25 @@ export class ImportService {
     return this.toFloat(v);
   }
 
-  /** Buscar id_parentesco por nombre (case-insensitive). Devuelve null si no existe. */
-  private async resolveParentescoId(
-    nombre?: string | null,
-  ): Promise<number | null> {
-    const s = this.toNullableString(nombre);
-    if (!s) return null;
-    const item = await this.prisma.parentesco.findFirst({
-      where: { nombre: { equals: s, mode: 'insensitive' } },
-      select: { id_parentesco: true },
-    });
-    return item?.id_parentesco ?? null;
+  /** Normaliza documentos (remueve guiones/espacios y mayúsculas). */
+  private sanitizeDoc(val: string | null | undefined) {
+    const s = this.toNullableString(val);
+    return s ? s.replace(/[^\dA-Za-z]/g, '').toUpperCase() : null;
   }
 
-  /**
-   * Upsert de Responsable:
-   * 1) Si trae DUI (unique) -> update por DUI si existe; si no, create.
-   * 2) Si NO trae DUI pero trae EMAIL (unique) -> update por email si existe; si no, create.
-   * 3) Si al crear revienta por P2002 (email duplicado) -> fallback a update por email.
-   */
-  private async upsertResponsableByDui(payload: {
-    nombre?: string;
-    apellido?: string;
-    dui?: string | null;
-    telefono?: string | null;
-    email?: string | null;
-    direccion?: string | null;
-    lugarTrabajo?: string | null;
-    profesionOficio?: string | null;
-    ultimoGradoEstudiado?: string | null;
-    ocupacion?: string | null;
-    religion?: string | null;
-    zonaResidencia?: string | null;
-    estadoFamiliar?: string | null;
-    empresaTransporte?: string | null;
-    placaVehiculo?: string | null;
-    tipoVehiculo?: string | null;
-  }) {
-    const dui = this.toNullableString(payload.dui);
-    const email = this.toNullableString(payload.email);
+  // ===== Importación de Matrícula =====
 
-    const commonData = {
-      nombre: this.toNullableString(payload.nombre) ?? 'N/D',
-      apellido: this.toNullableString(payload.apellido) ?? 'N/D',
-      telefono: this.toNullableString(payload.telefono),
-      email, // puede ser null
-      direccion: this.toNullableString(payload.direccion),
-      lugarTrabajo: this.toNullableString(payload.lugarTrabajo),
-      profesionOficio: this.toNullableString(payload.profesionOficio),
-      ultimoGradoEstudiado: this.toNullableString(payload.ultimoGradoEstudiado),
-      ocupacion: this.toNullableString(payload.ocupacion),
-      religion: this.toNullableString(payload.religion),
-      zonaResidencia: this.toNullableString(payload.zonaResidencia),
-      estadoFamiliar: this.toNullableString(payload.estadoFamiliar),
-      empresaTransporte: this.toNullableString(payload.empresaTransporte),
-      placaVehiculo: this.toNullableString(payload.placaVehiculo),
-      tipoVehiculo: this.toNullableString(payload.tipoVehiculo),
-    };
-
-    // 1) DUI
-    if (dui) {
-      const existingByDui = await this.prisma.responsable.findUnique({
-        where: { dui },
-        select: { id_responsable: true },
-      });
-      if (existingByDui) {
-        return this.prisma.responsable.update({
-          where: { dui },
-          data: { ...commonData },
-        });
-      }
-    }
-
-    // 2) EMAIL (si no hay DUI o no existe ese DUI)
-    if (!dui && email) {
-      const existingByEmail = await this.prisma.responsable.findUnique({
-        where: { email },
-        select: { id_responsable: true },
-      });
-      if (existingByEmail) {
-        return this.prisma.responsable.update({
-          where: { email },
-          data: { ...commonData, dui }, // si ahora viene DUI, se guarda
-        });
-      }
-    }
-
-    // 3) Create con manejo de P2002 (email duplicado)
-    try {
-      return await this.prisma.responsable.create({
-        data: { ...commonData, dui },
-      });
-    } catch (e: any) {
-      if (
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === 'P2002'
-      ) {
-        // Unique constraint: intenta update por email si lo tenemos
-        if (email) {
-          return this.prisma.responsable.update({
-            where: { email },
-            data: { ...commonData, dui },
-          });
-        }
-      }
-      throw e;
-    }
-  }
-
-  /**
-   * Importa matrícula (Alumno + Responsable + relación).
-   * Mapea TODOS los campos de Alumno conforme a tu schema camelCase.
-   */
   async importMatricula(rows: any[]): Promise<ImportResult[]> {
     const results: ImportResult[] = [];
 
     for (let i = 0; i < rows.length; i++) {
-      const raw = rows[i];
-      const r = this.normalizeRow(raw);
-
+      const r = this.normalizeRow(rows[i]);
       const nombre = this.toNullableString(r.nombre) ?? '';
       const apellido = this.toNullableString(r.apellido) ?? '';
 
       if (!nombre || !apellido) {
         results.push({
-          nombre: `${nombre} ${apellido}`.trim() || `fila_${i + 1}`,
+          nombre: (nombre + ' ' + apellido).trim() || `fila_${i + 1}`,
           status: 'ERROR',
           message: 'Faltan nombre y/o apellido',
           code: 'VALIDATION',
@@ -206,32 +119,70 @@ export class ImportService {
       }
 
       try {
-        const repiteGrado = this.toBool(r.repite_grado ?? r.repiteGrado, false);
-        const condicionado = this.toBool(r.condicionado, false);
+        await this.prisma.$transaction(async (tx) => {
+          // -------- Campos Alumno base / matrícula --------
+          const numeroMatricula = this.pickStr(
+            r,
+            'numero_matricula',
+            'numeroMatricula',
+          );
+          const anioEscolar = this.pickStr(r, 'anio_escolar', 'anioEscolar');
+          const estadoMatricula = this.pickStr(
+            r,
+            'estado_matricula',
+            'estadoMatricula',
+          );
+          const fechaMatricula = this.toDate(
+            r['fecha_matricula'] ?? r['fechaMatricula'],
+          );
 
-        // Responsable (upsert por DUI / email)
-        const responsable = await this.upsertResponsableByDui({
-          nombre: this.pickStr(r, 'r_nombre', 'rNombre') ?? undefined,
-          apellido: this.pickStr(r, 'r_apellido', 'rApellido') ?? undefined,
-          dui: this.pickStr(r, 'r_dui', 'rDui'),
-          telefono: this.pickStr(r, 'r_telefono', 'rTelefono'),
-          email: this.pickStr(r, 'r_email', 'rEmail'),
-          direccion: this.pickStr(r, 'r_direccion', 'rDireccion'),
-        });
+          const usaTransporteEscolar = this.pickBool(
+            r,
+            'usa_transporte_escolar',
+            'usaTransporteEscolar',
+            false,
+          );
+          const autorizaAtencionMedica = this.pickBool(
+            r,
+            'autoriza_atencion_medica',
+            'autorizaAtencionMedica',
+            false,
+          );
+          const autorizaUsoImagen = this.pickBool(
+            r,
+            'autoriza_uso_imagen',
+            'autorizaUsoImagen',
+            false,
+          );
+          const autorizaActividadesReligiosas = this.pickBool(
+            r,
+            'autoriza_actividades_religiosas',
+            'autorizaActividadesReligiosas',
+            false,
+          );
 
-        // Alumno (fechaNacimiento es STRING en tu schema)
-        const fechaNacimientoStr = this.pickStr(
-          r,
-          'fecha_nacimiento',
-          'fechaNacimiento',
-        );
+          const repiteGrado = this.pickBool(
+            r,
+            'repite_grado',
+            'repiteGrado',
+            false,
+          );
+          const condicionado = this.pickBool(
+            r,
+            'condicionado',
+            'condicionado',
+            false,
+          );
 
-        const alumno = await this.prisma.alumno.create({
-          data: {
+          const alumnoDataBase = {
             nombre,
             apellido,
             genero: this.pickStr(r, 'genero', 'genero'),
-            fechaNacimiento: fechaNacimientoStr,
+            fechaNacimiento: this.pickStr(
+              r,
+              'fecha_nacimiento',
+              'fechaNacimiento',
+            ), // string DD/MM/YYYY
             nacionalidad: this.pickStr(r, 'nacionalidad', 'nacionalidad'),
             edad: this.pickInt(r, 'edad', 'edad'),
             partidaNumero: this.pickStr(r, 'partida_numero', 'partidaNumero'),
@@ -270,6 +221,7 @@ export class ImportService {
               'medico_telefono',
               'medicoTelefono',
             ),
+            religion: this.pickStr(r, 'religion', 'religion'),
             zonaResidencia: this.pickStr(
               r,
               'zona_residencia',
@@ -296,55 +248,355 @@ export class ImportService {
             ),
             repiteGrado,
             condicionado,
-            activo: this.toBool(r.activo, true),
-          },
-          select: { id_alumno: true, nombre: true, apellido: true },
-        });
+            activo: this.pickBool(r, 'activo', 'activo', true),
 
-        // Parentesco (catálogo o libre) con coerción segura
-        const parentescoId = await this.resolveParentescoId(
-          this.pickStr(r, 'r_parentesco', 'rParentesco'),
-        );
+            // matrícula/flags
+            anioEscolar: anioEscolar ?? undefined,
+            numeroMatricula: numeroMatricula ?? undefined,
+            estadoMatricula: estadoMatricula ?? undefined,
+            fechaMatricula: fechaMatricula ?? undefined,
+            usaTransporteEscolar,
+            autorizaAtencionMedica,
+            autorizaUsoImagen,
+            autorizaActividadesReligiosas,
+          } as any;
 
-        let parentescoLibre: string | null = null;
-        if (!parentescoId) {
-          const rParStr = this.pickStr(r, 'r_parentesco', 'rParentesco');
-          if (rParStr) parentescoLibre = rParStr;
-        }
-        const libreCol = this.pickStr(r, 'parentesco_libre', 'parentescoLibre');
-        if (libreCol) parentescoLibre = libreCol;
+          // -------- upsert Responsable (en transacción) --------
+          const upsertResponsableTx = async (payload: {
+            nombre?: string;
+            apellido?: string;
+            dui?: string | null;
+            numeroDocumento?: string | null;
+            tipoDocumento?: string | null;
+            naturalizado?: boolean | null;
+            telefono?: string | null;
+            telefonoFijo?: string | null;
+            email?: string | null;
+            direccion?: string | null;
+            lugarTrabajo?: string | null;
+            profesionOficio?: string | null;
+            ultimoGradoEstudiado?: string | null;
+            ocupacion?: string | null;
+            religion?: string | null;
+            zonaResidencia?: string | null;
+            estadoFamiliar?: string | null;
+            empresaTransporte?: string | null;
+            placaVehiculo?: string | null;
+            tipoVehiculo?: string | null;
+          }) => {
+            const numeroDocumento = this.sanitizeDoc(payload.numeroDocumento);
+            const dui = this.sanitizeDoc(payload.dui);
+            const email = this.toNullableString(payload.email);
 
-        // Flags relación
-        const esPrincipal = this.toBool(r.es_principal, true);
-        const contactoEmergencia = this.toBool(r.contacto_emergencia, false);
-        const permiteTraslado = this.toBool(r.permite_traslado, false);
-        const puedeRetirarAlumno = this.toBool(r.puede_retirar, false);
-        const firma = this.toBool(r.firma, false);
+            const commonData = {
+              nombre: this.toNullableString(payload.nombre) ?? 'N/D',
+              apellido: this.toNullableString(payload.apellido) ?? 'N/D',
+              telefono: this.toNullableString(payload.telefono),
+              telefonoFijo: this.toNullableString(payload.telefonoFijo),
+              email,
+              direccion: this.toNullableString(payload.direccion),
+              lugarTrabajo: this.toNullableString(payload.lugarTrabajo),
+              profesionOficio: this.toNullableString(payload.profesionOficio),
+              ultimoGradoEstudiado: this.toNullableString(
+                payload.ultimoGradoEstudiado,
+              ),
+              ocupacion: this.toNullableString(payload.ocupacion),
+              religion: this.toNullableString(payload.religion),
+              zonaResidencia: this.toNullableString(payload.zonaResidencia),
+              estadoFamiliar: this.toNullableString(payload.estadoFamiliar),
 
-        await this.prisma.alumnoResponsable.create({
-          data: {
-            alumnoId: alumno.id_alumno,
-            responsableId: responsable.id_responsable,
-            parentescoId: parentescoId ?? null,
-            parentescoLibre, // string|null (nunca boolean)
-            esPrincipal,
-            firma,
-            permiteTraslado,
-            puedeRetirarAlumno,
-            contactoEmergencia,
-          },
-        });
+              empresaTransporte: this.toNullableString(
+                payload.empresaTransporte,
+              ),
+              placaVehiculo: this.toNullableString(payload.placaVehiculo),
+              tipoVehiculo: this.toNullableString(payload.tipoVehiculo),
 
-        results.push({
-          nombre: `${alumno.nombre} ${alumno.apellido}`,
-          status: 'OK',
-          id_alumno: alumno.id_alumno,
-        });
+              tipoDocumento: this.toNullableString(payload.tipoDocumento),
+              numeroDocumento,
+              naturalizado: payload.naturalizado ?? null,
+              dui,
+            };
+
+            // 1) numeroDocumento
+            if (numeroDocumento) {
+              const existing = await tx.responsable.findUnique({
+                where: { numeroDocumento },
+                select: { id_responsable: true },
+              });
+              if (existing) {
+                return tx.responsable.update({
+                  where: { numeroDocumento },
+                  data: commonData,
+                });
+              }
+            }
+            // 2) DUI
+            if (dui) {
+              const existing = await tx.responsable.findUnique({
+                where: { dui },
+                select: { id_responsable: true },
+              });
+              if (existing) {
+                return tx.responsable.update({
+                  where: { dui },
+                  data: commonData,
+                });
+              }
+            }
+            // 3) EMAIL
+            if (email) {
+              const existing = await tx.responsable.findUnique({
+                where: { email },
+                select: { id_responsable: true },
+              });
+              if (existing) {
+                return tx.responsable.update({
+                  where: { email },
+                  data: commonData,
+                });
+              }
+            }
+            // 4) create con manejo de P2002
+            try {
+              return await tx.responsable.create({ data: commonData });
+            } catch (e: any) {
+              if (
+                e instanceof Prisma.PrismaClientKnownRequestError &&
+                e.code === 'P2002'
+              ) {
+                if (numeroDocumento)
+                  return tx.responsable.update({
+                    where: { numeroDocumento },
+                    data: commonData,
+                  });
+                if (dui)
+                  return tx.responsable.update({
+                    where: { dui },
+                    data: commonData,
+                  });
+                if (email)
+                  return tx.responsable.update({
+                    where: { email },
+                    data: commonData,
+                  });
+              }
+              throw e;
+            }
+          };
+
+          const responsable = await upsertResponsableTx({
+            nombre: this.pickStr(r, 'r_nombre', 'rNombre') ?? undefined,
+            apellido: this.pickStr(r, 'r_apellido', 'rApellido') ?? undefined,
+            dui: this.pickStr(r, 'r_dui', 'rDui'),
+            email: this.pickStr(r, 'r_email', 'rEmail'),
+            telefono: this.pickStr(r, 'r_telefono', 'rTelefono'),
+            telefonoFijo: this.pickStr(r, 'r_telefono_fijo', 'rTelefonoFijo'),
+            tipoDocumento: this.pickStr(
+              r,
+              'r_tipo_documento',
+              'rTipoDocumento',
+            ),
+            numeroDocumento: this.pickStr(
+              r,
+              'r_numero_documento',
+              'rNumeroDocumento',
+            ),
+            naturalizado: this.pickBool(
+              r,
+              'r_naturalizado',
+              'rNaturalizado',
+              false,
+            ),
+            direccion: this.pickStr(r, 'r_direccion', 'rDireccion'),
+          });
+
+          // -------- UPSERT Alumno por numeroMatricula (si existe), si no: CREATE --------
+          let alumnoId: number;
+          if (numeroMatricula) {
+            const existing = await tx.alumno.findUnique({
+              where: { numeroMatricula },
+              select: { id_alumno: true },
+            });
+            if (existing) {
+              const updated = await tx.alumno.update({
+                where: { numeroMatricula },
+                data: alumnoDataBase,
+                select: { id_alumno: true },
+              });
+              alumnoId = updated.id_alumno;
+            } else {
+              const created = await tx.alumno.create({
+                data: alumnoDataBase,
+                select: { id_alumno: true },
+              });
+              alumnoId = created.id_alumno;
+            }
+          } else {
+            const created = await tx.alumno.create({
+              data: alumnoDataBase,
+              select: { id_alumno: true },
+            });
+            alumnoId = created.id_alumno;
+          }
+
+          // -------- Upsert Alumno_Detalle (sin tocar PK en update) --------
+          const createDetalleData: Prisma.Alumno_DetalleUncheckedCreateInput = {
+            alumnoId,
+            viveCon: this.pickStr(r, 'vive_con', 'viveCon') ?? undefined,
+            dependenciaEconomica:
+              this.pickStr(
+                r,
+                'dependencia_economica',
+                'dependenciaEconomica',
+              ) ?? undefined,
+            capacidadPago: this.pickBool(
+              r,
+              'capacidad_pago',
+              'capacidadPago',
+              false,
+            ),
+            tenenciaVivienda:
+              this.pickStr(r, 'tenencia_vivienda', 'tenenciaVivienda') ??
+              undefined,
+            emergencia1Nombre:
+              this.pickStr(r, 'emergencia1_nombre', 'emergencia1Nombre') ??
+              undefined,
+            emergencia1Parentesco:
+              this.pickStr(
+                r,
+                'emergencia1_parentesco',
+                'emergencia1Parentesco',
+              ) ?? undefined,
+            emergencia1Telefono:
+              this.pickStr(r, 'emergencia1_telefono', 'emergencia1Telefono') ??
+              undefined,
+            emergencia2Nombre:
+              this.pickStr(r, 'emergencia2_nombre', 'emergencia2Nombre') ??
+              undefined,
+            emergencia2Parentesco:
+              this.pickStr(
+                r,
+                'emergencia2_parentesco',
+                'emergencia2Parentesco',
+              ) ?? undefined,
+            emergencia2Telefono:
+              this.pickStr(r, 'emergencia2_telefono', 'emergencia2Telefono') ??
+              undefined,
+          };
+
+          const updateDetalleData: Prisma.Alumno_DetalleUncheckedUpdateInput = {
+            viveCon: createDetalleData.viveCon,
+            dependenciaEconomica: createDetalleData.dependenciaEconomica,
+            capacidadPago: createDetalleData.capacidadPago,
+            tenenciaVivienda: createDetalleData.tenenciaVivienda,
+            emergencia1Nombre: createDetalleData.emergencia1Nombre,
+            emergencia1Parentesco: createDetalleData.emergencia1Parentesco,
+            emergencia1Telefono: createDetalleData.emergencia1Telefono,
+            emergencia2Nombre: createDetalleData.emergencia2Nombre,
+            emergencia2Parentesco: createDetalleData.emergencia2Parentesco,
+            emergencia2Telefono: createDetalleData.emergencia2Telefono,
+          };
+
+          const hasAnyDetalle = Object.values(updateDetalleData).some(
+            (v) => v != null,
+          );
+          if (hasAnyDetalle) {
+            const existingDet = await tx.alumno_Detalle.findUnique({
+              where: { alumnoId },
+              select: { alumnoId: true },
+            });
+            if (existingDet) {
+              await tx.alumno_Detalle.update({
+                where: { alumnoId },
+                data: updateDetalleData,
+              });
+            } else {
+              await tx.alumno_Detalle.create({ data: createDetalleData });
+            }
+          }
+
+          // -------- Relación AlumnoResponsable --------
+          const parentescoNombre = this.pickStr(
+            r,
+            'r_parentesco',
+            'rParentesco',
+          );
+          const parentesco = await tx.parentesco.findFirst({
+            where: {
+              nombre: { equals: parentescoNombre ?? '', mode: 'insensitive' },
+            },
+            select: { id_parentesco: true },
+          });
+          const parentescoId = parentesco?.id_parentesco ?? null;
+
+          const relFlags = {
+            esPrincipal: this.pickBool(r, 'es_principal', 'esPrincipal', true),
+            firma: this.pickBool(r, 'firma', 'firma', false),
+            permiteTraslado: this.pickBool(
+              r,
+              'permite_traslado',
+              'permiteTraslado',
+              false,
+            ),
+            puedeRetirarAlumno: this.pickBool(
+              r,
+              'puede_retirar',
+              'puedeRetirarAlumno',
+              false,
+            ),
+            contactoEmergencia: this.pickBool(
+              r,
+              'contacto_emergencia',
+              'contactoEmergencia',
+              false,
+            ),
+          };
+
+          const relExist = await tx.alumnoResponsable.findFirst({
+            where: {
+              alumnoId,
+              responsableId: responsable.id_responsable,
+            },
+            select: { id: true },
+          });
+
+          if (relExist) {
+            await tx.alumnoResponsable.update({
+              where: { id: relExist.id },
+              data: {
+                parentescoId: parentescoId,
+                parentescoLibre: !parentescoId
+                  ? (parentescoNombre ?? null)
+                  : null,
+                ...relFlags,
+              },
+            });
+          } else {
+            await tx.alumnoResponsable.create({
+              data: {
+                alumnoId,
+                responsableId: responsable.id_responsable,
+                parentescoId: parentescoId,
+                parentescoLibre: !parentescoId
+                  ? (parentescoNombre ?? null)
+                  : null,
+                ...relFlags,
+              },
+            });
+          }
+
+          // OK de la fila
+          results.push({
+            nombre: `${nombre} ${apellido}`,
+            status: 'OK',
+            id_alumno: alumnoId,
+          });
+        }); // fin transaction
       } catch (err: any) {
         results.push({
           nombre: `${nombre} ${apellido}`.trim(),
           status: 'ERROR',
-          message: err?.message || 'Error al insertar',
+          message: err?.message || 'Error al importar',
           code: 'DB',
         });
       }
@@ -353,7 +605,7 @@ export class ImportService {
     return results;
   }
 
-  // ===== Notas (sin cambios funcionales relevantes) =====
+  // ===== Notas =====
 
   async importNotas(
     rows: any[],
