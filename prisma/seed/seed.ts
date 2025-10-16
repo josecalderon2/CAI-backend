@@ -571,7 +571,7 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     );
 
   const curso5A = await getOrCreateCurso(
-    '5°',
+    'Quinto Grado',
     'A',
     primaria.id_grado_academico,
     ori1.id_orientador,
@@ -579,7 +579,7 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     'A-5',
   );
   const curso6B = await getOrCreateCurso(
-    '6°',
+    'Sexto Grado',
     'B',
     primaria.id_grado_academico,
     ori2.id_orientador,
