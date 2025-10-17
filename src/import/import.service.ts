@@ -35,7 +35,7 @@ export class ImportService {
     return isNaN(d.getTime()) ? null : d;
   }
 
-  /** boolean con más aliases: si, sí, x, true, 1 */
+  /** boolean con más aliases: si, sí, x, true, 1, VERDADERO/FALSO, yes/no, v/f */
   private pickBool(r: any, snake: string, camel: string, def = false): boolean {
     const v = r[snake] ?? r[camel];
     return this.toBool(v, def);
@@ -59,11 +59,17 @@ export class ImportService {
     return s.length ? s : null;
   }
 
-  /** Convierte a boolean (true si coincide con true/1/si/sí/x). */
+  /** Convierte a boolean con varios alias comunes (ES/EN). */
   private toBool(val: any, defaultValue = false): boolean {
     if (val === undefined || val === null || val === '') return defaultValue;
-    const s = String(val).toLowerCase();
-    return s === 'true' || s === '1' || s === 'si' || s === 'sí' || s === 'x';
+    const s = String(val).trim().toLowerCase();
+    if (
+      ['true', '1', 'si', 'sí', 'x', 'verdadero', 'v', 'yes', 'y'].includes(s)
+    )
+      return true;
+    if (['false', '0', 'no', 'falso', 'f', 'not', 'n'].includes(s))
+      return false;
+    return defaultValue;
   }
 
   private toInt(val: any): number | null {
@@ -92,10 +98,22 @@ export class ImportService {
     return this.toFloat(v);
   }
 
-  /** Normaliza documentos (remueve guiones/espacios y mayúsculas). */
+  /** Parseo seguro de JSON (para hermanos_en_colegio). */
+  private toJson(val: any): any | null {
+    const s = this.toNullableString(val);
+    if (!s) return null;
+    try {
+      return JSON.parse(s);
+    } catch {
+      return null;
+    }
+  }
+
+  /** Normaliza documentos preservando guiones (evita inconsistencias con datos existentes). */
   private sanitizeDoc(val: string | null | undefined) {
     const s = this.toNullableString(val);
-    return s ? s.replace(/[^\dA-Za-z]/g, '').toUpperCase() : null;
+    // Mantiene dígitos/letras/guiones, quita espacios y otros caracteres
+    return s ? s.replace(/[^\dA-Za-z-]/g, '').toUpperCase() : null;
   }
 
   // ===== Importación de Matrícula =====
@@ -408,6 +426,30 @@ export class ImportService {
               false,
             ),
             direccion: this.pickStr(r, 'r_direccion', 'rDireccion'),
+
+            // 🔽 Campos extra del responsable
+            religion: this.pickStr(r, 'r_religion', 'rReligion'),
+            zonaResidencia: this.pickStr(
+              r,
+              'r_zona_residencia',
+              'rZonaResidencia',
+            ),
+            estadoFamiliar: this.pickStr(
+              r,
+              'r_estado_familiar',
+              'rEstadoFamiliar',
+            ),
+            empresaTransporte: this.pickStr(
+              r,
+              'r_empresa_transporte',
+              'rEmpresaTransporte',
+            ),
+            placaVehiculo: this.pickStr(
+              r,
+              'r_placa_vehiculo',
+              'rPlacaVehiculo',
+            ),
+            tipoVehiculo: this.pickStr(r, 'r_tipo_vehiculo', 'rTipoVehiculo'),
           });
 
           // -------- UPSERT Alumno por numeroMatricula (si existe), si no: CREATE --------
@@ -439,7 +481,7 @@ export class ImportService {
             alumnoId = created.id_alumno;
           }
 
-          // -------- Upsert Alumno_Detalle (sin tocar PK en update) --------
+          // -------- Upsert Alumno_Detalle (incluye hermanos_en_colegio) --------
           const createDetalleData: Prisma.Alumno_DetalleUncheckedCreateInput = {
             alumnoId,
             viveCon: this.pickStr(r, 'vive_con', 'viveCon') ?? undefined,
@@ -458,6 +500,8 @@ export class ImportService {
             tenenciaVivienda:
               this.pickStr(r, 'tenencia_vivienda', 'tenenciaVivienda') ??
               undefined,
+
+            // Emergencias
             emergencia1Nombre:
               this.pickStr(r, 'emergencia1_nombre', 'emergencia1Nombre') ??
               undefined,
@@ -482,6 +526,17 @@ export class ImportService {
             emergencia2Telefono:
               this.pickStr(r, 'emergencia2_telefono', 'emergencia2Telefono') ??
               undefined,
+
+            // Hermanos
+            tieneHermanosEnColegio: this.pickBool(
+              r,
+              'tiene_hermanos_en_colegio',
+              'tieneHermanosEnColegio',
+              false,
+            ),
+            hermanosEnColegio:
+              this.toJson(r['hermanos_en_colegio'] ?? r['hermanosEnColegio']) ??
+              undefined,
           };
 
           const updateDetalleData: Prisma.Alumno_DetalleUncheckedUpdateInput = {
@@ -495,6 +550,8 @@ export class ImportService {
             emergencia2Nombre: createDetalleData.emergencia2Nombre,
             emergencia2Parentesco: createDetalleData.emergencia2Parentesco,
             emergencia2Telefono: createDetalleData.emergencia2Telefono,
+            tieneHermanosEnColegio: createDetalleData.tieneHermanosEnColegio,
+            hermanosEnColegio: createDetalleData.hermanosEnColegio,
           };
 
           const hasAnyDetalle = Object.values(updateDetalleData).some(
@@ -553,10 +610,7 @@ export class ImportService {
           };
 
           const relExist = await tx.alumnoResponsable.findFirst({
-            where: {
-              alumnoId,
-              responsableId: responsable.id_responsable,
-            },
+            where: { alumnoId, responsableId: responsable.id_responsable },
             select: { id: true },
           });
 
@@ -564,7 +618,7 @@ export class ImportService {
             await tx.alumnoResponsable.update({
               where: { id: relExist.id },
               data: {
-                parentescoId: parentescoId,
+                parentescoId,
                 parentescoLibre: !parentescoId
                   ? (parentescoNombre ?? null)
                   : null,
@@ -576,7 +630,7 @@ export class ImportService {
               data: {
                 alumnoId,
                 responsableId: responsable.id_responsable,
-                parentescoId: parentescoId,
+                parentescoId,
                 parentescoLibre: !parentescoId
                   ? (parentescoNombre ?? null)
                   : null,
