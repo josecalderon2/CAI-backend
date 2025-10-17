@@ -44,6 +44,23 @@ model Alumno {
   condicionado           Boolean @default(false)
   activo                 Boolean @default(true)
 
+  // ====== NUEVOS CAMPOS (ficha/matrícula vigente) ======
+  anioEscolar                 String?      // NEW - Año escolar vigente (si no manejas Curso por año)
+  numeroMatricula             String? @unique // NEW - Número de matrícula (opcionalmente único)
+  fechaMatricula              DateTime?    // NEW - Fecha de matrícula
+  estadoMatricula             String?      // NEW - "INSCRITO", "RETIRADO", etc.
+
+  // Autorizaciones de la ficha (vigentes)
+  autorizaAtencionMedica      Boolean? @default(false) // NEW
+  autorizaUsoImagen           Boolean? @default(false) // NEW
+  autorizaActividadesReligiosas Boolean? @default(false) // NEW
+
+  // Transporte escolar (bandera anual simple)
+  usaTransporteEscolar        Boolean? @default(false) // NEW
+
+  // Religión del alumno
+  religion                    String? // NEW
+
   detalle Alumno_Detalle?
 
   // relaciones
@@ -59,6 +76,18 @@ model Alumno_Detalle {
   capacidadPago          Boolean?
   tieneHermanosEnColegio Boolean? @default(false)
   hermanosEnColegio      Json? // Estructura: [{"nombre": "Nombre", "grado": "Grado"}]
+
+  // ====== NUEVOS CAMPOS (ficha) ======
+  // Contactos de emergencia libres (si no usas AlumnoResponsable como emergencia)
+  emergencia1Nombre      String?  // NEW
+  emergencia1Parentesco  String?  // NEW
+  emergencia1Telefono    String?  // NEW
+  emergencia2Nombre      String?  // NEW
+  emergencia2Parentesco  String?  // NEW
+  emergencia2Telefono    String?  // NEW
+
+  // Tenencia / tipo de vivienda
+  tenenciaVivienda       String?  // NEW
 
   alumno Alumno @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
 }
@@ -84,6 +113,12 @@ model Responsable {
   tipoVehiculo      String?
 
   firmaFoto Bytes?
+
+  // ====== NUEVOS CAMPOS (documento/naturalización/telefonía) ======
+  tipoDocumento    String?        // NEW - "DUI", "Pasaporte", etc.
+  numeroDocumento  String? @unique // NEW - Alternativa a DUI
+  naturalizado     Boolean? @default(false) // NEW
+  telefonoFijo     String?        // NEW
 
   //relaciones
   alumnos AlumnoResponsable[]
@@ -145,6 +180,9 @@ model Curso {
   id_orientador      Int?
   cupo               Int?
   aula               String?
+
+  // (Opcional) si decides manejar curso por año en lugar de anioEscolar en Alumno
+  anio_academico String? // NEW
 
   gradoAcademico Grado_Academico?             @relation(fields: [id_grado_academico], references: [id_grado_academico])
   orientador     Orientador?                  @relation(fields: [id_orientador], references: [id_orientador])

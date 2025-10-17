@@ -199,14 +199,21 @@ async function seedGradosAcademicos() {
 }
 
 async function seedAlumnoEjemplo() {
+  // Responsables con campos nuevos (tipoDocumento, numeroDocumento, naturalizado, telefonoFijo)
   const responsablePadre = await prisma.responsable.upsert({
     where: { dui: '01234567-8' },
-    update: {},
+    update: {
+      tipoDocumento: 'DUI',
+      numeroDocumento: '01234567-8',
+      naturalizado: false,
+      telefonoFijo: '2440-1111',
+    },
     create: {
       nombre: 'Ronald Antonio',
       apellido: 'Acosta Flores',
       dui: '01234567-8',
       telefono: '7986-9463',
+      telefonoFijo: '2440-1111',
       email: 'ronald.acosta@ejemplo.com',
       direccion: 'Prado Real calle A casa 15, Santa Ana',
       lugarTrabajo: 'Empresa ABC',
@@ -216,17 +223,26 @@ async function seedAlumnoEjemplo() {
       religion: 'Católica',
       zonaResidencia: 'Urbana',
       estadoFamiliar: 'Casado',
+      tipoDocumento: 'DUI',
+      numeroDocumento: '01234567-8',
+      naturalizado: false,
     },
   });
 
   const responsableMadre = await prisma.responsable.upsert({
     where: { dui: '12345678-9' },
-    update: {},
+    update: {
+      tipoDocumento: 'DUI',
+      numeroDocumento: '12345678-9',
+      naturalizado: false,
+      telefonoFijo: '2440-2222',
+    },
     create: {
       nombre: 'Carmen Sonia',
       apellido: 'Pineda de Acosta',
       dui: '12345678-9',
       telefono: '7123-4567',
+      telefonoFijo: '2440-2222',
       email: 'carmen.pineda@ejemplo.com',
       direccion: 'Prado Real calle A casa 15, Santa Ana',
       lugarTrabajo: 'Empresa XYZ',
@@ -236,12 +252,19 @@ async function seedAlumnoEjemplo() {
       religion: 'Católica',
       zonaResidencia: 'Urbana',
       estadoFamiliar: 'Casada',
+      tipoDocumento: 'DUI',
+      numeroDocumento: '12345678-9',
+      naturalizado: false,
     },
   });
 
   const responsableEmergencia = await prisma.responsable.upsert({
     where: { dui: '87654321-0' },
-    update: {},
+    update: {
+      tipoDocumento: 'DUI',
+      numeroDocumento: '87654321-0',
+      naturalizado: false,
+    },
     create: {
       nombre: 'Carlos Javier',
       apellido: 'Sosa Pineda',
@@ -251,6 +274,9 @@ async function seedAlumnoEjemplo() {
       profesionOficio: 'Comerciante',
       ocupacion: 'Dueño de negocio',
       estadoFamiliar: 'Soltero',
+      tipoDocumento: 'DUI',
+      numeroDocumento: '87654321-0',
+      naturalizado: false,
     },
   });
 
@@ -266,8 +292,25 @@ async function seedAlumnoEjemplo() {
     where: { nombre: 'Tío/a' },
   });
 
-  const alumnoCreado = await prisma.alumno.create({
-    data: {
+  // Alumno + nuevos campos (matrícula/autoriza/transporte/religión) con UPSERT por numeroMatricula
+  const alumnoCreado = await prisma.alumno.upsert({
+    where: { numeroMatricula: 'MAT-2025-0001' },
+    update: {
+      anioEscolar: '2025',
+      estadoMatricula: 'INSCRITO',
+      autorizaAtencionMedica: true,
+      autorizaUsoImagen: true,
+      autorizaActividadesReligiosas: true,
+      usaTransporteEscolar: true,
+      religion: 'Católica',
+      direccion: 'Prado Real calle A casa 15',
+      municipio: 'Santa Ana',
+      departamento: 'Santa Ana',
+      medioTransporte: 'Microbús',
+      encargadoTransporte: 'Transporte Escolar Seguro',
+      encargadoTelefono: '7123-9876',
+    },
+    create: {
       nombre: 'Diego Antonio',
       apellido: 'Acosta Pineda',
       genero: 'M',
@@ -297,14 +340,35 @@ async function seedAlumnoEjemplo() {
       repiteGrado: false,
       condicionado: false,
       activo: true,
+
+      // Nuevos (vigentes)
+      anioEscolar: '2025',
+      numeroMatricula: 'MAT-2025-0001',
+      fechaMatricula: new Date('2025-01-10T15:30:00Z'),
+      estadoMatricula: 'INSCRITO',
+      autorizaAtencionMedica: true,
+      autorizaUsoImagen: true,
+      autorizaActividadesReligiosas: true,
+      usaTransporteEscolar: true,
+      religion: 'Católica',
+
       detalle: {
         create: {
           viveCon: 'Ambos Padres',
           dependenciaEconomica: 'Padre y Madre',
           capacidadPago: true,
-          hermanosEnColegio: JSON.stringify([
+          hermanosEnColegio: [
             { nombre: 'Jimena Acosta', grado: '4-1' },
-          ]),
+          ] as Prisma.InputJsonValue,
+
+          emergencia1Nombre: 'Carlos Javier Sosa',
+          emergencia1Parentesco: 'Tío',
+          emergencia1Telefono: '7777-7777',
+          emergencia2Nombre: 'María López',
+          emergencia2Parentesco: 'Vecina',
+          emergencia2Telefono: '7865-2222',
+
+          tenenciaVivienda: 'Propia',
         },
       },
       responsables: {
@@ -316,6 +380,7 @@ async function seedAlumnoEjemplo() {
             firma: true,
             permiteTraslado: true,
             puedeRetirarAlumno: true,
+            contactoEmergencia: true,
           },
           {
             responsableId: responsableMadre.id_responsable,
@@ -324,6 +389,7 @@ async function seedAlumnoEjemplo() {
             firma: true,
             permiteTraslado: true,
             puedeRetirarAlumno: true,
+            contactoEmergencia: true,
           },
           {
             responsableId: responsableEmergencia.id_responsable,
@@ -333,13 +399,14 @@ async function seedAlumnoEjemplo() {
             firma: false,
             permiteTraslado: false,
             puedeRetirarAlumno: true,
+            contactoEmergencia: true,
           },
         ],
       },
     },
   });
 
-  console.log('Alumno de ejemplo creado:', alumnoCreado.id_alumno);
+  console.log('Alumno de ejemplo creado/actualizado:', alumnoCreado.id_alumno);
   return alumnoCreado;
 }
 
@@ -435,30 +502,42 @@ async function getOrCreateCurso(
   id_orientador: number,
   cupo = 30,
   aula?: string,
+  anio_academico?: string,
 ) {
   const found = await prisma.curso.findFirst({ where: { nombre, seccion } });
   if (found) {
-    if (
-      found.id_orientador !== id_orientador ||
-      found.cupo !== cupo ||
-      (aula && found.aula !== aula)
-    ) {
+    const dataUpdate: Prisma.CursoUpdateInput = {};
+
+    // ✅ usar la relación en updates
+    if (found.id_orientador !== id_orientador) {
+      dataUpdate.orientador = { connect: { id_orientador } };
+    }
+    if (found.cupo !== cupo) dataUpdate.cupo = cupo;
+    if (aula && found.aula !== aula) dataUpdate.aula = aula;
+    if (anio_academico && found.anio_academico !== anio_academico) {
+      dataUpdate.anio_academico = anio_academico;
+    }
+
+    if (Object.keys(dataUpdate).length) {
       return prisma.curso.update({
         where: { id_curso: found.id_curso },
-        data: { id_orientador, cupo, aula },
+        data: dataUpdate,
       });
     }
     return found;
   }
+
+  // En create puedes mantener el FK directo
   return prisma.curso.create({
     data: {
       nombre,
       seccion,
       id_grado_academico,
-      id_orientador,
+      id_orientador, // también podría ser: orientador: { connect: { id_orientador } }
       cupo,
       aula,
       activo: true,
+      anio_academico,
     },
   });
 }
@@ -570,6 +649,9 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
       'No existe Grado_Academico "Primaria". Revisa seedGradosAcademicos().',
     );
 
+  const anio = '2025';
+  const fAsign = new Date('2025-01-15T12:00:00Z');
+
   const curso5A = await getOrCreateCurso(
     '5°',
     'A',
@@ -577,6 +659,7 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     ori1.id_orientador,
     35,
     'A-5',
+    anio,
   );
   const curso6B = await getOrCreateCurso(
     '6°',
@@ -585,6 +668,7 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     ori2.id_orientador,
     32,
     'B-6',
+    anio,
   );
 
   const cats = await getCatalogIds();
@@ -636,9 +720,6 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
       horas_semanas: 3,
     },
   );
-
-  const anio = '2025';
-  const fAsign = new Date('2025-01-15T12:00:00Z');
 
   await upsertAsignacionAO({
     id_asignatura: mat5A.id_asignatura,
@@ -763,7 +844,7 @@ async function main() {
   await seedUsuarios(cargos);
   await seedParentescos();
   await seedTipoActividades();
-  await seedAlumnoEjemplo();
+  await seedAlumnoEjemplo(); // incluye nuevos campos del schema
   await seedMetodosEvaluacion();
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
