@@ -20,7 +20,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion.module';
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
-import { PerfilModule } from './perfil/perfil.module';
 @Module({
   imports: [
     AdministrativoModule,
@@ -40,7 +39,6 @@ import { PerfilModule } from './perfil/perfil.module';
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
-    PerfilModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
