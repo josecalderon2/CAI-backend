@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import * as XLSX from 'xlsx';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
-interface ImportResult {
+export interface ImportResult {
   nombre: string;
   status: 'OK' | 'ERROR' | 'WARNING';
   message?: string;
@@ -11,64 +12,253 @@ interface ImportResult {
   code?: string;
 }
 
-export interface ImportContext {
-  idAsignatura: number;
-  trimestre: string; // 'I' | 'II' | 'III' | etc.
-}
-
 @Injectable()
 export class ImportService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // ===== Helpers =====
+  // ==========================================================
+  // =================== Helpers de Excel ======================
+  // ==========================================================
 
-  /** Convierte string 'DD/MM/YYYY' o ISO a Date (o null). */
-  private toDate(val: any): Date | null {
-    const s = this.toNullableString(val);
+  private toStr(v: any) {
+    return (v === null || v === undefined ? '' : String(v)).trim();
+  }
+
+  /** snake_case básico y sin tildes */
+  private normKeyToSnake(k: string): string {
+    return this.toStr(k)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/\s+/g, '_')
+      .toLowerCase();
+  }
+
+  /** Convierte a Date soportando:
+   *  - Date (objeto JS)
+   *  - Serial Excel (número desde 1899-12-30)
+   *  - 'DD/MM/YYYY' o 'DD-MM-YYYY'
+   *  - Cadenas tipo "Wed Aug 05 2015 00:00:00 GMT-0700 (PDT)"
+   *  - ISO / parseo nativo
+   */
+  private toDateExcelFlexible(val: any): Date | null {
+    if (val === undefined || val === null || val === '') return null;
+
+    if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+
+    if (typeof val === 'number' && Number.isFinite(val)) {
+      const excelEpoch = Date.UTC(1899, 11, 30);
+      const ms = excelEpoch + Math.round(val * 86400000);
+      const d = new Date(ms);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    const s = this.toStr(val);
     if (!s) return null;
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
-      const [dd, mm, yyyy] = s.split('/');
+
+    if (/GMT|UTC/.test(s)) {
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    const m = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(s);
+    if (m) {
+      const [, dd, mm, yyyy] = m;
       const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
       return isNaN(d.getTime()) ? null : d;
     }
-    const d = new Date(s);
-    return isNaN(d.getTime()) ? null : d;
+
+    const d2 = new Date(s);
+    return isNaN(d2.getTime()) ? null : d2;
   }
 
-  /** boolean con más aliases: si, sí, x, true, 1, VERDADERO/FALSO, yes/no, v/f */
-  private pickBool(r: any, snake: string, camel: string, def = false): boolean {
-    const v = r[snake] ?? r[camel];
-    return this.toBool(v, def);
+  private nullIfExcelError(v: any) {
+    const s = this.toStr(v);
+    if (!s) return null;
+    if (s.startsWith('#')) return null; // #ERROR!, #VALUE!, etc.
+    return v;
   }
 
-  /** Normaliza headers/keys (lower, trim, espacios -> _) */
-  private normalizeRow<T extends Record<string, any>>(row: T): T {
-    const out: Record<string, any> = {};
-    for (const [k, v] of Object.entries(row)) {
-      const key = k?.toString().trim().toLowerCase().replace(/\s+/g, '_');
-      out[key] = typeof v === 'string' ? v.trim() : v;
+  private safeJsonOrNull(v: any) {
+    const raw = this.nullIfExcelError(v);
+    if (raw == null) return null;
+    const s = this.toStr(raw);
+    if (!s) return null;
+    if (!/^[\[\{]/.test(s)) return null;
+    try {
+      return JSON.parse(s);
+    } catch {
+      return null;
     }
-    return out as T;
   }
 
-  /** Convierte cualquier valor a string|null (evita booleans en campos de texto). */
+  /** Lee y normaliza la hoja "Alumnos" (o cae a la tercera si no existe el nombre) */
+  private readAlumnosSheet(buffer: Buffer): Array<Record<string, any>> {
+    const wb = XLSX.read(buffer, {
+      type: 'buffer',
+      cellDates: true,
+      cellNF: false,
+      cellText: false,
+    });
+
+    const sheetName =
+      wb.SheetNames.find((n) => n.trim().toLowerCase() === 'alumnos') ||
+      wb.SheetNames[2];
+
+    if (!sheetName) {
+      throw new BadRequestException(
+        'No se encontró la hoja "Alumnos" ni existe una tercera hoja en el archivo.',
+      );
+    }
+    const ws = wb.Sheets[sheetName];
+
+    // Leemos en crudo
+    const raw = XLSX.utils.sheet_to_json<Record<string, any>>(ws, {
+      defval: null,
+      raw: true,
+    });
+
+    // Normalizamos keys a snake_case y limpiamos formatos especiales
+    const rows = raw.map((row) => {
+      const out: Record<string, any> = {};
+      for (const [k, v] of Object.entries(row)) {
+        out[this.normKeyToSnake(k)] = v;
+      }
+
+      if ('fecha_matricula' in out) {
+        out['fecha_matricula'] = this.toDateExcelFlexible(
+          out['fecha_matricula'],
+        );
+      }
+      if ('fecha_nacimiento' in out) {
+        out['fecha_nacimiento'] = this.toStr(out['fecha_nacimiento']); // tu modelo guarda string (DD/MM/YYYY)
+      }
+      if ('hermanos_en_colegio' in out) {
+        out['hermanos_en_colegio'] = this.safeJsonOrNull(
+          out['hermanos_en_colegio'],
+        );
+      }
+
+      // Trim strings
+      Object.keys(out).forEach((k) => {
+        if (typeof out[k] === 'string') out[k] = out[k].trim();
+      });
+
+      return out;
+    });
+
+    return rows;
+  }
+
+  /** Reduce a las columnas que tu import realmente usa */
+  private shapeRowsForImport(rows: Array<Record<string, any>>) {
+    const KEEP = new Set([
+      // alumno base / matrícula
+      'numero_matricula',
+      'anio_escolar',
+      'estado_matricula',
+      'fecha_matricula',
+      'nombre',
+      'apellido',
+      'genero',
+      'fecha_nacimiento',
+      'nacionalidad',
+      'edad',
+      'partida_numero',
+      'folio',
+      'libro',
+      'anio_partida',
+      'departamento_nacimiento',
+      'municipio_nacimiento',
+      'tipo_sangre',
+      'problema_fisico',
+      'observaciones_medicas',
+      'centro_asistencial',
+      'medico_nombre',
+      'medico_telefono',
+      'religion',
+      'zona_residencia',
+      'direccion',
+      'municipio',
+      'departamento',
+      'distancia_km',
+      'medio_transporte',
+      'encargado_transporte',
+      'encargado_telefono',
+      'repite_grado',
+      'condicionado',
+      'activo',
+      'usa_transporte_escolar',
+      'autoriza_atencion_medica',
+      'autoriza_uso_imagen',
+      'autoriza_actividades_religiosas',
+      // detalle:
+      'vive_con',
+      'dependencia_economica',
+      'capacidad_pago',
+      'tenencia_vivienda',
+      'emergencia1_nombre',
+      'emergencia1_parentesco',
+      'emergencia1_telefono',
+      'emergencia2_nombre',
+      'emergencia2_parentesco',
+      'emergencia2_telefono',
+      'tiene_hermanos_en_colegio',
+      'hermanos_en_colegio',
+      // responsable principal:
+      'r_apellido',
+      'r_nombre',
+      'r_dui',
+      'r_email',
+      'r_telefono',
+      'r_telefono_fijo',
+      'r_parentesco',
+      'r_tipo_documento',
+      'r_numero_documento',
+      'r_naturalizado',
+      // flags relación
+      'es_principal',
+      'firma',
+      'permite_traslado',
+      'puede_retirar',
+      'contacto_emergencia',
+    ]);
+    return rows.map((r) => {
+      const o: Record<string, any> = {};
+      for (const [k, v] of Object.entries(r)) if (KEEP.has(k)) o[k] = v;
+      return o;
+    });
+  }
+
+  // ==========================================================
+  // ================== Helpers de Import BD ==================
+  // ==========================================================
+
   private toNullableString(val: any): string | null {
     if (val === undefined || val === null) return null;
-    if (typeof val === 'boolean') return null; // Excel puede mandar TRUE/FALSE
+    if (typeof val === 'boolean') return null;
     const s = String(val).trim();
     return s.length ? s : null;
   }
 
-  /** Convierte a boolean con varios alias comunes (ES/EN). */
   private toBool(val: any, defaultValue = false): boolean {
     if (val === undefined || val === null || val === '') return defaultValue;
-    const s = String(val).trim().toLowerCase();
-    if (
-      ['true', '1', 'si', 'sí', 'x', 'verdadero', 'v', 'yes', 'y'].includes(s)
-    )
-      return true;
-    if (['false', '0', 'no', 'falso', 'f', 'not', 'n'].includes(s))
-      return false;
+    let s = String(val).trim().toLowerCase();
+    s = s.normalize('NFD').replace(/\p{M}+/gu, '');
+    const trueSet = new Set([
+      'true',
+      '1',
+      'si',
+      'x',
+      'verdadero',
+      'v',
+      'yes',
+      'y',
+      'sí',
+    ]);
+    const falseSet = new Set(['false', '0', 'no', 'falso', 'f', 'not', 'n']);
+    if (trueSet.has(s)) return true;
+    if (falseSet.has(s)) return false;
     return defaultValue;
   }
 
@@ -84,7 +274,15 @@ export class ImportService {
     return Number.isFinite(n) ? n : null;
   }
 
-  /** Lee primero snake_case, si no existe intenta camelCase. */
+  private normalizeRow<T extends Record<string, any>>(row: T): T {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(row)) {
+      const key = k?.toString().trim().toLowerCase().replace(/\s+/g, '_');
+      out[key] = typeof v === 'string' ? v.trim() : v;
+    }
+    return out as T;
+  }
+
   private pickStr(r: any, snake: string, camel: string): string | null {
     const v = r[snake] ?? r[camel];
     return this.toNullableString(v);
@@ -97,8 +295,11 @@ export class ImportService {
     const v = r[snake] ?? r[camel];
     return this.toFloat(v);
   }
+  private pickBool(r: any, snake: string, camel: string, def = false): boolean {
+    const v = r[snake] ?? r[camel];
+    return this.toBool(v, def);
+  }
 
-  /** Parseo seguro de JSON (para hermanos_en_colegio). */
   private toJson(val: any): any | null {
     const s = this.toNullableString(val);
     if (!s) return null;
@@ -109,15 +310,26 @@ export class ImportService {
     }
   }
 
-  /** Normaliza documentos preservando guiones (evita inconsistencias con datos existentes). */
   private sanitizeDoc(val: string | null | undefined) {
     const s = this.toNullableString(val);
-    // Mantiene dígitos/letras/guiones, quita espacios y otros caracteres
     return s ? s.replace(/[^\dA-Za-z-]/g, '').toUpperCase() : null;
   }
 
-  // ===== Importación de Matrícula =====
+  // ==========================================================
+  // ================ Importación: Matrícula ==================
+  // ==========================================================
 
+  /** Punto de entrada para archivo Excel de Matrícula */
+  async importMatriculaDesdeExcel(buffer: Buffer) {
+    const rowsRaw = this.readAlumnosSheet(buffer);
+    const rows = this.shapeRowsForImport(rowsRaw);
+    if (!rows.length) {
+      throw new BadRequestException('La hoja "Alumnos" no tiene registros.');
+    }
+    return this.importMatricula(rows);
+  }
+
+  /** Importa a BD según tu schema.prisma */
   async importMatricula(rows: any[]): Promise<ImportResult[]> {
     const results: ImportResult[] = [];
 
@@ -150,9 +362,11 @@ export class ImportService {
             'estado_matricula',
             'estadoMatricula',
           );
-          const fechaMatricula = this.toDate(
-            r['fecha_matricula'] ?? r['fechaMatricula'],
-          );
+
+          const fechaMatricula =
+            (r['fecha_matricula'] instanceof Date
+              ? (r['fecha_matricula'] as Date)
+              : this.toDateExcelFlexible(r['fecha_matricula'])) || null;
 
           const usaTransporteEscolar = this.pickBool(
             r,
@@ -427,7 +641,7 @@ export class ImportService {
             ),
             direccion: this.pickStr(r, 'r_direccion', 'rDireccion'),
 
-            // 🔽 Campos extra del responsable
+            // extras opcionales
             religion: this.pickStr(r, 'r_religion', 'rReligion'),
             zonaResidencia: this.pickStr(
               r,
@@ -481,7 +695,7 @@ export class ImportService {
             alumnoId = created.id_alumno;
           }
 
-          // -------- Upsert Alumno_Detalle (incluye hermanos_en_colegio) --------
+          // -------- Upsert Alumno_Detalle --------
           const createDetalleData: Prisma.Alumno_DetalleUncheckedCreateInput = {
             alumnoId,
             viveCon: this.pickStr(r, 'vive_con', 'viveCon') ?? undefined,
@@ -501,7 +715,6 @@ export class ImportService {
               this.pickStr(r, 'tenencia_vivienda', 'tenenciaVivienda') ??
               undefined,
 
-            // Emergencias
             emergencia1Nombre:
               this.pickStr(r, 'emergencia1_nombre', 'emergencia1Nombre') ??
               undefined,
@@ -527,7 +740,6 @@ export class ImportService {
               this.pickStr(r, 'emergencia2_telefono', 'emergencia2Telefono') ??
               undefined,
 
-            // Hermanos
             tieneHermanosEnColegio: this.pickBool(
               r,
               'tiene_hermanos_en_colegio',
@@ -645,113 +857,12 @@ export class ImportService {
             status: 'OK',
             id_alumno: alumnoId,
           });
-        }); // fin transaction
+        });
       } catch (err: any) {
         results.push({
           nombre: `${nombre} ${apellido}`.trim(),
           status: 'ERROR',
           message: err?.message || 'Error al importar',
-          code: 'DB',
-        });
-      }
-    }
-
-    return results;
-  }
-
-  // ===== Notas =====
-
-  async importNotas(
-    rows: any[],
-    context: ImportContext,
-  ): Promise<ImportResult[]> {
-    const results: ImportResult[] = [];
-
-    for (let i = 0; i < rows.length; i++) {
-      const raw = rows[i];
-      const r = this.normalizeRow(raw);
-
-      let alumnoId: number | null = null;
-      if (r.id_alumno) alumnoId = Number(r.id_alumno);
-
-      if (!alumnoId || !Number.isFinite(alumnoId)) {
-        results.push({
-          nombre: r.nombre || `fila_${i + 1}`,
-          status: 'ERROR',
-          message: 'id_alumno requerido o inválido',
-          code: 'VALIDATION',
-        });
-        continue;
-      }
-
-      const idActividad =
-        r.id_actividad != null && r.id_actividad !== ''
-          ? Number(r.id_actividad)
-          : null;
-
-      const calificacion =
-        r.calificacion != null && r.calificacion !== ''
-          ? Number(r.calificacion)
-          : null;
-
-      // fecha_registro opcional
-      let fechaRegistro: Date | null = null;
-      const frStr = this.toNullableString(r.fecha_registro);
-      if (frStr) {
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(frStr)) {
-          const [dd, mm, yyyy] = frStr.split('/');
-          fechaRegistro = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-        } else {
-          const d = new Date(frStr);
-          if (!isNaN(d.getTime())) fechaRegistro = d;
-        }
-      }
-
-      try {
-        // Emular upsert
-        const existente = await this.prisma.notas.findFirst({
-          where: {
-            id_alumno: alumnoId,
-            id_asignatura: context.idAsignatura,
-            trimestre: context.trimestre,
-            ...(idActividad !== null
-              ? { id_actividad: idActividad }
-              : { id_actividad: null }),
-          },
-          select: { id_nota: true },
-        });
-
-        if (existente) {
-          await this.prisma.notas.update({
-            where: { id_nota: existente.id_nota },
-            data: {
-              calificacion: calificacion ?? undefined,
-              fecha_registro: fechaRegistro ?? undefined,
-            },
-          });
-        } else {
-          await this.prisma.notas.create({
-            data: {
-              id_alumno: alumnoId,
-              id_asignatura: context.idAsignatura,
-              trimestre: context.trimestre,
-              id_actividad: idActividad,
-              calificacion,
-              fecha_registro: fechaRegistro ?? new Date(),
-            },
-          });
-        }
-
-        results.push({
-          nombre: r.nombre || `alumno_${alumnoId}`,
-          status: 'OK',
-          id_alumno: alumnoId,
-        });
-      } catch (err: any) {
-        results.push({
-          nombre: r.nombre || `alumno_${alumnoId}`,
-          status: 'ERROR',
-          message: err?.message || 'Error al insertar/actualizar nota',
           code: 'DB',
         });
       }
