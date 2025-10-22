@@ -833,6 +833,108 @@ async function ensureMVAsignaciones() {
   console.log('Materialized View OK: mv_asignaciones');
 }
 
+// Función para asignar alumnos a cursos
+async function asignarAlumnosACursos() {
+  console.log('Asignando alumnos a cursos...');
+
+  // Año académico actual
+  const anioActual = '2025';
+
+  try {
+    // 1. Obtener los cursos existentes
+    const cursos = await prisma.curso.findMany({
+      where: { activo: true },
+      orderBy: { id_curso: 'asc' },
+    });
+
+    if (cursos.length === 0) {
+      console.log('No hay cursos disponibles para asignar alumnos.');
+      return;
+    }
+
+    // 2. Obtener los alumnos existentes
+    const alumnos = await prisma.alumno.findMany({
+      where: { activo: true },
+      orderBy: { id_alumno: 'asc' },
+    });
+
+    if (alumnos.length === 0) {
+      console.log('No hay alumnos disponibles para asignar a cursos.');
+      return;
+    }
+
+    // 3. Distribuir alumnos en los cursos disponibles
+    const asignaciones: any[] = [];
+
+    // Distribuir los primeros 20 alumnos en diferentes cursos
+    for (let i = 0; i < Math.min(alumnos.length, 20); i++) {
+      const cursoIndex = i % cursos.length; // Distribuir equitativamente
+      const alumno = alumnos[i];
+      const curso = cursos[cursoIndex];
+
+      // Verificar si ya existe una asignación
+      const asignacionExistente = await prisma.alumnoCurso.findUnique({
+        where: {
+          alumnoId_cursoId_anioAcademico: {
+            alumnoId: alumno.id_alumno,
+            cursoId: curso.id_curso,
+            anioAcademico: anioActual,
+          },
+        },
+      });
+
+      if (!asignacionExistente) {
+        // Crear la relación AlumnoCurso
+        const asignacion = await prisma.alumnoCurso.create({
+          data: {
+            alumnoId: alumno.id_alumno,
+            cursoId: curso.id_curso,
+            anioAcademico: anioActual,
+            estado: 'ACTIVO',
+            fechaInscripcion: new Date(2025, 0, 15), // 15 de enero de 2025
+          },
+        });
+
+        asignaciones.push(asignacion);
+
+        // También conectar en la relación muchos a muchos tradicional
+        await prisma.alumno.update({
+          where: { id_alumno: alumno.id_alumno },
+          data: {
+            cursos: {
+              connect: { id_curso: curso.id_curso },
+            },
+            anioEscolar: anioActual,
+          },
+        });
+      }
+    }
+
+    console.log(
+      `Se crearon ${asignaciones.length} asignaciones de alumnos a cursos.`,
+    );
+
+    // Agregar algunos datos específicos para pruebas de promoción
+    // Crear unos registros de historial para pruebas
+    for (let i = 0; i < Math.min(asignaciones.length, 5); i++) {
+      const asignacion = asignaciones[i];
+
+      await prisma.historialAcademico.create({
+        data: {
+          alumnoId: asignacion.alumnoId,
+          cursoId: asignacion.cursoId,
+          anioAcademico: anioActual,
+          fechaInicio: new Date(2025, 0, 15),
+        },
+      });
+    }
+
+    console.log('Alumnos asignados a cursos correctamente.');
+  } catch (error) {
+    console.error('Error al asignar alumnos a cursos:', error);
+  }
+}
+
 async function main() {
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
   await prisma.$connect();
@@ -849,6 +951,9 @@ async function main() {
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
   await seedCursosAsignaturasYAsignaciones(cargos);
+
+  // Asignar alumnos a cursos usando AlumnoCurso
+  await asignarAlumnosACursos();
 
   await ensureMVAsignaciones();
 }

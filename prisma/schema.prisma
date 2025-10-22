@@ -64,9 +64,11 @@ model Alumno {
   detalle Alumno_Detalle?
 
   // relaciones
-  responsables AlumnoResponsable[]
-  cursos       Curso[]             @relation("AlumnoCurso")
-  Notas        Notas[]
+  responsables      AlumnoResponsable[]
+  cursos            Curso[]             @relation("AlumnoCurso")
+  inscripciones     AlumnoCurso[]      // Relación explícita a través de tabla pivote
+  Notas             Notas[]
+  historialAcademico HistorialAcademico[]
 }
 
 model Alumno_Detalle {
@@ -187,9 +189,11 @@ model Curso {
   gradoAcademico Grado_Academico?             @relation(fields: [id_grado_academico], references: [id_grado_academico])
   orientador     Orientador?                  @relation(fields: [id_orientador], references: [id_orientador])
   alumnos        Alumno[]                     @relation("AlumnoCurso")
+  inscripciones  AlumnoCurso[]               // Relación explícita a través de tabla pivote
   asignaturas    Asignatura[]
   activo         Boolean?                     @default(true)
   historialCurso Historial_curso_orientador[]
+  historialAcademico HistorialAcademico[]
 }
 
 model Historial_curso_orientador {
@@ -379,4 +383,49 @@ model AsignaturaOrientador {
   @@unique([id_asignatura, id_orientador, anio_academico])
   @@index([id_asignatura])
   @@index([id_orientador])
+}
+
+// Tabla pivote para la relación muchos a muchos entre Alumno y Curso
+model AlumnoCurso {
+  id                Int       @id @default(autoincrement())
+  alumnoId          Int
+  cursoId           Int
+  fechaInscripcion  DateTime  @default(now())
+  fechaRetiro       DateTime?  // Fecha en que se retira del curso o se promueve
+  seccionAsignada   String?   // Por si la sección es diferente del curso principal
+  anioAcademico     String    // Permite manejar inscripciones de diferentes años
+  estado            String    // "ACTIVO", "INACTIVO" (cuando se retira o se promueve)
+  observaciones     String?   @db.Text
+  
+  // Relaciones
+  alumno            Alumno    @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  curso             Curso     @relation(fields: [cursoId], references: [id_curso], onDelete: Restrict)
+
+  @@unique([alumnoId, cursoId, anioAcademico])
+  @@index([alumnoId])
+  @@index([cursoId])
+  @@index([anioAcademico])
+  @@index([estado])
+}
+
+// Historial académico del alumno
+model HistorialAcademico {
+  id                Int      @id @default(autoincrement())
+  alumnoId          Int
+  cursoId           Int
+  anioAcademico     String   // Ej: "2025"
+  estadoFinal       String?  // "APROBADO", "REPROBADO", "FINALIZADO", etc.
+  notaPromedio      Float?   // Nota promedio final
+  observaciones     String?  @db.Text
+  fechaInicio       DateTime @default(now())
+  fechaFin          DateTime?
+  
+  // Relaciones
+  alumno            Alumno   @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  curso             Curso    @relation(fields: [cursoId], references: [id_curso], onDelete: Restrict)
+
+  @@unique([alumnoId, cursoId, anioAcademico])
+  @@index([alumnoId])
+  @@index([cursoId])
+  @@index([anioAcademico])
 }

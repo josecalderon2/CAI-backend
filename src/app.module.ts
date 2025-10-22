@@ -22,6 +22,7 @@ import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { ImportModule } from './import/import.module';
+import { PromocionesModule } from './promociones/promociones.module';
 @Module({
   imports: [
     AdministrativoModule,
@@ -43,6 +44,7 @@ import { ImportModule } from './import/import.module';
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
     ImportModule,
+    PromocionesModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
