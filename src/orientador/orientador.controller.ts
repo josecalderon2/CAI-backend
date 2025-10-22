@@ -35,7 +35,19 @@ import { Roles } from '../auth/roles.decorator';
 export class OrientadorController {
   constructor(private readonly service: OrientadorService) {}
 
+  // --- ENDPOINT PARA LISTAR TODOS LOS ORIENTADORES (para selects/dropdowns) ---
+  @Roles('Admin', 'P.A', 'Orientador')
+  @Get('all')
+  @ApiOperation({
+    summary: 'Listar todos los orientadores activos (para selects/dropdowns)',
+  })
+  @ApiOkResponse({ description: 'Lista simple de orientadores activos' })
+  findAllSimple() {
+    return this.service.findAllSimple();
+  }
+
   // --- PERFIL (self) PRIMERO para evitar colisión con :id ---
+  @Roles('Admin', 'P.A', 'Orientador')
   @Patch('profile')
   @ApiOperation({
     summary: 'Actualizar perfil (nombre, apellido y/o password)',
@@ -56,7 +68,7 @@ export class OrientadorController {
     return this.service.create(dto);
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A', 'Orientador')
   @Get()
   @ApiOkResponse({ description: 'Lista de orientadores (paginada)' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
@@ -86,7 +98,7 @@ export class OrientadorController {
     });
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A', 'Orientador')
   @Get(':id')
   @ApiOkResponse({ description: 'Detalle de orientador' })
   @ApiNotFoundResponse({ description: 'No encontrado' })

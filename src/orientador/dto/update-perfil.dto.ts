@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsOptional, IsString, MinLength, ValidateIf } from 'class-validator';
 
 export class UpdatePerfilOrientadorDto {
   @ApiPropertyOptional()
@@ -13,11 +13,29 @@ export class UpdatePerfilOrientadorDto {
   apellido?: string;
 
   @ApiPropertyOptional({
+    description:
+      'Contraseña actual (requerida si se quiere cambiar la contraseña)',
+  })
+  @ValidateIf((o) => !!o.password)
+  @IsString()
+  currentPassword?: string;
+
+  @ApiPropertyOptional({
     minLength: 8,
-    description: 'Se re-hashéa si se envía',
+    description: 'Nueva contraseña (requiere enviar currentPassword)',
   })
   @IsOptional()
   @IsString()
   @MinLength(8)
   password?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  telefono?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  direccion?: string;
 }

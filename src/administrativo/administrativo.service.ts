@@ -37,6 +37,13 @@ export class AdministrativoService {
     return bcrypt.hash(plain, salt);
   }
 
+  private async comparePassword(
+    plain: string,
+    hashed: string,
+  ): Promise<boolean> {
+    return bcrypt.compare(plain, hashed);
+  }
+
   private generate8DigitPassword(): string {
     // 10000000 - 99999999 (8 dígitos)
     return Math.floor(10000000 + Math.random() * 90000000).toString();
@@ -201,12 +208,42 @@ export class AdministrativoService {
     }
   }
 
-  // Actualizar PERFIL (solo nombre, apellido, password)
+  // Actualizar PERFIL (nombre, apellido, password, telefono, direccion)
   async updatePerfil(selfId: number, dto: UpdatePerfilDto) {
+    // Si se está intentando cambiar la contraseña, verificamos la contraseña actual
+    if (dto.password) {
+      if (!dto.currentPassword) {
+        throw new ConflictException(
+          'Debe proporcionar la contraseña actual para cambiarla',
+        );
+      }
+
+      // Obtener la contraseña actual del usuario
+      const user = await this.prisma.administrativo.findUnique({
+        where: { id_administrativo: selfId },
+        select: { password: true },
+      });
+
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      // Verificar que la contraseña actual sea correcta
+      const passwordValid = await this.comparePassword(
+        dto.currentPassword,
+        user.password,
+      );
+      if (!passwordValid) {
+        throw new ConflictException('La contraseña actual es incorrecta');
+      }
+    }
+
     const data: any = {};
     if (dto.nombre !== undefined) data.nombre = dto.nombre;
     if (dto.apellido !== undefined) data.apellido = dto.apellido;
     if (dto.password) data.password = await this.hashPassword(dto.password);
+    if (dto.telefono !== undefined) data.telefono = dto.telefono;
+    if (dto.direccion !== undefined) data.direccion = dto.direccion;
 
     if (Object.keys(data).length === 0) {
       // No-op, podrías tirar BadRequestException si prefieres
