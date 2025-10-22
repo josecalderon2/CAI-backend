@@ -67,6 +67,7 @@ model Alumno {
   responsables AlumnoResponsable[]
   cursos       Curso[]             @relation("AlumnoCurso")
   Notas        Notas[]
+  asistencias     Asistencia[]
 }
 
 model Alumno_Detalle {
@@ -230,7 +231,7 @@ model Asignatura {
 
   notas                 Notas[]
   orientadores          AsignaturaOrientador[]
-
+  asistencias     Asistencia[]
   historialDocente      Historial_curso_orientador[] @relation("AsignaturaHistorial")
 }
 
@@ -326,6 +327,7 @@ model Orientador {
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
   PasswordResetToken      PasswordResetToken[]
+  asistencias     Asistencia[]
 
   @@map("orientadores")
 }
@@ -379,4 +381,31 @@ model AsignaturaOrientador {
   @@unique([id_asignatura, id_orientador, anio_academico])
   @@index([id_asignatura])
   @@index([id_orientador])
+}
+
+enum EstadoAsistencia {
+  PRESENTE
+  PERMISO
+  AUSENTE
+  TARDE
+}
+
+model Asistencia {
+  id_asistencia     Int       @id @default(autoincrement())
+  id_alumno         Int
+  id_asignatura     Int
+  id_orientador     Int
+  fecha             DateTime
+  estado            EstadoAsistencia
+  observacion       String?
+  creadoEn          DateTime  @default(now())
+
+  alumno            Alumno      @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  asignatura        Asignatura  @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
+  orientador        Orientador  @relation(fields: [id_orientador], references: [id_orientador], onDelete: Cascade)
+
+  @@unique([id_alumno, id_asignatura, fecha]) // evita duplicados de registro diario por materia
+  @@index([id_asignatura])
+  @@index([id_orientador])
+  @@index([fecha])
 }

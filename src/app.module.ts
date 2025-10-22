@@ -22,6 +22,8 @@ import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { ImportModule } from './import/import.module';
+import { AsistenciaModule } from './asistencias/asistencias.module';
+
 @Module({
   imports: [
     AdministrativoModule,
@@ -38,6 +40,7 @@ import { ImportModule } from './import/import.module';
     JornadasModule,
     ActividadesRecientesModule,
     AsignaturasModule,
+    AsistenciaModule,
     AsignacionesModule,
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
