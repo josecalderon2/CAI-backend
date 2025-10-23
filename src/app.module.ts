@@ -23,6 +23,7 @@ import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.modul
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { ImportModule } from './import/import.module';
 import { AsistenciaModule } from './asistencias/asistencias.module';
+import { ConductasModule } from './conducta/conducta.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AsistenciaModule } from './asistencias/asistencias.module';
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
+    ConductasModule,
     ImportModule,
     ScheduleModule.forRoot(),
   ],
