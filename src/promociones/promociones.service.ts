@@ -331,14 +331,23 @@ export class PromocionesService {
         });
       }
 
-      // 5. Registrar la actividad
+      // 5. Registrar la actividad con mensaje apropiado según el estado
       const cursoActualNombre =
         inscripcionesActuales.length > 0
           ? `${inscripcionesActuales[0].curso.nombre}${inscripcionesActuales[0].curso.seccion ? ' ' + inscripcionesActuales[0].curso.seccion : ''}`
           : 'Sin curso asignado';
 
+      let mensajeActividad = '';
+      if (estado === 'NO_REINSCRITO') {
+        mensajeActividad = `Alumno ${alumno.nombre} ${alumno.apellido} marcado como NO REINSCRITO en ${cursoActualNombre}. ${marcarInactivo ? 'Marcado como inactivo en el sistema.' : ''}`;
+      } else if (estado === 'FINALIZADO') {
+        mensajeActividad = `Alumno ${alumno.nombre} ${alumno.apellido} ha FINALIZADO sus estudios en ${cursoActualNombre}. ${marcarInactivo ? 'Marcado como inactivo en el sistema.' : ''}`;
+      } else {
+        mensajeActividad = `Alumno ${alumno.nombre} ${alumno.apellido} ha ${estado} sus estudios en ${cursoActualNombre}. ${marcarInactivo ? 'Marcado como inactivo.' : ''}`;
+      }
+
       await this.actividadesRecientesService.registrarActividad({
-        descripcion: `Alumno ${alumno.nombre} ${alumno.apellido} ha ${estado} sus estudios en ${cursoActualNombre}. ${marcarInactivo ? 'Marcado como inactivo.' : ''}`,
+        descripcion: mensajeActividad,
         tipo: 'info',
         entidad: 'alumno',
         entidad_id: alumnoId,
@@ -897,6 +906,149 @@ export class PromocionesService {
         cursosSugeridos.length > 0 ? cursosSugeridos : todosLosCursos,
       todosLosCursos,
       esUltimoGrado,
+    };
+  }
+
+  /**
+   * Obtiene todos los alumnos de todos los cursos activos para un año académico
+   * Útil para mostrar una vista general de alumnos disponibles para promoción
+   */
+  async obtenerTodosLosAlumnosParaPromocion(anioAcademico: string) {
+    // Obtener todas las inscripciones activas para el año académico
+    const inscripciones = await this.prisma.alumnoCurso.findMany({
+      select: {
+        id: true,
+        alumnoId: true,
+        cursoId: true,
+        anioAcademico: true,
+        estado: true,
+        fechaInscripcion: true,
+        seccionAsignada: true,
+        alumno: {
+          select: {
+            id_alumno: true,
+            nombre: true,
+            apellido: true,
+            activo: true,
+            numeroMatricula: true,
+          },
+        },
+        curso: {
+          select: {
+            id_curso: true,
+            nombre: true,
+            seccion: true,
+            cupo: true,
+            gradoAcademico: {
+              select: {
+                nombre: true,
+              },
+            },
+          },
+        },
+      },
+      where: {
+        anioAcademico,
+        estado: 'ACTIVO',
+        curso: {
+          activo: true,
+        },
+      },
+      orderBy: [
+        {
+          curso: {
+            gradoAcademico: {
+              nombre: 'asc',
+            },
+          },
+        },
+        {
+          curso: {
+            nombre: 'asc',
+          },
+        },
+        {
+          curso: {
+            seccion: 'asc',
+          },
+        },
+        {
+          alumno: {
+            apellido: 'asc',
+          },
+        },
+        {
+          alumno: {
+            nombre: 'asc',
+          },
+        },
+      ],
+    });
+
+    // Filtrar solo inscripciones con alumnos activos
+    const inscripcionesFiltradas = inscripciones.filter(
+      (inscripcion) =>
+        inscripcion.alumno !== null && inscripcion.alumno.activo === true,
+    );
+
+    // Obtener IDs de alumnos para consultar historial
+    const alumnosIds = inscripcionesFiltradas.map(
+      (inscripcion) => inscripcion.alumnoId,
+    );
+
+    // Obtener historial académico
+    const historiales = await this.prisma.historialAcademico.findMany({
+      where: {
+        anioAcademico,
+        alumnoId: {
+          in: alumnosIds,
+        },
+      },
+    });
+
+    // Crear mapa de historial por alumno y curso
+    const historialMap = new Map();
+    historiales.forEach((h) => {
+      const key = `${h.alumnoId}-${h.cursoId}`;
+      historialMap.set(key, h);
+    });
+
+    // Obtener cursos únicos para las estadísticas
+    const cursosUnicos = new Set(inscripcionesFiltradas.map((i) => i.cursoId))
+      .size;
+
+    // Transformar los datos para la respuesta
+    const items = inscripcionesFiltradas.map((inscripcion) => {
+      const alumno = inscripcion.alumno;
+      const curso = inscripcion.curso;
+      const key = `${inscripcion.alumnoId}-${inscripcion.cursoId}`;
+      const historial = historialMap.get(key);
+
+      return {
+        id: alumno.id_alumno,
+        numeroMatricula: alumno.numeroMatricula,
+        nombre: alumno.nombre,
+        apellido: alumno.apellido,
+        nombreCompleto: `${alumno.nombre} ${alumno.apellido}`,
+        curso: {
+          id: curso.id_curso,
+          nombre: curso.nombre,
+          seccion: curso.seccion,
+          gradoAcademico: curso.gradoAcademico?.nombre,
+          nombreCompleto: `${curso.nombre}${curso.seccion ? ' ' + curso.seccion : ''}`,
+        },
+        fechaInscripcion: inscripcion.fechaInscripcion,
+        notaPromedio: historial?.notaPromedio || null,
+        estadoActual: historial?.estadoFinal || null,
+        observaciones: historial?.observaciones || null,
+      };
+    });
+
+    return {
+      anioAcademico,
+      totalCursos: cursosUnicos,
+      totalAlumnos: items.length,
+      items,
     };
   }
 }

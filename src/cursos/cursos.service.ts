@@ -225,14 +225,11 @@ export class CursosService {
 
     if (!curso) throw new NotFoundException('Curso no encontrado');
 
-    // Obtener el conteo de alumnos en este curso
-    const alumnosCount = await this.prisma.alumno.count({
+    // Obtener el conteo de alumnos en este curso usando la tabla pivote AlumnoCurso
+    const alumnosCount = await this.prisma.alumnoCurso.count({
       where: {
-        cursos: {
-          some: {
-            id_curso: id,
-          },
-        },
+        cursoId: id,
+        estado: 'ACTIVO', // Solo contar alumnos activos en el curso
       },
     });
 
@@ -312,14 +309,11 @@ export class CursosService {
 
     // Procesar cada curso para obtener el conteo de alumnos y la descripción
     const cursosPromises = cursos.map(async (curso) => {
-      // Obtener el conteo de alumnos
-      const alumnosCount = await this.prisma.alumno.count({
+      // Obtener el conteo de alumnos usando la tabla pivote AlumnoCurso
+      const alumnosCount = await this.prisma.alumnoCurso.count({
         where: {
-          cursos: {
-            some: {
-              id_curso: curso.id_curso,
-            },
-          },
+          cursoId: curso.id_curso,
+          estado: 'ACTIVO', // Solo contar alumnos activos en el curso
         },
       });
 

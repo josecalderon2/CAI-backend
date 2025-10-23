@@ -47,10 +47,24 @@ export class PromocionesController {
 
   @Roles('Admin', 'P.A')
   @Post('finalizar-alumno')
-  @ApiOperation({ summary: 'Marcar a un alumno como finalizado (graduado)' })
+  @ApiOperation({
+    summary: 'Marcar a un alumno como finalizado/graduado o no reinscrito',
+    description:
+      'Permite marcar un alumno con diferentes estados finales: NO_REINSCRITO (cuando no regresa al siguiente año) o FINALIZADO (cuando completa todos sus estudios). Cuando marcarInactivo=true, actualiza activo=false en tabla alumnos, cambia estado a INACTIVO en alumnoCurso y registra en historialAcademico.',
+  })
   @ApiResponse({
     status: 200,
-    description: 'El alumno ha finalizado exitosamente sus estudios',
+    description: 'El alumno ha sido marcado exitosamente',
+    schema: {
+      example: {
+        id: 1,
+        nombre: 'Juan Pérez',
+        curso: 'Tercer Grado A',
+        anioEscolar: '2025',
+        estado: 'NO_REINSCRITO',
+        activo: false,
+      },
+    },
   })
   finalizarAlumno(@Body() dto: FinalizarAlumnoDto) {
     return this.promocionesService.finalizarAlumno(dto);
@@ -77,6 +91,26 @@ export class PromocionesController {
   @ApiParam({ name: 'alumnoId', description: 'ID del alumno', type: 'number' })
   obtenerHistorialAcademico(@Param('alumnoId', ParseIntPipe) alumnoId: number) {
     return this.promocionesService.obtenerHistorialAcademico(alumnoId);
+  }
+
+  @Roles('Admin', 'P.A')
+  @Get('alumnos')
+  @ApiOperation({
+    summary: 'Obtener todos los alumnos para promoción',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de todos los alumnos obtenida exitosamente',
+  })
+  @ApiQuery({
+    name: 'anioAcademico',
+    description: 'Año académico',
+    required: true,
+  })
+  obtenerTodosLosAlumnos(@Query('anioAcademico') anioAcademico: string) {
+    return this.promocionesService.obtenerTodosLosAlumnosParaPromocion(
+      anioAcademico,
+    );
   }
 
   @Roles('Admin', 'P.A')

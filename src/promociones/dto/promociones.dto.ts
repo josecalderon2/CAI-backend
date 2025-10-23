@@ -117,7 +117,8 @@ export class PromocionMasivaDto {
 
 export class FinalizarAlumnoDto {
   @ApiProperty({
-    description: 'ID del alumno a finalizar estudios',
+    description:
+      'ID del alumno a finalizar estudios o marcar como no reinscrito',
     example: 1,
   })
   @IsNumber()
@@ -128,8 +129,10 @@ export class FinalizarAlumnoDto {
   anioActual: string;
 
   @ApiProperty({
-    description: 'Estado final del alumno',
+    description:
+      'Estado final del alumno. Valores válidos: "NO_REINSCRITO" (cuando no regresa al siguiente año), "FINALIZADO" (cuando completa todos sus estudios/graduado), "RETIRADO", etc.',
     example: 'FINALIZADO',
+    enum: ['NO_REINSCRITO', 'FINALIZADO', 'RETIRADO', 'TRASLADADO'],
     required: false,
   })
   @IsString()
@@ -150,7 +153,12 @@ export class FinalizarAlumnoDto {
   @IsOptional()
   observaciones?: string;
 
-  @ApiProperty({ description: 'Marcar al alumno como inactivo', default: true })
+  @ApiProperty({
+    description:
+      'Marcar al alumno como inactivo en el sistema. Si es true, se actualiza activo=false en la tabla alumnos y estado=INACTIVO en alumnoCurso',
+    default: true,
+    required: false,
+  })
   @IsBoolean()
   @IsOptional()
   marcarInactivo?: boolean;
