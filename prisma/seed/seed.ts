@@ -864,6 +864,138 @@ async function ensureMVAsignaciones() {
   console.log('Materialized View OK: mv_asignaciones');
 }
 
+async function seedCurso7A() {
+  console.log('⏳ Creando datos de prueba para 7°A...');
+
+  const orientador = await prisma.orientador.findUnique({
+    where: { email: 'orientador@colegio.edu' },
+  });
+  const gradoSecundaria = await prisma.grado_Academico.findFirst({
+    where: { nombre: 'Secundaria' },
+  });
+  const catalogos = await getCatalogIds();
+
+  // 🔹 Curso
+  const curso7A = await getOrCreateCurso(
+    'Séptimo Grado',
+    'A',
+    gradoSecundaria?.id_grado_academico,
+    orientador!.id_orientador,
+    30,
+    'A-7',
+    '2025',
+  );
+
+  // 🔹 Asignaturas
+  const mat7A = await getOrCreateAsignatura('Matemática', curso7A.id_curso, {
+    ...catalogos,
+    orden_en_reporte: '01',
+    horas_semanas: 5,
+  });
+  const cie7A = await getOrCreateAsignatura('Ciencias', curso7A.id_curso, {
+    ...catalogos,
+    orden_en_reporte: '02',
+    horas_semanas: 4,
+  });
+
+  // 🔹 Asignar al orientador
+  await upsertAsignacionAO({
+    id_asignatura: mat7A.id_asignatura,
+    id_orientador: orientador!.id_orientador,
+    anio_academico: '2025',
+    activo: true,
+  });
+  await upsertAsignacionAO({
+    id_asignatura: cie7A.id_asignatura,
+    id_orientador: orientador!.id_orientador,
+    anio_academico: '2025',
+    activo: true,
+  });
+
+  // 🔹 Crear 5 alumnos de ejemplo
+  const alumnos = await Promise.all(
+    Array.from({ length: 5 }).map((_, i) =>
+      prisma.alumno.create({
+        data: {
+          nombre: `Alumno${i + 1}`,
+          apellido: `Prueba7A`,
+          genero: i % 2 === 0 ? 'M' : 'F',
+          fechaNacimiento: `2011-0${(i % 9) + 1}-15`,
+          edad: 13,
+          anioEscolar: '2025',
+          numeroMatricula: `MAT-7A-${i + 1}`,
+          estadoMatricula: 'INSCRITO',
+          activo: true,
+          cursos: { connect: { id_curso: curso7A.id_curso } },
+        },
+      }),
+    ),
+  );
+
+  // 🔹 Asistencias y conductas (3 trimestres)
+  const fechasTrimestres = [
+    { trimestre: 1, fechas: ['2025-02-01', '2025-02-15', '2025-03-10'] },
+    { trimestre: 2, fechas: ['2025-05-01', '2025-05-15', '2025-06-10'] },
+    { trimestre: 3, fechas: ['2025-08-01', '2025-08-15', '2025-09-10'] },
+  ];
+
+  for (const alumno of alumnos) {
+    for (const { trimestre, fechas } of fechasTrimestres) {
+      for (const fecha of fechas) {
+        // 4 alumnos perfectos, 1 con variaciones
+        const estado =
+          alumno.nombre === 'Alumno5'
+            ? (['P', 'SP', 'E', 'A'] as const)[
+                Math.floor(Math.random() * 4)
+              ]
+            : 'P';
+        await prisma.asistencia.createMany({
+          data: [
+            {
+              id_alumno: alumno.id_alumno,
+              id_asignatura: mat7A.id_asignatura,
+              id_orientador: orientador!.id_orientador,
+              fecha: new Date(fecha),
+              estado,
+              anio_academico: '2025',
+              trimestre,
+            },
+            {
+              id_alumno: alumno.id_alumno,
+              id_asignatura: cie7A.id_asignatura,
+              id_orientador: orientador!.id_orientador,
+              fecha: new Date(fecha),
+              estado,
+              anio_academico: '2025',
+              trimestre,
+            },
+          ],
+        });
+      }
+
+      // Conducta (solo Alumno5 con variaciones)
+      if (alumno.nombre === 'Alumno5') {
+        const gravedad = ['MENOS_GRAVE', 'GRAVE', 'MUY_GRAVE'] as const;
+        await prisma.conducta.create({
+          data: {
+            id_alumno: alumno.id_alumno,
+            id_orientador: orientador!.id_orientador,
+            id_asignatura: cie7A.id_asignatura,
+            fecha: new Date(fechas[1]),
+            gravedad:
+              gravedad[Math.floor(Math.random() * gravedad.length)],
+            descripcion: `Falta disciplinaria durante el trimestre ${trimestre}`,
+            anio_academico: '2025',
+            trimestre,
+          },
+        });
+      }
+    }
+  }
+
+  console.log('✅ Curso 7°A, alumnos, asistencias y conductas creados correctamente.');
+}
+
 async function main() {
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
   await prisma.$connect();
@@ -881,7 +1013,7 @@ async function main() {
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
   await seedCursosAsignaturasYAsignaciones(cargos);
-
+  await seedCurso7A();
   await ensureMVAsignaciones();
 }
 

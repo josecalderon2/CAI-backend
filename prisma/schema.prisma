@@ -68,6 +68,8 @@ model Alumno {
   cursos       Curso[]             @relation("AlumnoCurso")
   Notas        Notas[]
   asistencias  Asistencia[]
+
+  conductas    Conducta[]
 }
 
 model Alumno_Detalle {
@@ -232,6 +234,8 @@ model Asignatura {
   notas            Notas[]
   orientadores     AsignaturaOrientador[]
   asistencias      Asistencia[]
+
+  conductas        Conducta[]
   historialDocente Historial_curso_orientador[] @relation("AsignaturaHistorial")
 }
 
@@ -328,6 +332,8 @@ model Orientador {
   updatedAt               DateTime                     @updatedAt
   PasswordResetToken      PasswordResetToken[]
   asistencias             Asistencia[]
+
+  conductas               Conducta[]
 
   @@map("orientadores")
 }
@@ -426,30 +432,64 @@ model AsistenciaHistorial {
 }
 
 enum EstadoAsistencia {
-  PRESENTE
-  PERMISO
-  AUSENTE
-  TARDE
+  P // Presente
+  E // Excusado (permiso)
+  SP // Sin permiso
+  A // Atraso
+}
+
+enum TipoFalta {
+  ASISTENCIA
+  DISCIPLINA
+  COMPORTAMIENTO
+}
+
+enum GravedadFalta {
+  LEVE
+  MENOS_GRAVE
+  GRAVE
+  MUY_GRAVE
 }
 
 model Asistencia {
-  id_asistencia Int              @id @default(autoincrement())
-  id_alumno     Int
-  id_asignatura Int
-  id_orientador Int
-  fecha         DateTime
-  estado        EstadoAsistencia
-  observacion   String?
-  creadoEn      DateTime         @default(now())
+
+  id_asistencia  Int              @id @default(autoincrement())
+  id_alumno      Int
+  id_asignatura  Int
+  id_orientador  Int
+  fecha          DateTime
+  estado         EstadoAsistencia
+  observacion    String?
+  creadoEn       DateTime         @default(now())
+  anio_academico String?
+  trimestre      Int?
 
   alumno     Alumno     @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
   asignatura Asignatura @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
   orientador Orientador @relation(fields: [id_orientador], references: [id_orientador], onDelete: Cascade)
 
-  historial AsistenciaHistorial[] @relation("AsistenciaLog")
+  @@unique([id_alumno, id_asignatura, fecha])
+  @@index([fecha])
 
-  @@unique([id_alumno, id_asignatura, fecha]) // evita duplicados de registro diario por materia
-  @@index([id_asignatura])
-  @@index([id_orientador])
+  @@index([trimestre])
+}
+
+model Conducta {
+  id_conducta    Int           @id @default(autoincrement())
+  id_alumno      Int
+  id_orientador  Int?
+  id_asignatura  Int?
+  fecha          DateTime
+  gravedad       GravedadFalta
+  articulo       String?
+  descripcion    String?
+  anio_academico String?
+  trimestre Int?
+
+  alumno     Alumno      @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  orientador Orientador? @relation(fields: [id_orientador], references: [id_orientador])
+  asignatura Asignatura? @relation(fields: [id_asignatura], references: [id_asignatura])
+
+  @@index([id_alumno])
   @@index([fecha])
 }
