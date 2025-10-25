@@ -11,13 +11,17 @@ import {
   UpdateAsistenciaDto,
   AsistenciaResponse,
 } from './dto';
+import { AccionAsistencia } from '@prisma/client';
+import { buildAsistenciaHistorialInput } from './utils/asistencia-history.util';
 
 @Injectable()
 export class AsistenciaService {
   constructor(private prisma: PrismaService) {}
 
   // Crear o actualizar asistencias (individual o bloque)
-  async create(createAsistenciaDto: CreateAsistenciaDto[]): Promise<AsistenciaResponse[]> {
+  async create(
+    createAsistenciaDto: CreateAsistenciaDto[],
+  ): Promise<AsistenciaResponse[]> {
     const resultados: AsistenciaResponse[] = [];
 
     for (const asistencia of createAsistenciaDto) {
@@ -32,15 +36,16 @@ export class AsistenciaService {
         trimestre,
       } = asistencia;
 
-      // Verificar que la asignatura exista
+      // 1) Validaciones (igual que las tienes)
       const asignaturaExiste = await this.prisma.asignatura.findUnique({
         where: { id_asignatura },
       });
       if (!asignaturaExiste) {
-        throw new NotFoundException(`La asignatura con ID ${id_asignatura} no existe.`);
+        throw new NotFoundException(
+          `La asignatura con ID ${id_asignatura} no existe.`,
+        );
       }
 
-      // Verificar que el docente esté asignado a esa asignatura
       const docenteAsignado = await this.prisma.asignaturaOrientador.findFirst({
         where: { id_asignatura, id_orientador, activo: true },
       });
@@ -50,36 +55,69 @@ export class AsistenciaService {
         );
       }
 
-      // Crear o actualizar la asistencia (clave compuesta)
-      const registro = await this.prisma.asistencia.upsert({
-        where: {
-          id_alumno_id_asignatura_fecha: {
-            id_alumno,
-            id_asignatura,
-            fecha: new Date(fecha),
-          },
-        },
-        update: {
-          estado,
-          observacion,
-          anio_academico,
-          trimestre,
-        },
-        create: {
+      // 2) Obtenemos "before" por la clave única
+      const clave = {
+        id_alumno_id_asignatura_fecha: {
           id_alumno,
           id_asignatura,
-          id_orientador,
           fecha: new Date(fecha),
-          estado,
-          observacion,
-          anio_academico,
-          trimestre,
         },
-        include: {
-          alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-          asignatura: { select: { id_asignatura: true, nombre: true } },
-          orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
-        },
+      };
+      const before = await this.prisma.asistencia.findUnique({ where: clave });
+
+      // 3) Transacción: upsert + historial
+      const registro = await this.prisma.$transaction(async (tx) => {
+        const upserted = await tx.asistencia.upsert({
+          where: clave,
+          update: { estado, observacion, anio_academico, trimestre },
+          create: {
+            id_alumno,
+            id_asignatura,
+            id_orientador,
+            fecha: new Date(fecha),
+            estado,
+            observacion,
+            anio_academico,
+            trimestre,
+          },
+          include: {
+            alumno: {
+              select: { id_alumno: true, nombre: true, apellido: true },
+            },
+            asignatura: { select: { id_asignatura: true, nombre: true } },
+            orientador: {
+              select: { id_orientador: true, nombre: true, apellido: true },
+            },
+          },
+        });
+
+        // 4) Historial
+        await tx.asistenciaHistorial.create({
+          data: buildAsistenciaHistorialInput({
+            accion: before ? AccionAsistencia.UPDATE : AccionAsistencia.CREATE,
+            before: before
+              ? {
+                  id_asistencia: before.id_asistencia,
+                  id_alumno: before.id_alumno,
+                  id_asignatura: before.id_asignatura,
+                  fecha: before.fecha,
+                  estado: before.estado,
+                  observacion: before.observacion ?? null,
+                }
+              : null,
+            after: {
+              id_asistencia: upserted.id_asistencia,
+              id_alumno: upserted.id_alumno,
+              id_asignatura: upserted.id_asignatura,
+              fecha: upserted.fecha,
+              estado: upserted.estado,
+              observacion: upserted.observacion ?? null,
+            },
+            id_orientador_registro: id_orientador, // el que hizo la acción
+          }),
+        });
+
+        return upserted;
       });
 
       resultados.push(registro as unknown as AsistenciaResponse);
@@ -97,7 +135,9 @@ export class AsistenciaService {
       where: { id_asignatura },
     });
     if (!asignaturaExiste) {
-      throw new NotFoundException(`La asignatura con ID ${id_asignatura} no existe.`);
+      throw new NotFoundException(
+        `La asignatura con ID ${id_asignatura} no existe.`,
+      );
     }
 
     return this.prisma.asistencia.findMany({
@@ -108,7 +148,9 @@ export class AsistenciaService {
       include: {
         alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
         asignatura: { select: { id_asignatura: true, nombre: true } },
-        orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
+        orientador: {
+          select: { id_orientador: true, nombre: true, apellido: true },
+        },
       },
       orderBy: { id_alumno: 'asc' },
     }) as unknown as AsistenciaResponse[];
@@ -120,7 +162,9 @@ export class AsistenciaService {
       where: { id_orientador },
       include: {
         alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-        asignatura: { select: { id_asignatura: true, nombre: true, id_curso: true } },
+        asignatura: {
+          select: { id_asignatura: true, nombre: true, id_curso: true },
+        },
       },
       orderBy: [{ fecha: 'desc' }, { id_asignatura: 'asc' }],
     });
@@ -161,241 +205,344 @@ export class AsistenciaService {
   // Actualizar asistencia
   async update(
     id_asistencia: number,
-    updateAsistenciaDto: UpdateAsistenciaDto,
+    dto: UpdateAsistenciaDto,
   ): Promise<AsistenciaResponse> {
     try {
-      const asistencia = await this.prisma.asistencia.findUnique({
+      const before = await this.prisma.asistencia.findUnique({
         where: { id_asistencia },
       });
-
-      if (!asistencia) {
-        throw new NotFoundException(`La asistencia con ID ${id_asistencia} no fue encontrada.`);
+      if (!before) {
+        throw new NotFoundException(
+          `La asistencia con ID ${id_asistencia} no fue encontrada.`,
+        );
       }
 
-      const asistenciaActualizada = await this.prisma.asistencia.update({
-        where: { id_asistencia },
-        data: {
-          ...(updateAsistenciaDto.estado && { estado: updateAsistenciaDto.estado }),
-          ...(updateAsistenciaDto.observacion && { observacion: updateAsistenciaDto.observacion }),
-          ...(updateAsistenciaDto.trimestre && { trimestre: updateAsistenciaDto.trimestre }),
-        },
-        include: {
-          alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-          asignatura: { select: { id_asignatura: true, nombre: true } },
-          orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
-        },
+      const updated = await this.prisma.$transaction(async (tx) => {
+        const asistenciaActualizada = await tx.asistencia.update({
+          where: { id_asistencia },
+          data: {
+            ...(dto.estado && { estado: dto.estado }),
+            ...(dto.observacion && { observacion: dto.observacion }),
+            ...(dto.trimestre && { trimestre: dto.trimestre }),
+          },
+          include: {
+            alumno: {
+              select: { id_alumno: true, nombre: true, apellido: true },
+            },
+            asignatura: { select: { id_asignatura: true, nombre: true } },
+            orientador: {
+              select: { id_orientador: true, nombre: true, apellido: true },
+            },
+          },
+        });
+
+        await tx.asistenciaHistorial.create({
+          data: buildAsistenciaHistorialInput({
+            accion: AccionAsistencia.UPDATE,
+            before: {
+              id_asistencia: before.id_asistencia,
+              id_alumno: before.id_alumno,
+              id_asignatura: before.id_asignatura,
+              fecha: before.fecha,
+              estado: before.estado,
+              observacion: before.observacion ?? null,
+            },
+            after: {
+              id_asistencia: asistenciaActualizada.id_asistencia,
+              id_alumno: asistenciaActualizada.id_alumno,
+              id_asignatura: asistenciaActualizada.id_asignatura,
+              fecha: asistenciaActualizada.fecha,
+              estado: asistenciaActualizada.estado,
+              observacion: asistenciaActualizada.observacion ?? null,
+            },
+            // Si en tu flujo el actor es el orientador “dueño” del registro, puedes usar:
+            id_orientador_registro: asistenciaActualizada.id_orientador,
+          }),
+        });
+
+        return asistenciaActualizada;
       });
 
-      return asistenciaActualizada as unknown as AsistenciaResponse;
-    } catch (error) {
+      return updated as unknown as AsistenciaResponse;
+    } catch (error: any) {
       console.error('❌ Error en update:', error);
       throw new InternalServerErrorException(error.message);
     }
   }
 
-async getConsolidadoMensual(id_curso: number, anio: number, mes: number) {
-  const inicioMes = new Date(anio, mes - 1, 1);
-  const finMes = new Date(anio, mes, 0);
+  // src/asistencias/asistencias.service.ts
+  async getConsolidadoMensual(id_curso: number, anio: number, mes: number) {
+    const inicioMes = new Date(anio, mes - 1, 1);
+    const finMes = new Date(anio, mes, 0);
 
-  // 1️⃣ Obtener asignaturas del curso
-  const asignaturas = await this.prisma.asignatura.findMany({
-    where: { id_curso },
-    select: { id_asignatura: true, nombre: true },
-  });
+    // 1) Asignaturas del curso
+    const asignaturas = await this.prisma.asignatura.findMany({
+      where: { id_curso },
+      select: { id_asignatura: true, nombre: true },
+    });
+    if (!asignaturas.length)
+      throw new NotFoundException(`El curso ${id_curso} no tiene asignaturas.`);
 
-  if (!asignaturas.length)
-    throw new NotFoundException(`El curso ${id_curso} no tiene asignaturas.`);
+    // 2) Asistencias del mes
+    const asistencias = await this.prisma.asistencia.findMany({
+      where: {
+        id_asignatura: { in: asignaturas.map((a) => a.id_asignatura) },
+        fecha: {
+          gte: inicioMes,
+          lte: new Date(
+            finMes.getFullYear(),
+            finMes.getMonth(),
+            finMes.getDate(),
+            23,
+            59,
+            59,
+            999,
+          ),
+        },
+      },
+      include: {
+        alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
+        asignatura: { select: { id_asignatura: true, nombre: true } },
+      },
+    });
+    if (!asistencias.length)
+      throw new NotFoundException(`No hay asistencias para ${mes}/${anio}.`);
 
-  // 2️⃣ Obtener asistencias dentro del mes
-  const asistencias = await this.prisma.asistencia.findMany({
-    where: {
-      id_asignatura: { in: asignaturas.map(a => a.id_asignatura) },
-      fecha: { gte: inicioMes, lte: finMes },
-    },
-    include: {
-      alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-      asignatura: { select: { id_asignatura: true, nombre: true } },
-    },
-  });
+    // 3) Agrupar como la hoja: PRESENTES = P + E, SP por separado
+    const consolidado: Record<number, any> = {}; // id_asignatura -> { asignatura, alumnos: { id: {...} } }
 
-  if (!asistencias.length)
-    throw new NotFoundException(`No hay asistencias para ${mes}/${anio}.`);
+    for (const a of asistencias) {
+      const idAsig = a.asignatura.id_asignatura;
+      const idAlumno = a.alumno.id_alumno;
+      const estado = (a.estado || '').toUpperCase().trim(); // 'P', 'E', 'SP', 'A'
 
-  // 3️⃣ Agrupar por materia y alumno
-  const consolidado: Record<number, any> = {};
+      if (!consolidado[idAsig]) {
+        consolidado[idAsig] = { asignatura: a.asignatura.nombre, alumnos: {} };
+      }
+      if (!consolidado[idAsig].alumnos[idAlumno]) {
+        consolidado[idAsig].alumnos[idAlumno] = {
+          alumno: a.alumno,
+          presentes: 0,
+          sin_permiso: 0,
+        };
+      }
 
-  for (const a of asistencias) {
-    const idAsig = a.asignatura.id_asignatura; // ✅ usar el id de la relación, no el de la tabla padre
-    const idAlumno = a.alumno.id_alumno; // ✅ usar el id del include
-    const estado = a.estado?.trim().toUpperCase() ?? '';
-
-    // Crear materia si no existe
-    if (!consolidado[idAsig]) {
-      consolidado[idAsig] = {
-        asignatura: a.asignatura.nombre,
-        alumnos: {},
-      };
+      // EXACTO como la planilla
+      if (estado === 'P' || estado === 'E') {
+        consolidado[idAsig].alumnos[idAlumno].presentes += 1;
+      } else if (estado === 'SP') {
+        consolidado[idAsig].alumnos[idAlumno].sin_permiso += 1;
+      }
+      // 'A' no se usa en Consolidados de la hoja
     }
 
-    // Crear alumno si no existe
-    if (!consolidado[idAsig].alumnos[idAlumno]) {
-      consolidado[idAsig].alumnos[idAlumno] = {
-        alumno: a.alumno,
-        presentes: 0,
-        sin_permiso: 0,
-      };
+    // 4) Formato plano + orden
+    const resultado: {
+      id_asignatura: number;
+      nombre_asignatura: string;
+      id_alumno: number;
+      nombre_alumno: string;
+      apellido_alumno: string;
+      presentes: number;
+      sin_permiso: number;
+    }[] = [];
+
+    for (const [idAsig, datosAsig] of Object.entries(consolidado) as [
+      string,
+      any,
+    ][]) {
+      for (const [idAlumno, datosAlum] of Object.entries(datosAsig.alumnos) as [
+        string,
+        any,
+      ][]) {
+        resultado.push({
+          id_asignatura: Number(idAsig),
+          nombre_asignatura: datosAsig.asignatura,
+          id_alumno: Number(idAlumno),
+          nombre_alumno: datosAlum.alumno.nombre,
+          apellido_alumno: datosAlum.alumno.apellido,
+          presentes: datosAlum.presentes,
+          sin_permiso: datosAlum.sin_permiso,
+        });
+      }
     }
 
-    // ✅ Acumular asistencias correctamente
-    if (estado === 'P') {
-      consolidado[idAsig].alumnos[idAlumno].presentes += 1;
-    } else if (estado === 'SP') {
-      consolidado[idAsig].alumnos[idAlumno].sin_permiso += 1;
-    }
+    resultado.sort(
+      (a, b) =>
+        a.nombre_asignatura.localeCompare(b.nombre_asignatura) ||
+        a.nombre_alumno.localeCompare(b.nombre_alumno),
+    );
+
+    return resultado;
   }
 
-  // 4️⃣ Convertir el resultado a formato plano
-  const resultado: {
-    id_asignatura: number;
-    nombre_asignatura: string;
-    id_alumno: number;
-    nombre_alumno: string;
-    apellido_alumno: string;
-    presentes: number;
-    sin_permiso: number;
-  }[] = [];
+  // src/asistencias/asistencias.service.ts
+  async getConsolidadoTrimestral(
+    id_curso: number,
+    anio: number,
+    trimestre: number,
+  ) {
+    const trimestres = {
+      1: [1, 2, 3],
+      2: [4, 5, 6],
+      3: [7, 8, 9],
+      4: [10, 11, 12],
+    } as const;
 
-  for (const [idAsig, datosAsig] of Object.entries(consolidado) as [string, any][]) {
-    for (const [idAlumno, datosAlum] of Object.entries(datosAsig.alumnos) as [string, any][]) {
-      resultado.push({
-        id_asignatura: Number(idAsig),
-        nombre_asignatura: datosAsig.asignatura,
-        id_alumno: Number(idAlumno),
-        nombre_alumno: datosAlum.alumno.nombre,
-        apellido_alumno: datosAlum.alumno.apellido,
-        presentes: datosAlum.presentes,
-        sin_permiso: datosAlum.sin_permiso,
-      });
+    const meses = trimestres[trimestre];
+    if (!meses)
+      throw new BadRequestException(
+        `Trimestre ${trimestre} inválido. Debe estar entre 1 y 4.`,
+      );
+
+    const inicio = new Date(anio, meses[0] - 1, 1);
+    const fin = new Date(anio, meses[2], 0, 23, 59, 59, 999);
+
+    // 1) Asignaturas del curso
+    const asignaturas = await this.prisma.asignatura.findMany({
+      where: { id_curso },
+      select: { id_asignatura: true, nombre: true },
+    });
+    if (!asignaturas.length)
+      throw new NotFoundException(`El curso ${id_curso} no tiene asignaturas.`);
+
+    const asignIds = asignaturas.map((a) => a.id_asignatura);
+
+    // 2) Asistencias del trimestre (para SP totales)
+    const asistencias = await this.prisma.asistencia.findMany({
+      where: {
+        id_asignatura: { in: asignIds },
+        fecha: { gte: inicio, lte: fin },
+      },
+      include: {
+        alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
+        asignatura: { select: { id_asignatura: true, nombre: true } },
+      },
+    });
+    if (!asistencias.length)
+      throw new NotFoundException(
+        `No hay asistencias registradas en el trimestre ${trimestre}/${anio}.`,
+      );
+
+    // 3) Conductas del trimestre (para faltas Menos Graves / Graves / Muy Graves)
+    const conductas = await this.prisma.conducta.findMany({
+      where: {
+        fecha: { gte: inicio, lte: fin },
+        id_asignatura: { in: asignIds },
+      },
+      select: {
+        id_alumno: true,
+        gravedad: true, // 'MENOS_GRAVE' | 'GRAVE' | 'MUY_GRAVE'
+      },
+    });
+
+    // 4) Agregar por asignatura y alumno
+    type Row = {
+      alumno: { id_alumno: number; nombre: string; apellido: string };
+      presentes: number;
+      sp: number; // sin permiso
+      menos_graves: number;
+      graves: number;
+      muy_graves: number;
+    };
+    const acc: Record<
+      number,
+      { asignatura: string; alumnos: Record<number, Row> }
+    > = {};
+
+    for (const a of asistencias) {
+      const idAsig = a.asignatura.id_asignatura;
+      const idAlumno = a.alumno.id_alumno;
+      const estado = (a.estado || '').toUpperCase().trim();
+
+      if (!acc[idAsig])
+        acc[idAsig] = { asignatura: a.asignatura.nombre, alumnos: {} };
+      if (!acc[idAsig].alumnos[idAlumno]) {
+        acc[idAsig].alumnos[idAlumno] = {
+          alumno: a.alumno,
+          presentes: 0,
+          sp: 0,
+          menos_graves: 0,
+          graves: 0,
+          muy_graves: 0,
+        };
+      }
+
+      // EXACTO como la hoja (trimestral suma de los 3 meses):
+      // Presentes = P + E (igual que Consolidados)
+      if (estado === 'P' || estado === 'E')
+        acc[idAsig].alumnos[idAlumno].presentes += 1;
+      else if (estado === 'SP') acc[idAsig].alumnos[idAlumno].sp += 1;
     }
+
+    // Sumar conductas por alumno
+    for (const c of conductas) {
+      // Se suma a cada asignatura involucrada? La planilla muestra columnas únicas (no por materia).
+      // Para apegarse a la lógica planilla por materia, dejamos por asignatura (ya filtrado por id_asignatura in asignIds).
+      // Si tus conductas no asocian asignatura, podrías distribuirlas por curso o usar una asignatura "conducta".
+      for (const idAsig of asignIds) {
+        // Solo sumamos si ya existe el alumno para esa asignatura (tu data de asistencia lo crea)
+        const rows = acc[idAsig]?.alumnos;
+        if (!rows) continue;
+        const row = rows[c.id_alumno];
+        if (!row) continue;
+
+        if (c.gravedad === 'MENOS_GRAVE') row.menos_graves += 1;
+        else if (c.gravedad === 'GRAVE') row.graves += 1;
+        else if (c.gravedad === 'MUY_GRAVE') row.muy_graves += 1;
+      }
+    }
+
+    // 5) Formato final + conducta EXACTA:
+    // CONDUCTA = 10 - ( SP*0.2 + MENOS_GRAVE*1 + GRAVE*2 + MUY_GRAVE*3 )
+    const out: {
+      id_asignatura: number;
+      nombre_asignatura: string;
+      id_alumno: number;
+      nombre_alumno: string;
+      apellido_alumno: string;
+      presentes: number;
+      sin_permiso: number;
+      menos_graves: number;
+      graves: number;
+      muy_graves: number;
+      conducta: number;
+    }[] = [];
+
+    for (const [idAsig, datosAsig] of Object.entries(acc) as [string, any][]) {
+      for (const [idAlumno, row] of Object.entries(datosAsig.alumnos) as [
+        string,
+        Row,
+      ][]) {
+        const penal =
+          row.sp * 0.2 +
+          row.menos_graves * 1 +
+          row.graves * 2 +
+          row.muy_graves * 3;
+
+        const conducta = Math.max(10 - penal, 0);
+        out.push({
+          id_asignatura: Number(idAsig),
+          nombre_asignatura: datosAsig.asignatura,
+          id_alumno: Number(idAlumno),
+          nombre_alumno: row.alumno.nombre,
+          apellido_alumno: row.alumno.apellido,
+          presentes: row.presentes,
+          sin_permiso: row.sp,
+          menos_graves: row.menos_graves,
+          graves: row.graves,
+          muy_graves: row.muy_graves,
+          conducta,
+        });
+      }
+    }
+
+    out.sort(
+      (a, b) =>
+        a.nombre_asignatura.localeCompare(b.nombre_asignatura) ||
+        a.nombre_alumno.localeCompare(b.nombre_alumno),
+    );
+
+    return out;
   }
-
-  // 5️⃣ Ordenar alfabeticamente
-  resultado.sort((a, b) =>
-    a.nombre_asignatura.localeCompare(b.nombre_asignatura) ||
-    a.nombre_alumno.localeCompare(b.nombre_alumno)
-  );
-
-  return resultado;
-}
-
-async getConsolidadoTrimestral(id_curso: number, anio: number, trimestre: number) {
-  const trimestres = {
-    1: [1, 2, 3],
-    2: [4, 5, 6],
-    3: [7, 8, 9],
-    4: [10, 11, 12],
-  };
-
-  const meses = trimestres[trimestre];
-  if (!meses)
-    throw new BadRequestException(`Trimestre ${trimestre} inválido. Debe estar entre 1 y 4.`);
-
-  const inicio = new Date(anio, meses[0] - 1, 1);
-  const fin = new Date(anio, meses[2], 0);
-
-  // 1️⃣ Obtener las asignaturas del curso
-  const asignaturas = await this.prisma.asignatura.findMany({
-    where: { id_curso },
-    select: { id_asignatura: true, nombre: true },
-  });
-
-  if (!asignaturas.length)
-    throw new NotFoundException(`El curso ${id_curso} no tiene asignaturas.`);
-
-  // 2️⃣ Buscar asistencias dentro del rango del trimestre
-  const asistencias = await this.prisma.asistencia.findMany({
-    where: {
-      id_asignatura: { in: asignaturas.map(a => a.id_asignatura) },
-      fecha: { gte: inicio, lte: fin },
-    },
-    include: {
-      alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-      asignatura: { select: { id_asignatura: true, nombre: true } },
-    },
-  });
-
-  if (!asistencias.length)
-    throw new NotFoundException(`No hay asistencias registradas en el trimestre ${trimestre}/${anio}.`);
-
-  // 3️⃣ Agrupar por asignatura y alumno
-  const consolidado: Record<number, any> = {};
-
-  for (const a of asistencias) {
-    const idAsig = a.asignatura.id_asignatura;
-    const idAlumno = a.alumno.id_alumno;
-    const estado = a.estado?.trim().toUpperCase() ?? '';
-
-    if (!consolidado[idAsig]) {
-      consolidado[idAsig] = {
-        asignatura: a.asignatura.nombre,
-        alumnos: {},
-      };
-    }
-
-    if (!consolidado[idAsig].alumnos[idAlumno]) {
-      consolidado[idAsig].alumnos[idAlumno] = {
-        alumno: a.alumno,
-        presentes: 0,
-        sin_permiso: 0,
-      };
-    }
-
-    // ✅ Acumular asistencias
-    if (estado === 'P') {
-      consolidado[idAsig].alumnos[idAlumno].presentes += 1;
-    } else if (estado === 'SP') {
-      consolidado[idAsig].alumnos[idAlumno].sin_permiso += 1;
-    }
-  }
-
-  // 4️⃣ Convertir a formato plano con nota de conducta
-  const resultado: {
-    id_asignatura: number;
-    nombre_asignatura: string;
-    id_alumno: number;
-    nombre_alumno: string;
-    apellido_alumno: string;
-    presentes: number;
-    sin_permiso: number;
-    conducta: number;
-  }[] = [];
-
-  for (const [idAsig, datosAsig] of Object.entries(consolidado) as [string, any][]) {
-    for (const [idAlumno, datosAlum] of Object.entries(datosAsig.alumnos) as [string, any][]) {
-      // 🧮 Calcular conducta: base 10 - (faltas * 1)
-      const faltas = datosAlum.sin_permiso;
-      const conducta = Math.max(10 - faltas * 1, 0); // nunca menor que 0
-
-      resultado.push({
-        id_asignatura: Number(idAsig),
-        nombre_asignatura: datosAsig.asignatura,
-        id_alumno: Number(idAlumno),
-        nombre_alumno: datosAlum.alumno.nombre,
-        apellido_alumno: datosAlum.alumno.apellido,
-        presentes: datosAlum.presentes,
-        sin_permiso: datosAlum.sin_permiso,
-        conducta,
-      });
-    }
-  }
-
-  // 5️⃣ Ordenar resultados
-  resultado.sort((a, b) =>
-    a.nombre_asignatura.localeCompare(b.nombre_asignatura) ||
-    a.nombre_alumno.localeCompare(b.nombre_alumno)
-  );
-
-  return resultado;
-}
-
 }

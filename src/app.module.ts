@@ -24,6 +24,7 @@ import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluac
 import { ImportModule } from './import/import.module';
 import { AsistenciaModule } from './asistencias/asistencias.module';
 import { ConductasModule } from './conducta/conducta.module';
+import { AsistenciaHistorialModule } from './asistencias/asistencia-historial.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { ConductasModule } from './conducta/conducta.module';
     SistemasEvaluacionModule,
     ConductasModule,
     ImportModule,
+    AsistenciaHistorialModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

@@ -468,6 +468,8 @@ model Asistencia {
   asignatura Asignatura @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
   orientador Orientador @relation(fields: [id_orientador], references: [id_orientador], onDelete: Cascade)
 
+  historial  AsistenciaHistorial[] @relation("AsistenciaLog")
+
   @@unique([id_alumno, id_asignatura, fecha])
   @@index([fecha])
 

@@ -56,7 +56,6 @@ export class AsistenciaHistorialController {
       desde,
       hasta,
       accion: accion as any,
-      correlacion_id,
       page: +page,
       limit: +limit,
     });

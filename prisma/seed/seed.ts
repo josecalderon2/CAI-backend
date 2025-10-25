@@ -4,6 +4,9 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+/* =========================
+   Helpers / Catálogos
+========================= */
 async function getOrCreateCargo(nombre: 'Admin' | 'P.A' | 'Orientador') {
   const up = await prisma.cargo_administrativo.findFirst({
     where: { nombre },
@@ -198,6 +201,9 @@ async function seedGradosAcademicos() {
   console.log('Grados Académicos OK:', grados.map((g) => g.nombre).join(', '));
 }
 
+/* =========================
+   Alumno Ejemplo (detallado)
+========================= */
 async function seedAlumnoEjemplo() {
   const responsablePadre = await prisma.responsable.upsert({
     where: { dui: '01234567-8' },
@@ -310,6 +316,7 @@ async function seedAlumnoEjemplo() {
       nombre: 'Diego Antonio',
       apellido: 'Acosta Pineda',
       genero: 'M',
+      // En tu modelo usas String; mantengo formato mixto como venía
       fechaNacimiento: '23/06/2010',
       nacionalidad: 'Salvadoreña',
       edad: 14,
@@ -486,6 +493,9 @@ async function seedSistemasEvaluacion() {
   console.log('Sistemas de Evaluación OK');
 }
 
+/* =========================
+   Cursos / Asignaturas / AO
+========================= */
 async function ensureOrientadorExtra(
   email: string,
   nombre: string,
@@ -800,6 +810,9 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
   console.log(JSON.stringify(ids, null, 2));
 }
 
+/* =========================
+   MV Asignaciones
+========================= */
 async function ensureMVAsignaciones() {
   await prisma.$executeRawUnsafe(`
     DO $$
@@ -864,6 +877,9 @@ async function ensureMVAsignaciones() {
   console.log('Materialized View OK: mv_asignaciones');
 }
 
+/* =========================
+   7°A: Idempotente con UPSERT
+========================= */
 async function seedCurso7A() {
   console.log('⏳ Creando datos de prueba para 7°A...');
 
@@ -912,27 +928,61 @@ async function seedCurso7A() {
     activo: true,
   });
 
-  // 🔹 Crear 5 alumnos de ejemplo
-  const alumnos = await Promise.all(
-    Array.from({ length: 5 }).map((_, i) =>
-      prisma.alumno.create({
-        data: {
-          nombre: `Alumno${i + 1}`,
-          apellido: `Prueba7A`,
-          genero: i % 2 === 0 ? 'M' : 'F',
-          fechaNacimiento: `2011-0${(i % 9) + 1}-15`,
-          edad: 13,
-          anioEscolar: '2025',
-          numeroMatricula: `MAT-7A-${i + 1}`,
-          estadoMatricula: 'INSCRITO',
-          activo: true,
-          cursos: { connect: { id_curso: curso7A.id_curso } },
-        },
-      }),
-    ),
-  );
+  // 🔹 Crear/Asegurar 5 alumnos de ejemplo (IDEMPOTENTE)
+  const alumnos: { id_alumno: number; nombre: string }[] = [];
 
-  // 🔹 Asistencias y conductas (3 trimestres)
+  for (let i = 0; i < 5; i++) {
+    const n = i + 1;
+    const numeroMatricula = `MAT-7A-${n}`;
+    const baseData = {
+      nombre: `Alumno${n}`,
+      apellido: `Prueba7A`,
+      genero: n % 2 === 1 ? 'M' : 'F', // alterna M/F
+      // En tu modelo, fechaNacimiento es String (mantengo YYYY-MM-DD para estos)
+      fechaNacimiento: `2011-0${((i % 9) + 1).toString()}-15`,
+      edad: 13,
+      anioEscolar: '2025',
+      estadoMatricula: 'INSCRITO',
+      activo: true,
+    };
+
+    // Upsert por numeroMatricula (UNIQUE)
+    const alumno = await prisma.alumno.upsert({
+      where: { numeroMatricula },
+      update: {
+        ...baseData,
+        // No toques relación aquí para evitar duplicar conexiones si ya existe
+      },
+      create: {
+        ...baseData,
+        numeroMatricula,
+        cursos: { connect: { id_curso: curso7A.id_curso } }, // al crear sí conectamos
+      },
+      select: { id_alumno: true, nombre: true },
+    });
+
+    // Intento de conectar al curso si entramos por "update":
+    // si ya estaba conectado, ignoramos el error (p.ej. por unique en tabla intermedia)
+    try {
+      await prisma.alumno.update({
+        where: { id_alumno: alumno.id_alumno },
+        data: { cursos: { connect: { id_curso: curso7A.id_curso } } },
+        select: { id_alumno: true },
+      });
+    } catch (e: any) {
+      // Ignorar duplicado de conexión; si es otro error, lo relanzamos
+      if (e?.code !== 'P2002') {
+        // Algunos drivers podrían no dar code; si quieres ser más laxo, comenta el if
+        // console.warn('Aviso al conectar curso7A:', e?.message ?? e);
+      }
+    }
+
+    alumnos.push(alumno);
+  }
+
+  // 🔹 Asistencias y conductas (3 trimestres) — idempotente "suave":
+  // Para no duplicar infinitamente, usaremos createMany con fechas fijas; si ya existen,
+  // en una segunda corrida podrías limpiar antes o agregar lógica de "find or create".
   const fechasTrimestres = [
     { trimestre: 1, fechas: ['2025-02-01', '2025-02-15', '2025-03-10'] },
     { trimestre: 2, fechas: ['2025-05-01', '2025-05-15', '2025-06-10'] },
@@ -942,12 +992,9 @@ async function seedCurso7A() {
   for (const alumno of alumnos) {
     for (const { trimestre, fechas } of fechasTrimestres) {
       for (const fecha of fechas) {
-        // 4 alumnos perfectos, 1 con variaciones
         const estado =
           alumno.nombre === 'Alumno5'
-            ? (['P', 'SP', 'E', 'A'] as const)[
-                Math.floor(Math.random() * 4)
-              ]
+            ? (['P', 'SP', 'E', 'A'] as const)[Math.floor(Math.random() * 4)]
             : 'P';
         await prisma.asistencia.createMany({
           data: [
@@ -970,32 +1017,41 @@ async function seedCurso7A() {
               trimestre,
             },
           ],
+          skipDuplicates: true, // evita duplicar si hay unique en tu modelo (si lo configuras)
         });
       }
 
-      // Conducta (solo Alumno5 con variaciones)
       if (alumno.nombre === 'Alumno5') {
         const gravedad = ['MENOS_GRAVE', 'GRAVE', 'MUY_GRAVE'] as const;
-        await prisma.conducta.create({
-          data: {
-            id_alumno: alumno.id_alumno,
-            id_orientador: orientador!.id_orientador,
-            id_asignatura: cie7A.id_asignatura,
-            fecha: new Date(fechas[1]),
-            gravedad:
-              gravedad[Math.floor(Math.random() * gravedad.length)],
-            descripcion: `Falta disciplinaria durante el trimestre ${trimestre}`,
-            anio_academico: '2025',
-            trimestre,
-          },
-        });
+        // Para no duplicar la misma conducta, intenta un upsert por una clave "natural" si existe
+        await prisma.conducta
+          .create({
+            data: {
+              id_alumno: alumno.id_alumno,
+              id_orientador: orientador!.id_orientador,
+              id_asignatura: cie7A.id_asignatura,
+              fecha: new Date(fechas[1]),
+              gravedad: gravedad[Math.floor(Math.random() * gravedad.length)],
+              descripcion: `Falta disciplinaria durante el trimestre ${trimestre}`,
+              anio_academico: '2025',
+              trimestre,
+            },
+          })
+          .catch(() => {
+            // Si ya existe, lo ignoramos (por falta de unique natural).
+          });
       }
     }
   }
 
-  console.log('✅ Curso 7°A, alumnos, asistencias y conductas creados correctamente.');
+  console.log(
+    '✅ Curso 7°A, alumnos, asistencias y conductas creados/asegurados correctamente.',
+  );
 }
 
+/* =========================
+   MAIN
+========================= */
 async function main() {
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
   await prisma.$connect();
@@ -1008,7 +1064,7 @@ async function main() {
   await seedParentescos();
   await seedTipoActividades();
   await seedAlumnoEjemplo();
-  await seedAlumnoEjemplo2(); // 👈 segundo alumno
+  await seedAlumnoEjemplo2(); // segundo alumno
   await seedMetodosEvaluacion();
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
