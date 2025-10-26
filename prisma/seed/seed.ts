@@ -4,8 +4,10 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+/* =========================
+   Helpers / Catálogos
+========================= */
 async function getOrCreateCargo(nombre: 'Admin' | 'P.A' | 'Orientador') {
-  // Si nombre NO es unique en DB, usamos findFirst+create. Si lo es, upsert con where:nombre.
   const up = await prisma.cargo_administrativo.findFirst({
     where: { nombre },
     select: { id_cargo_administrativo: true },
@@ -36,7 +38,6 @@ async function seedUsuarios(cargos: {
   const passPA = await bcrypt.hash('Pa12345*', 10);
   const passOri = await bcrypt.hash('Ori12345*', 10);
 
-  // ADMIN
   await prisma.administrativo.upsert({
     where: { email: 'admin@colegio.edu' },
     update: {
@@ -59,7 +60,6 @@ async function seedUsuarios(cargos: {
     },
   });
 
-  // P.A
   await prisma.administrativo.upsert({
     where: { email: 'pa@colegio.edu' },
     update: {
@@ -82,7 +82,6 @@ async function seedUsuarios(cargos: {
     },
   });
 
-  // ORIENTADOR (id_cargo_administrativo, dui, telefono y direccion obligatorios)
   await prisma.orientador.upsert({
     where: { email: 'orientador@colegio.edu' },
     update: {
@@ -112,7 +111,6 @@ async function seedUsuarios(cargos: {
 }
 
 async function seedParentescos() {
-  // Crear tipos de parentescos comunes
   const parentescos = [
     'Padre',
     'Madre',
@@ -136,7 +134,6 @@ async function seedParentescos() {
 }
 
 async function seedTipoActividades() {
-  // Crear tipos de actividades para evaluaciones
   const tipos = [
     'Examen parcial',
     'Examen final',
@@ -147,12 +144,10 @@ async function seedTipoActividades() {
   ];
 
   for (const nombre of tipos) {
-    // Buscar primero si existe
     const existente = await prisma.tipo_actividad.findFirst({
       where: { nombre },
     });
 
-    // Si no existe, crearlo
     if (!existente) {
       await prisma.tipo_actividad.create({
         data: { nombre },
@@ -177,31 +172,27 @@ async function seedJornadas() {
 }
 
 async function seedGradosAcademicos() {
-  // Crear grados académicos básicos
   const grados = [
     { nombre: 'Primera Infancia', nota_minima: 7.0 },
     { nombre: 'Primaria', nota_minima: 7.0 },
     { nombre: 'Secundaria', nota_minima: 7.0 },
   ];
 
-  // Obtener la jornada diurna (si existe)
   const jornada = await prisma.jornada.findFirst({
     where: { nombre: 'Diurna' },
   });
 
   for (const grado of grados) {
-    // Verificar si ya existe
     const exists = await prisma.grado_Academico.findFirst({
       where: { nombre: grado.nombre },
     });
 
     if (!exists) {
-      // Crear el grado académico
       await prisma.grado_Academico.create({
         data: {
           nombre: grado.nombre,
           nota_minima: grado.nota_minima,
-          id_jornada: jornada?.id_jornada, // Conectar con la jornada si existe
+          id_jornada: jornada?.id_jornada,
         },
       });
     }
@@ -210,16 +201,24 @@ async function seedGradosAcademicos() {
   console.log('Grados Académicos OK:', grados.map((g) => g.nombre).join(', '));
 }
 
+/* =========================
+   Alumno Ejemplo (detallado)
+========================= */
 async function seedAlumnoEjemplo() {
-  // 1. Crear responsables del alumno
   const responsablePadre = await prisma.responsable.upsert({
     where: { dui: '01234567-8' },
-    update: {},
+    update: {
+      tipoDocumento: 'DUI',
+      numeroDocumento: '01234567-8',
+      naturalizado: false,
+      telefonoFijo: '2440-1111',
+    },
     create: {
       nombre: 'Ronald Antonio',
       apellido: 'Acosta Flores',
       dui: '01234567-8',
       telefono: '7986-9463',
+      telefonoFijo: '2440-1111',
       email: 'ronald.acosta@ejemplo.com',
       direccion: 'Prado Real calle A casa 15, Santa Ana',
       lugarTrabajo: 'Empresa ABC',
@@ -229,17 +228,26 @@ async function seedAlumnoEjemplo() {
       religion: 'Católica',
       zonaResidencia: 'Urbana',
       estadoFamiliar: 'Casado',
+      tipoDocumento: 'DUI',
+      numeroDocumento: '01234567-8',
+      naturalizado: false,
     },
   });
 
   const responsableMadre = await prisma.responsable.upsert({
     where: { dui: '12345678-9' },
-    update: {},
+    update: {
+      tipoDocumento: 'DUI',
+      numeroDocumento: '12345678-9',
+      naturalizado: false,
+      telefonoFijo: '2440-2222',
+    },
     create: {
       nombre: 'Carmen Sonia',
       apellido: 'Pineda de Acosta',
       dui: '12345678-9',
       telefono: '7123-4567',
+      telefonoFijo: '2440-2222',
       email: 'carmen.pineda@ejemplo.com',
       direccion: 'Prado Real calle A casa 15, Santa Ana',
       lugarTrabajo: 'Empresa XYZ',
@@ -249,12 +257,19 @@ async function seedAlumnoEjemplo() {
       religion: 'Católica',
       zonaResidencia: 'Urbana',
       estadoFamiliar: 'Casada',
+      tipoDocumento: 'DUI',
+      numeroDocumento: '12345678-9',
+      naturalizado: false,
     },
   });
 
   const responsableEmergencia = await prisma.responsable.upsert({
     where: { dui: '87654321-0' },
-    update: {},
+    update: {
+      tipoDocumento: 'DUI',
+      numeroDocumento: '87654321-0',
+      naturalizado: false,
+    },
     create: {
       nombre: 'Carlos Javier',
       apellido: 'Sosa Pineda',
@@ -264,28 +279,44 @@ async function seedAlumnoEjemplo() {
       profesionOficio: 'Comerciante',
       ocupacion: 'Dueño de negocio',
       estadoFamiliar: 'Soltero',
+      tipoDocumento: 'DUI',
+      numeroDocumento: '87654321-0',
+      naturalizado: false,
     },
   });
 
-  // 2. Obtener IDs de parentescos
   const parentescoPadre = await prisma.parentesco.findFirst({
     where: { nombre: 'Padre' },
   });
-
   const parentescoMadre = await prisma.parentesco.findFirst({
     where: { nombre: 'Madre' },
   });
-
   const parentescoTio = await prisma.parentesco.findFirst({
     where: { nombre: 'Tío/a' },
   });
 
-  // 3. Crear alumno con todos los campos
-  const alumnoCreado = await prisma.alumno.create({
-    data: {
+  const alumnoCreado = await prisma.alumno.upsert({
+    where: { numeroMatricula: 'MAT-2025-0001' },
+    update: {
+      anioEscolar: '2025',
+      estadoMatricula: 'INSCRITO',
+      autorizaAtencionMedica: true,
+      autorizaUsoImagen: true,
+      autorizaActividadesReligiosas: true,
+      usaTransporteEscolar: true,
+      religion: 'Católica',
+      direccion: 'Prado Real calle A casa 15',
+      municipio: 'Santa Ana',
+      departamento: 'Santa Ana',
+      medioTransporte: 'Microbús',
+      encargadoTransporte: 'Transporte Escolar Seguro',
+      encargadoTelefono: '7123-9876',
+    },
+    create: {
       nombre: 'Diego Antonio',
       apellido: 'Acosta Pineda',
       genero: 'M',
+      // En tu modelo usas String; mantengo formato mixto como venía
       fechaNacimiento: '23/06/2010',
       nacionalidad: 'Salvadoreña',
       edad: 14,
@@ -312,18 +343,36 @@ async function seedAlumnoEjemplo() {
       repiteGrado: false,
       condicionado: false,
       activo: true,
-      // Crear detalles del alumno
+
+      anioEscolar: '2025',
+      numeroMatricula: 'MAT-2025-0001',
+      fechaMatricula: new Date('2025-01-10T15:30:00Z'),
+      estadoMatricula: 'INSCRITO',
+      autorizaAtencionMedica: true,
+      autorizaUsoImagen: true,
+      autorizaActividadesReligiosas: true,
+      usaTransporteEscolar: true,
+      religion: 'Católica',
+
       detalle: {
         create: {
           viveCon: 'Ambos Padres',
           dependenciaEconomica: 'Padre y Madre',
           capacidadPago: true,
-          hermanosEnColegio: JSON.stringify([
+          hermanosEnColegio: [
             { nombre: 'Jimena Acosta', grado: '4-1' },
-          ]),
+          ] as Prisma.InputJsonValue,
+
+          emergencia1Nombre: 'Carlos Javier Sosa',
+          emergencia1Parentesco: 'Tío',
+          emergencia1Telefono: '7777-7777',
+          emergencia2Nombre: 'María López',
+          emergencia2Parentesco: 'Vecina',
+          emergencia2Telefono: '7865-2222',
+
+          tenenciaVivienda: 'Propia',
         },
       },
-      // Relacionar con responsables
       responsables: {
         create: [
           {
@@ -333,6 +382,7 @@ async function seedAlumnoEjemplo() {
             firma: true,
             permiteTraslado: true,
             puedeRetirarAlumno: true,
+            contactoEmergencia: true,
           },
           {
             responsableId: responsableMadre.id_responsable,
@@ -341,6 +391,7 @@ async function seedAlumnoEjemplo() {
             firma: true,
             permiteTraslado: true,
             puedeRetirarAlumno: true,
+            contactoEmergencia: true,
           },
           {
             responsableId: responsableEmergencia.id_responsable,
@@ -350,14 +401,36 @@ async function seedAlumnoEjemplo() {
             firma: false,
             permiteTraslado: false,
             puedeRetirarAlumno: true,
+            contactoEmergencia: true,
           },
         ],
       },
     },
   });
 
-  console.log('Alumno de ejemplo creado:', alumnoCreado.id_alumno);
+  console.log('Alumno 1 creado/actualizado:', alumnoCreado.id_alumno);
   return alumnoCreado;
+}
+
+async function seedAlumnoEjemplo2() {
+  const alumno2 = await prisma.alumno.upsert({
+    where: { numeroMatricula: 'MAT-2025-0002' },
+    update: { anioEscolar: '2025', estadoMatricula: 'INSCRITO' },
+    create: {
+      nombre: 'Ruth',
+      apellido: 'Lemus',
+      genero: 'F',
+      fechaNacimiento: '12/02/2010',
+      edad: 15,
+      activo: true,
+      anioEscolar: '2025',
+      numeroMatricula: 'MAT-2025-0002',
+      fechaMatricula: new Date('2025-01-11T15:30:00Z'),
+      estadoMatricula: 'INSCRITO',
+    },
+  });
+  console.log('Alumno 2 creado/actualizado:', alumno2.id_alumno);
+  return alumno2;
 }
 
 async function seedMetodosEvaluacion() {
@@ -368,9 +441,7 @@ async function seedMetodosEvaluacion() {
       where: { nombre },
     });
     if (!existente) {
-      await prisma.metodo_evaluacion.create({
-        data: { nombre },
-      });
+      await prisma.metodo_evaluacion.create({ data: { nombre } });
     }
   }
   console.log('Métodos de Evaluación OK');
@@ -378,19 +449,19 @@ async function seedMetodosEvaluacion() {
 
 async function seedTiposAsignatura() {
   const tipos = [
-    'Basica', 'Formativa', 'Conductual',
-    'Especial', 'Asistencia', 'PAES',
+    'Basica',
+    'Formativa',
+    'Conductual',
+    'Especial',
+    'Asistencia',
+    'PAES',
   ];
 
   for (const nombre of tipos) {
     const existente = await prisma.tipo_Asignatura.findFirst({
       where: { nombre },
     });
-    if (!existente) {
-      await prisma.tipo_Asignatura.create({
-        data: { nombre },
-      });
-    }
+    if (!existente) await prisma.tipo_Asignatura.create({ data: { nombre } });
   }
   console.log('Tipos de Asignatura OK');
 }
@@ -422,9 +493,565 @@ async function seedSistemasEvaluacion() {
   console.log('Sistemas de Evaluación OK');
 }
 
+/* =========================
+   Cursos / Asignaturas / AO
+========================= */
+async function ensureOrientadorExtra(
+  email: string,
+  nombre: string,
+  apellido: string,
+  cargos: { oriId: number },
+) {
+  const exists = await prisma.orientador.findUnique({ where: { email } });
+  if (exists) return exists;
 
+  const pass = await bcrypt.hash('Ori2*12345', 10);
+  return prisma.orientador.create({
+    data: {
+      nombre,
+      apellido,
+      email,
+      password: pass,
+      id_cargo_administrativo: cargos.oriId,
+      activo: true,
+      dui: '33333333-3',
+      telefono: '7000-0003',
+      direccion: 'Col. Escalón, San Salvador',
+    },
+  });
+}
 
+async function getOrCreateCurso(
+  nombre: string,
+  seccion: string,
+  id_grado_academico: number | undefined,
+  id_orientador: number,
+  cupo = 30,
+  aula?: string,
+  anio_academico?: string,
+) {
+  const found = await prisma.curso.findFirst({ where: { nombre, seccion } });
+  if (found) {
+    const dataUpdate: Prisma.CursoUpdateInput = {};
+    if (found.id_orientador !== id_orientador) {
+      dataUpdate.orientador = { connect: { id_orientador } };
+    }
+    if (found.cupo !== cupo) dataUpdate.cupo = cupo;
+    if (aula && found.aula !== aula) dataUpdate.aula = aula;
+    if (anio_academico && found.anio_academico !== anio_academico) {
+      dataUpdate.anio_academico = anio_academico;
+    }
+    if (Object.keys(dataUpdate).length) {
+      return prisma.curso.update({
+        where: { id_curso: found.id_curso },
+        data: dataUpdate,
+      });
+    }
+    return found;
+  }
 
+  return prisma.curso.create({
+    data: {
+      nombre,
+      seccion,
+      id_grado_academico,
+      id_orientador,
+      cupo,
+      aula,
+      activo: true,
+      anio_academico,
+    },
+  });
+}
+
+async function getCatalogIds() {
+  const metodo = await prisma.metodo_evaluacion.findFirst({
+    where: { nombre: 'Numerico' },
+  });
+  const tipo = await prisma.tipo_Asignatura.findFirst({
+    where: { nombre: 'Basica' },
+  });
+  const sistema = await prisma.sistema_Evaluacion.findFirst({
+    where: { nombre: 'Educacion Basica - 4' },
+  });
+  if (!metodo || !tipo || !sistema) {
+    throw new Error(
+      'Faltan catálogos: metodo_evaluacion/tipo_Asignatura/sistema_Evaluacion. Corre primero los seeds de catálogos.',
+    );
+  }
+  return {
+    id_metodo_evaluacion: metodo.id_metodo_evaluacion,
+    id_tipo_asignatura: tipo.id_tipo_asignatura,
+    id_sistema_evaluacion: sistema.id_sistema_evaluacion,
+  };
+}
+
+async function getOrCreateAsignatura(
+  nombre: string,
+  id_curso: number,
+  extra: {
+    orden_en_reporte?: string;
+    horas_semanas?: number;
+    id_metodo_evaluacion: number;
+    id_tipo_asignatura: number;
+    id_sistema_evaluacion: number;
+  },
+) {
+  const found = await prisma.asignatura.findFirst({
+    where: { nombre, id_curso },
+  });
+  if (found) return found;
+
+  return prisma.asignatura.create({
+    data: {
+      nombre,
+      id_curso,
+      orden_en_reporte: extra.orden_en_reporte ?? null,
+      horas_semanas: extra.horas_semanas ?? 5,
+      id_metodo_evaluacion: extra.id_metodo_evaluacion,
+      id_tipo_asignatura: extra.id_tipo_asignatura,
+      id_sistema_evaluacion: extra.id_sistema_evaluacion,
+    },
+  });
+}
+
+async function upsertAsignacionAO(params: {
+  id_asignatura: number;
+  id_orientador: number;
+  anio_academico: string;
+  fecha_asignacion?: Date;
+  activo?: boolean;
+}) {
+  return prisma.asignaturaOrientador.upsert({
+    where: {
+      id_asignatura_id_orientador_anio_academico: {
+        id_asignatura: params.id_asignatura,
+        id_orientador: params.id_orientador,
+        anio_academico: params.anio_academico,
+      },
+    },
+    update: {
+      activo: params.activo ?? true,
+      fecha_asignacion: params.fecha_asignacion ?? new Date(),
+      fecha_fin: null,
+    },
+    create: {
+      id_asignatura: params.id_asignatura,
+      id_orientador: params.id_orientador,
+      anio_academico: params.anio_academico,
+      activo: params.activo ?? true,
+      fecha_asignacion: params.fecha_asignacion ?? new Date(),
+    },
+  });
+}
+
+async function seedCursosAsignaturasYAsignaciones(cargos: {
+  adminId: number;
+  paId: number;
+  oriId: number;
+}) {
+  const ori1 = await prisma.orientador.findUnique({
+    where: { email: 'orientador@colegio.edu' },
+  });
+  if (!ori1)
+    throw new Error('No existe orientador@colegio.edu. Revisa seedUsuarios()');
+
+  const ori2 = await ensureOrientadorExtra(
+    'maria.orientadora@colegio.edu',
+    'María',
+    'López',
+    cargos,
+  );
+
+  const primaria = await prisma.grado_Academico.findFirst({
+    where: { nombre: 'Primaria' },
+  });
+  if (!primaria)
+    throw new Error(
+      'No existe Grado_Academico "Primaria". Revisa seedGradosAcademicos().',
+    );
+
+  const anio = '2025';
+  const fAsign = new Date('2025-01-15T12:00:00Z');
+
+  const curso5A = await getOrCreateCurso(
+    'Quinto Grado',
+    'A',
+    primaria.id_grado_academico,
+    ori1.id_orientador,
+    35,
+    'A-5',
+    anio,
+  );
+  const curso6B = await getOrCreateCurso(
+    'Sexto Grado',
+    'B',
+    primaria.id_grado_academico,
+    ori2.id_orientador,
+    32,
+    'B-6',
+    anio,
+  );
+
+  const cats = await getCatalogIds();
+
+  const mat5A = await getOrCreateAsignatura('Matemática I', curso5A.id_curso, {
+    ...cats,
+    orden_en_reporte: '01',
+    horas_semanas: 5,
+  });
+  const len5A = await getOrCreateAsignatura(
+    'Lenguaje y Literatura',
+    curso5A.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '02',
+      horas_semanas: 4,
+    },
+  );
+  const cie5A = await getOrCreateAsignatura(
+    'Ciencias Naturales',
+    curso5A.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '03',
+      horas_semanas: 3,
+    },
+  );
+
+  const mat6B = await getOrCreateAsignatura('Matemática II', curso6B.id_curso, {
+    ...cats,
+    orden_en_reporte: '01',
+    horas_semanas: 5,
+  });
+  const len6B = await getOrCreateAsignatura(
+    'Lenguaje y Literatura II',
+    curso6B.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '02',
+      horas_semanas: 4,
+    },
+  );
+  const soc6B = await getOrCreateAsignatura(
+    'Ciencias Sociales',
+    curso6B.id_curso,
+    {
+      ...cats,
+      orden_en_reporte: '03',
+      horas_semanas: 3,
+    },
+  );
+
+  await upsertAsignacionAO({
+    id_asignatura: mat5A.id_asignatura,
+    id_orientador: ori1.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+  await upsertAsignacionAO({
+    id_asignatura: len5A.id_asignatura,
+    id_orientador: ori2.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+  await upsertAsignacionAO({
+    id_asignatura: mat6B.id_asignatura,
+    id_orientador: ori2.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+  await upsertAsignacionAO({
+    id_asignatura: soc6B.id_asignatura,
+    id_orientador: ori1.id_orientador,
+    anio_academico: anio,
+    fecha_asignacion: fAsign,
+    activo: true,
+  });
+
+  console.log('Cursos/Asignaturas/Asignaciones OK:', {
+    cursos: [curso5A.id_curso, curso6B.id_curso],
+    asignaturas5A: [
+      mat5A.id_asignatura,
+      len5A.id_asignatura,
+      cie5A.id_asignatura,
+    ],
+    asignaturas6B: [
+      mat6B.id_asignatura,
+      len6B.id_asignatura,
+      soc6B.id_asignatura,
+    ],
+    orientadores: [ori1.id_orientador, ori2.id_orientador],
+  });
+
+  // === IDs útiles para probar asistencia ===
+  const ids = {
+    orientadores: {
+      ori1: ori1.id_orientador,
+      ori2: ori2.id_orientador,
+    },
+    cursos: {
+      curso5A: curso5A.id_curso,
+      curso6B: curso6B.id_curso,
+    },
+    asignaturas: {
+      mat5A: mat5A.id_asignatura,
+      len5A: len5A.id_asignatura,
+      cie5A: cie5A.id_asignatura,
+      mat6B: mat6B.id_asignatura,
+      len6B: len6B.id_asignatura,
+      soc6B: soc6B.id_asignatura,
+    },
+  };
+  console.log('=== IDs para probar asistencia ===');
+  console.log(JSON.stringify(ids, null, 2));
+}
+
+/* =========================
+   MV Asignaciones
+========================= */
+async function ensureMVAsignaciones() {
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_matviews
+        WHERE schemaname='public' AND matviewname='mv_asignaciones'
+      ) THEN
+        CREATE MATERIALIZED VIEW public.mv_asignaciones AS
+        SELECT
+          ao.id_asignatura_orientador,
+          ao.id_asignatura,
+          a.nombre                               AS nombre_asignatura,
+          a.horas_semanas,
+          ao.id_orientador,
+          (o.nombre || ' ' || o.apellido)        AS docente,
+          c.id_curso,
+          c.nombre                               AS curso,
+          c.seccion,
+          c.id_orientador                        AS orientador_principal_id,
+          (op.nombre || ' ' || op.apellido)      AS orientador_principal,
+          ao.anio_academico,
+          ao.fecha_asignacion,
+          ao.fecha_fin,
+          ao.activo,
+          CASE WHEN c.id_orientador = ao.id_orientador THEN TRUE ELSE FALSE END AS es_orientador
+        FROM public."AsignaturaOrientador" ao
+        JOIN public."Asignatura" a
+          ON a.id_asignatura = ao.id_asignatura
+        LEFT JOIN public."Curso" c
+          ON c.id_curso = a.id_curso
+        LEFT JOIN public."orientadores" o
+          ON o.id_orientador = ao.id_orientador
+        LEFT JOIN public."orientadores" op
+          ON op.id_orientador = c.id_orientador
+        WITH NO DATA;
+      END IF;
+    END $$;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS mv_asignaciones_pk
+    ON public.mv_asignaciones (id_asignatura_orientador);
+  `);
+
+  try {
+    await prisma.$executeRawUnsafe(`
+      REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_asignaciones;
+    `);
+    console.log('MV mv_asignaciones refrescada (CONCURRENTLY).');
+  } catch (e) {
+    console.warn(
+      'REFRESH CONCURRENTLY falló, usando REFRESH normal:',
+      (e as Error).message,
+    );
+    await prisma.$executeRawUnsafe(`
+      REFRESH MATERIALIZED VIEW public.mv_asignaciones;
+    `);
+    console.log('MV mv_asignaciones refrescada (normal).');
+  }
+
+  console.log('Materialized View OK: mv_asignaciones');
+}
+
+/* =========================
+   7°A: Idempotente con UPSERT
+========================= */
+async function seedCurso7A() {
+  console.log('⏳ Creando datos de prueba para 7°A...');
+
+  const orientador = await prisma.orientador.findUnique({
+    where: { email: 'orientador@colegio.edu' },
+  });
+  const gradoSecundaria = await prisma.grado_Academico.findFirst({
+    where: { nombre: 'Secundaria' },
+  });
+  const catalogos = await getCatalogIds();
+
+  // 🔹 Curso
+  const curso7A = await getOrCreateCurso(
+    'Séptimo Grado',
+    'A',
+    gradoSecundaria?.id_grado_academico,
+    orientador!.id_orientador,
+    30,
+    'A-7',
+    '2025',
+  );
+
+  // 🔹 Asignaturas
+  const mat7A = await getOrCreateAsignatura('Matemática', curso7A.id_curso, {
+    ...catalogos,
+    orden_en_reporte: '01',
+    horas_semanas: 5,
+  });
+  const cie7A = await getOrCreateAsignatura('Ciencias', curso7A.id_curso, {
+    ...catalogos,
+    orden_en_reporte: '02',
+    horas_semanas: 4,
+  });
+
+  // 🔹 Asignar al orientador
+  await upsertAsignacionAO({
+    id_asignatura: mat7A.id_asignatura,
+    id_orientador: orientador!.id_orientador,
+    anio_academico: '2025',
+    activo: true,
+  });
+  await upsertAsignacionAO({
+    id_asignatura: cie7A.id_asignatura,
+    id_orientador: orientador!.id_orientador,
+    anio_academico: '2025',
+    activo: true,
+  });
+
+  // 🔹 Crear/Asegurar 5 alumnos de ejemplo (IDEMPOTENTE)
+  const alumnos: { id_alumno: number; nombre: string }[] = [];
+
+  for (let i = 0; i < 5; i++) {
+    const n = i + 1;
+    const numeroMatricula = `MAT-7A-${n}`;
+    const baseData = {
+      nombre: `Alumno${n}`,
+      apellido: `Prueba7A`,
+      genero: n % 2 === 1 ? 'M' : 'F', // alterna M/F
+      // En tu modelo, fechaNacimiento es String (mantengo YYYY-MM-DD para estos)
+      fechaNacimiento: `2011-0${((i % 9) + 1).toString()}-15`,
+      edad: 13,
+      anioEscolar: '2025',
+      estadoMatricula: 'INSCRITO',
+      activo: true,
+    };
+
+    // Upsert por numeroMatricula (UNIQUE)
+    const alumno = await prisma.alumno.upsert({
+      where: { numeroMatricula },
+      update: {
+        ...baseData,
+        // No toques relación aquí para evitar duplicar conexiones si ya existe
+      },
+      create: {
+        ...baseData,
+        numeroMatricula,
+        cursos: { connect: { id_curso: curso7A.id_curso } }, // al crear sí conectamos
+      },
+      select: { id_alumno: true, nombre: true },
+    });
+
+    // Intento de conectar al curso si entramos por "update":
+    // si ya estaba conectado, ignoramos el error (p.ej. por unique en tabla intermedia)
+    try {
+      await prisma.alumno.update({
+        where: { id_alumno: alumno.id_alumno },
+        data: { cursos: { connect: { id_curso: curso7A.id_curso } } },
+        select: { id_alumno: true },
+      });
+    } catch (e: any) {
+      // Ignorar duplicado de conexión; si es otro error, lo relanzamos
+      if (e?.code !== 'P2002') {
+        // Algunos drivers podrían no dar code; si quieres ser más laxo, comenta el if
+        // console.warn('Aviso al conectar curso7A:', e?.message ?? e);
+      }
+    }
+
+    alumnos.push(alumno);
+  }
+
+  // 🔹 Asistencias y conductas (3 trimestres) — idempotente "suave":
+  // Para no duplicar infinitamente, usaremos createMany con fechas fijas; si ya existen,
+  // en una segunda corrida podrías limpiar antes o agregar lógica de "find or create".
+  const fechasTrimestres = [
+    { trimestre: 1, fechas: ['2025-02-01', '2025-02-15', '2025-03-10'] },
+    { trimestre: 2, fechas: ['2025-05-01', '2025-05-15', '2025-06-10'] },
+    { trimestre: 3, fechas: ['2025-08-01', '2025-08-15', '2025-09-10'] },
+  ];
+
+  for (const alumno of alumnos) {
+    for (const { trimestre, fechas } of fechasTrimestres) {
+      for (const fecha of fechas) {
+        const estado =
+          alumno.nombre === 'Alumno5'
+            ? (['P', 'SP', 'E', 'A'] as const)[Math.floor(Math.random() * 4)]
+            : 'P';
+        await prisma.asistencia.createMany({
+          data: [
+            {
+              id_alumno: alumno.id_alumno,
+              id_asignatura: mat7A.id_asignatura,
+              id_orientador: orientador!.id_orientador,
+              fecha: new Date(fecha),
+              estado,
+              anio_academico: '2025',
+              trimestre,
+            },
+            {
+              id_alumno: alumno.id_alumno,
+              id_asignatura: cie7A.id_asignatura,
+              id_orientador: orientador!.id_orientador,
+              fecha: new Date(fecha),
+              estado,
+              anio_academico: '2025',
+              trimestre,
+            },
+          ],
+          skipDuplicates: true, // evita duplicar si hay unique en tu modelo (si lo configuras)
+        });
+      }
+
+      if (alumno.nombre === 'Alumno5') {
+        const gravedad = ['MENOS_GRAVE', 'GRAVE', 'MUY_GRAVE'] as const;
+        // Para no duplicar la misma conducta, intenta un upsert por una clave "natural" si existe
+        await prisma.conducta
+          .create({
+            data: {
+              id_alumno: alumno.id_alumno,
+              id_orientador: orientador!.id_orientador,
+              id_asignatura: cie7A.id_asignatura,
+              fecha: new Date(fechas[1]),
+              gravedad: gravedad[Math.floor(Math.random() * gravedad.length)],
+              descripcion: `Falta disciplinaria durante el trimestre ${trimestre}`,
+              anio_academico: '2025',
+              trimestre,
+            },
+          })
+          .catch(() => {
+            // Si ya existe, lo ignoramos (por falta de unique natural).
+          });
+      }
+    }
+  }
+
+  console.log(
+    '✅ Curso 7°A, alumnos, asistencias y conductas creados/asegurados correctamente.',
+  );
+}
+
+/* =========================
+   MAIN
+========================= */
 async function main() {
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
   await prisma.$connect();
@@ -437,9 +1064,13 @@ async function main() {
   await seedParentescos();
   await seedTipoActividades();
   await seedAlumnoEjemplo();
+  await seedAlumnoEjemplo2(); // segundo alumno
   await seedMetodosEvaluacion();
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
+  await seedCursosAsignaturasYAsignaciones(cargos);
+  await seedCurso7A();
+  await ensureMVAsignaciones();
 }
 
 main()

@@ -16,10 +16,16 @@ import { CursosModule } from './cursos/cursos.module';
 import { GradoAcademicoModule } from './grado-academico/grado-academico.module';
 import { JornadasModule } from './jornadas/jornadas.module';
 import { AsignaturasModule } from './asignaturas/asignaturas.module';
+import { AsignacionesModule } from './asignaciones/asignaciones.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion.module';
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
+import { ImportModule } from './import/import.module';
+import { AsistenciaModule } from './asistencias/asistencias.module';
+import { ConductasModule } from './conducta/conducta.module';
+import { AsistenciaHistorialModule } from './asistencias/asistencia-historial.module';
+
 @Module({
   imports: [
     AdministrativoModule,
@@ -36,9 +42,14 @@ import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluac
     JornadasModule,
     ActividadesRecientesModule,
     AsignaturasModule,
+    AsistenciaModule,
+    AsignacionesModule,
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
+    ConductasModule,
+    ImportModule,
+    AsistenciaHistorialModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
