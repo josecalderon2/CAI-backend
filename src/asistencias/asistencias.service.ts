@@ -12,7 +12,10 @@ import {
   AsistenciaResponse,
 } from './dto';
 import { AccionAsistencia } from '@prisma/client';
-import { buildAsistenciaHistorialInput } from './utils/asistencia-history.util';
+import {
+  buildAsistenciaHistorialInput,
+  hasRealChanges,
+} from './utils/asistencia-history.util';
 
 @Injectable()
 export class AsistenciaService {
@@ -91,31 +94,45 @@ export class AsistenciaService {
           },
         });
 
-        // 4) Historial
-        await tx.asistenciaHistorial.create({
-          data: buildAsistenciaHistorialInput({
-            accion: before ? AccionAsistencia.UPDATE : AccionAsistencia.CREATE,
-            before: before
-              ? {
-                  id_asistencia: before.id_asistencia,
-                  id_alumno: before.id_alumno,
-                  id_asignatura: before.id_asignatura,
-                  fecha: before.fecha,
-                  estado: before.estado,
-                  observacion: before.observacion ?? null,
-                }
-              : null,
-            after: {
-              id_asistencia: upserted.id_asistencia,
-              id_alumno: upserted.id_alumno,
-              id_asignatura: upserted.id_asignatura,
-              fecha: upserted.fecha,
-              estado: upserted.estado,
-              observacion: upserted.observacion ?? null,
-            },
-            id_orientador_registro: id_orientador, // el que hizo la acción
-          }),
+        // 4) Historial - SOLO si hubo cambios reales
+        const accion = before ? AccionAsistencia.UPDATE : AccionAsistencia.CREATE;
+        const beforeData = before
+          ? {
+              id_asistencia: before.id_asistencia,
+              id_alumno: before.id_alumno,
+              id_asignatura: before.id_asignatura,
+              fecha: before.fecha,
+              estado: before.estado,
+              observacion: before.observacion ?? null,
+            }
+          : null;
+
+        const afterData = {
+          id_asistencia: upserted.id_asistencia,
+          id_alumno: upserted.id_alumno,
+          id_asignatura: upserted.id_asignatura,
+          fecha: upserted.fecha,
+          estado: upserted.estado,
+          observacion: upserted.observacion ?? null,
+        };
+
+        // Verificar si realmente hubo cambios
+        const huboChanges = hasRealChanges({
+          before: beforeData,
+          after: afterData,
         });
+
+        // Solo guardamos historial si hay cambios reales
+        if (huboChanges) {
+          await tx.asistenciaHistorial.create({
+            data: buildAsistenciaHistorialInput({
+              accion,
+              before: beforeData,
+              after: afterData,
+              id_orientador_registro: id_orientador, // el que hizo la acción
+            }),
+          });
+        }
 
         return upserted;
       });
