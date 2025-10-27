@@ -897,13 +897,10 @@ async function asignarAlumnosACursos() {
 
         asignaciones.push(asignacion);
 
-        // También conectar en la relación muchos a muchos tradicional
+        // Actualizar el año escolar del alumno
         await prisma.alumno.update({
           where: { id_alumno: alumno.id_alumno },
           data: {
-            cursos: {
-              connect: { id_curso: curso.id_curso },
-            },
             anioEscolar: anioActual,
           },
         });

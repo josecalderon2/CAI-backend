@@ -860,7 +860,12 @@ export class PromocionesService {
             OR: [{ anio_academico: anioAcademico }, { anio_academico: null }],
           },
           include: {
-            alumnos: true,
+            inscripciones: {
+              where: {
+                anioAcademico: anioAcademico,
+                estado: 'ACTIVO',
+              },
+            },
           },
         },
       },
@@ -879,7 +884,7 @@ export class PromocionesService {
         seccion: curso.seccion,
         gradoAcademico: grado.nombre,
         cupoDisponible: curso.cupo
-          ? curso.cupo - (curso.alumnos?.length || 0)
+          ? curso.cupo - (curso.inscripciones?.length || 0)
           : null,
         nombreCompleto: `${curso.nombre}${curso.seccion ? ' ' + curso.seccion : ''} (${grado.nombre})`,
         sugerido: false,

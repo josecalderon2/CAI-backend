@@ -65,7 +65,6 @@ model Alumno {
 
   // relaciones
   responsables      AlumnoResponsable[]
-  cursos            Curso[]             @relation("AlumnoCurso")
   inscripciones     AlumnoCurso[]      // Relación explícita a través de tabla pivote
   Notas             Notas[]
   historialAcademico HistorialAcademico[]
@@ -188,7 +187,6 @@ model Curso {
 
   gradoAcademico Grado_Academico?             @relation(fields: [id_grado_academico], references: [id_grado_academico])
   orientador     Orientador?                  @relation(fields: [id_orientador], references: [id_orientador])
-  alumnos        Alumno[]                     @relation("AlumnoCurso")
   inscripciones  AlumnoCurso[]               // Relación explícita a través de tabla pivote
   asignaturas    Asignatura[]
   activo         Boolean?                     @default(true)
