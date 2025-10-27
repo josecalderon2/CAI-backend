@@ -21,6 +21,7 @@ import {
   ApiCreatedResponse,
   ApiQuery,
   ApiOperation,
+  ApiParam,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
@@ -34,7 +35,7 @@ import { CursoCuposDto, ListaCursosCuposDto } from './dto/curso-cupos.dto';
 export class CursosController {
   constructor(private readonly service: CursosService) {}
 
-  // --- ENDPOINT PARA LISTAR TODOS LOS CURSOS ACTIVOS (para selects/dropdowns) ---
+  // --- EXISTENTES ---
   @Roles('Admin', 'P.A')
   @Get('all')
   @ApiOperation({
@@ -113,5 +114,33 @@ export class CursosController {
   })
   findCursoConCupos(@Param('id', ParseIntPipe) id: number) {
     return this.service.findCursoCupos(id);
+  }
+
+  // --- NUEVOS ENDPOINTS PARA TU FRONT ---
+
+  // Cursos asignados a un docente
+  @Roles('Admin', 'P.A', 'Orientador') // asegúrate que coincida con tu enum/roles reales
+  @Get('asignados/:docenteId')
+  @ApiOperation({ summary: 'Cursos asignados a un docente' })
+  @ApiParam({ name: 'docenteId', type: Number })
+  @ApiOkResponse({
+    description: 'Listado de cursos asignados al docente',
+  })
+  findCursosAsignadosDocente(
+    @Param('docenteId', ParseIntPipe) docenteId: number,
+  ) {
+    return this.service.findCursosAsignadosDocente(docenteId);
+  }
+
+  // Alumnos por curso (sin rut)
+  @Roles('Admin', 'P.A', 'Orientador')
+  @Get(':cursoId/alumnos')
+  @ApiOperation({ summary: 'Alumnos matriculados en un curso' })
+  @ApiParam({ name: 'cursoId', type: Number })
+  @ApiOkResponse({
+    description: 'Listado de alumnos del curso',
+  })
+  getAlumnosPorCurso(@Param('cursoId', ParseIntPipe) cursoId: number) {
+    return this.service.getAlumnosPorCurso(cursoId);
   }
 }

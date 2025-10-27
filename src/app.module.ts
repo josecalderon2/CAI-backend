@@ -23,6 +23,10 @@ import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.modul
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { ImportModule } from './import/import.module';
 import { PromocionesModule } from './promociones/promociones.module';
+import { AsistenciaModule } from './asistencias/asistencias.module';
+import { ConductasModule } from './conducta/conducta.module';
+import { AsistenciaHistorialModule } from './asistencias/asistencia-historial.module';
+
 @Module({
   imports: [
     AdministrativoModule,
@@ -39,12 +43,15 @@ import { PromocionesModule } from './promociones/promociones.module';
     JornadasModule,
     ActividadesRecientesModule,
     AsignaturasModule,
+    AsistenciaModule,
     AsignacionesModule,
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
+    ConductasModule,
     ImportModule,
     PromocionesModule,
+    AsistenciaHistorialModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

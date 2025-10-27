@@ -45,21 +45,21 @@ model Alumno {
   activo                 Boolean @default(true)
 
   // ====== NUEVOS CAMPOS (ficha/matrícula vigente) ======
-  anioEscolar                 String?      // NEW - Año escolar vigente (si no manejas Curso por año)
-  numeroMatricula             String? @unique // NEW - Número de matrícula (opcionalmente único)
-  fechaMatricula              DateTime?    // NEW - Fecha de matrícula
-  estadoMatricula             String?      // NEW - "INSCRITO", "RETIRADO", etc.
+  anioEscolar     String? // NEW - Año escolar vigente (si no manejas Curso por año)
+  numeroMatricula String?   @unique // NEW - Número de matrícula (opcionalmente único)
+  fechaMatricula  DateTime? // NEW - Fecha de matrícula
+  estadoMatricula String? // NEW - "INSCRITO", "RETIRADO", etc.
 
   // Autorizaciones de la ficha (vigentes)
-  autorizaAtencionMedica      Boolean? @default(false) // NEW
-  autorizaUsoImagen           Boolean? @default(false) // NEW
+  autorizaAtencionMedica        Boolean? @default(false) // NEW
+  autorizaUsoImagen             Boolean? @default(false) // NEW
   autorizaActividadesReligiosas Boolean? @default(false) // NEW
 
   // Transporte escolar (bandera anual simple)
-  usaTransporteEscolar        Boolean? @default(false) // NEW
+  usaTransporteEscolar Boolean? @default(false) // NEW
 
   // Religión del alumno
-  religion                    String? // NEW
+  religion String? // NEW
 
   detalle Alumno_Detalle?
 
@@ -69,6 +69,8 @@ model Alumno {
   inscripciones     AlumnoCurso[]      // Relación explícita a través de tabla pivote
   Notas             Notas[]
   historialAcademico HistorialAcademico[]
+  asistencias  Asistencia[]
+  conductas    Conducta[]
 }
 
 model Alumno_Detalle {
@@ -81,15 +83,15 @@ model Alumno_Detalle {
 
   // ====== NUEVOS CAMPOS (ficha) ======
   // Contactos de emergencia libres (si no usas AlumnoResponsable como emergencia)
-  emergencia1Nombre      String?  // NEW
-  emergencia1Parentesco  String?  // NEW
-  emergencia1Telefono    String?  // NEW
-  emergencia2Nombre      String?  // NEW
-  emergencia2Parentesco  String?  // NEW
-  emergencia2Telefono    String?  // NEW
+  emergencia1Nombre     String? // NEW
+  emergencia1Parentesco String? // NEW
+  emergencia1Telefono   String? // NEW
+  emergencia2Nombre     String? // NEW
+  emergencia2Parentesco String? // NEW
+  emergencia2Telefono   String? // NEW
 
   // Tenencia / tipo de vivienda
-  tenenciaVivienda       String?  // NEW
+  tenenciaVivienda String? // NEW
 
   alumno Alumno @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
 }
@@ -117,10 +119,10 @@ model Responsable {
   firmaFoto Bytes?
 
   // ====== NUEVOS CAMPOS (documento/naturalización/telefonía) ======
-  tipoDocumento    String?        // NEW - "DUI", "Pasaporte", etc.
-  numeroDocumento  String? @unique // NEW - Alternativa a DUI
-  naturalizado     Boolean? @default(false) // NEW
-  telefonoFijo     String?        // NEW
+  tipoDocumento   String? // NEW - "DUI", "Pasaporte", etc.
+  numeroDocumento String?  @unique // NEW - Alternativa a DUI
+  naturalizado    Boolean? @default(false) // NEW
+  telefonoFijo    String? // NEW
 
   //relaciones
   alumnos AlumnoResponsable[]
@@ -197,20 +199,20 @@ model Curso {
 }
 
 model Historial_curso_orientador {
-  id_historial_curso_orientador Int        @id @default(autoincrement())
+  id_historial_curso_orientador Int     @id @default(autoincrement())
   id_curso                      Int
   id_orientador                 Int
-  es_orientador                 Boolean     @default(false)
-  id_asignatura                 Int?        // null => principal, valor => docente de materia
+  es_orientador                 Boolean @default(false)
+  id_asignatura                 Int? // null => principal, valor => docente de materia
 
-  anio_academico                String?
-  fecha_asignacion              DateTime?
-  fecha_fin                     DateTime?
+  anio_academico   String?
+  fecha_asignacion DateTime?
+  fecha_fin        DateTime?
 
-  curso       Curso      @relation(fields: [id_curso], references: [id_curso])
-  orientador  Orientador @relation(fields: [id_orientador], references: [id_orientador])
+  curso      Curso      @relation(fields: [id_curso], references: [id_curso])
+  orientador Orientador @relation(fields: [id_orientador], references: [id_orientador])
 
-  asignatura  Asignatura? @relation("AsignaturaHistorial", fields: [id_asignatura], references: [id_asignatura])
+  asignatura Asignatura? @relation("AsignaturaHistorial", fields: [id_asignatura], references: [id_asignatura])
 
   @@index([id_curso, id_orientador, id_asignatura])
   @@index([anio_academico])
@@ -218,7 +220,7 @@ model Historial_curso_orientador {
 }
 
 model Asignatura {
-  id_asignatura         Int                 @id @default(autoincrement())
+  id_asignatura         Int     @id @default(autoincrement())
   nombre                String
   orden_en_reporte      String?
   horas_semanas         Float?
@@ -227,15 +229,17 @@ model Asignatura {
   id_sistema_evaluacion Int?
   id_curso              Int?
 
-  metodoEvaluacion      Metodo_evaluacion?  @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
-  tipoAsignatura        Tipo_Asignatura?    @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
-  sistemaEvaluacion     Sistema_Evaluacion? @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
-  curso                 Curso?              @relation(fields: [id_curso], references: [id_curso])
+  metodoEvaluacion  Metodo_evaluacion?  @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
+  tipoAsignatura    Tipo_Asignatura?    @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
+  sistemaEvaluacion Sistema_Evaluacion? @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
+  curso             Curso?              @relation(fields: [id_curso], references: [id_curso])
 
-  notas                 Notas[]
-  orientadores          AsignaturaOrientador[]
+  notas            Notas[]
+  orientadores     AsignaturaOrientador[]
+  asistencias      Asistencia[]
 
-  historialDocente      Historial_curso_orientador[] @relation("AsignaturaHistorial")
+  conductas        Conducta[]
+  historialDocente Historial_curso_orientador[] @relation("AsignaturaHistorial")
 }
 
 model Metodo_evaluacion {
@@ -330,6 +334,9 @@ model Orientador {
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
   PasswordResetToken      PasswordResetToken[]
+  asistencias             Asistencia[]
+
+  conductas               Conducta[]
 
   @@map("orientadores")
 }
@@ -368,18 +375,18 @@ model PasswordResetToken {
 }
 
 model AsignaturaOrientador {
-  id_asignatura_orientador Int        @id @default(autoincrement())
+  id_asignatura_orientador Int       @id @default(autoincrement())
   id_asignatura            Int
   id_orientador            Int
   anio_academico           String?
-  activo                   Boolean    @default(true)
-  fecha_asignacion         DateTime   @default(now())
+  activo                   Boolean   @default(true)
+  fecha_asignacion         DateTime  @default(now())
   fecha_fin                DateTime?
-  
+
   // Relaciones
-  asignatura               Asignatura @relation(fields: [id_asignatura], references: [id_asignatura])
-  orientador               Orientador @relation(fields: [id_orientador], references: [id_orientador])
-  
+  asignatura Asignatura @relation(fields: [id_asignatura], references: [id_asignatura])
+  orientador Orientador @relation(fields: [id_orientador], references: [id_orientador])
+
   @@unique([id_asignatura, id_orientador, anio_academico])
   @@index([id_asignatura])
   @@index([id_orientador])
@@ -428,4 +435,110 @@ model HistorialAcademico {
   @@index([alumnoId])
   @@index([cursoId])
   @@index([anioAcademico])
+}
+enum AccionAsistencia {
+  CREATE
+  UPDATE
+  DELETE
+  BULK_IMPORT
+  RECTIFY // corrección posterior (ej. justificó con constancia médica)
+  ROLLBACK
+}
+
+model AsistenciaHistorial {
+  id_historial           Int               @id @default(autoincrement())
+
+  // Referencia al row actual (si luego borras la asistencia, quedará null pero se conserva el historial)
+  id_asistencia          Int?
+  asistencia             Asistencia?       @relation("AsistenciaLog", fields: [id_asistencia], references: [id_asistencia], onDelete: SetNull)
+
+  // Clave natural del registro de asistencia
+  id_alumno              Int
+  id_asignatura          Int
+  fecha                  DateTime
+
+  // Acción
+  accion                 AccionAsistencia
+
+  // Quién registró el cambio (docente que tomó o editó)
+  id_orientador_registro Int
+
+  // Diferencias relevantes
+  estado_anterior        EstadoAsistencia?
+  estado_nuevo           EstadoAsistencia?
+
+  observ_anterior        String?
+  observ_nueva           String?
+
+  // Tiempos
+  creadoEn               DateTime          @default(now())
+
+  @@index([id_asistencia])
+  @@index([id_alumno, id_asignatura, fecha])
+  @@index([id_orientador_registro])
+}
+
+enum EstadoAsistencia {
+  P // Presente
+  E // Excusado (permiso)
+  SP // Sin permiso
+  A // Atraso
+}
+
+enum TipoFalta {
+  ASISTENCIA
+  DISCIPLINA
+  COMPORTAMIENTO
+}
+
+enum GravedadFalta {
+  LEVE
+  MENOS_GRAVE
+  GRAVE
+  MUY_GRAVE
+}
+
+model Asistencia {
+
+  id_asistencia  Int              @id @default(autoincrement())
+  id_alumno      Int
+  id_asignatura  Int
+  id_orientador  Int
+  fecha          DateTime
+  estado         EstadoAsistencia
+  observacion    String?
+  creadoEn       DateTime         @default(now())
+  anio_academico String?
+  trimestre      Int?
+
+  alumno     Alumno     @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  asignatura Asignatura @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
+  orientador Orientador @relation(fields: [id_orientador], references: [id_orientador], onDelete: Cascade)
+
+  historial  AsistenciaHistorial[] @relation("AsistenciaLog")
+
+  @@unique([id_alumno, id_asignatura, fecha])
+  @@index([fecha])
+
+  @@index([trimestre])
+}
+
+model Conducta {
+  id_conducta    Int           @id @default(autoincrement())
+  id_alumno      Int
+  id_orientador  Int?
+  id_asignatura  Int?
+  fecha          DateTime
+  gravedad       GravedadFalta
+  articulo       String?
+  descripcion    String?
+  anio_academico String?
+  trimestre Int?
+
+  alumno     Alumno      @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  orientador Orientador? @relation(fields: [id_orientador], references: [id_orientador])
+  asignatura Asignatura? @relation(fields: [id_asignatura], references: [id_asignatura])
+
+  @@index([id_alumno])
+  @@index([fecha])
 }
