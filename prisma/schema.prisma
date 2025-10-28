@@ -65,13 +65,11 @@ model Alumno {
 
   // relaciones
   responsables AlumnoResponsable[]
-  cursos       Curso[]             @relation("AlumnoCurso")
-  asistencias  Asistencia[]
-
-  conductas Conducta[] // <== Relación a Conducta (sin cambios)
   inscripciones     AlumnoCurso[]      // Relación explícita a través de tabla pivote
+  asistencias  Asistencia[]
   Notas             Notas[]
   historialAcademico HistorialAcademico[]
+  conductas Conducta[] // <== Relación a Conducta (sin cambios)
 }
 
 model Alumno_Detalle {
@@ -223,20 +221,16 @@ model Asignatura {
   id_tipo_asignatura    Int?
   id_sistema_evaluacion Int?
   id_curso              Int?
+  
   metodoEvaluacion      Metodo_evaluacion?   @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
   tipoAsignatura        Tipo_Asignatura?     @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
   sistemaEvaluacion     Sistema_Evaluacion?  @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
-  asistencias           Asistencia[]
-  conductas             Conducta[]
-
-  metodoEvaluacion      Metodo_evaluacion?  @relation(fields: [id_metodo_evaluacion], references: [id_metodo_evaluacion])
-  tipoAsignatura        Tipo_Asignatura?    @relation(fields: [id_tipo_asignatura], references: [id_tipo_asignatura])
-  sistemaEvaluacion     Sistema_Evaluacion? @relation(fields: [id_sistema_evaluacion], references: [id_sistema_evaluacion])
-  curso                 Curso?              @relation(fields: [id_curso], references: [id_curso])
-
+  curso                 Curso?               @relation(fields: [id_curso], references: [id_curso])
+  
   notas                 Notas[]
   orientadores          AsignaturaOrientador[]
-
+  asistencias           Asistencia[]
+  conductas             Conducta[]
   historialDocente      Historial_curso_orientador[] @relation("AsignaturaHistorial")
 }
 

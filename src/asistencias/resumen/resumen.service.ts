@@ -19,10 +19,27 @@ export class ResumenService {
     const startDate = new Date(anio, mes - 1, 1);
     const endDate = new Date(anio, mes, 0, 23, 59, 59);
 
-    // 2. Obtener alumnos del curso
+    // 2. Obtener alumnos del curso usando la tabla pivote AlumnoCurso
+    const inscripciones = await this.prisma.alumnoCurso.findMany({
+      where: {
+        cursoId: cursoId,
+        estado: 'ACTIVO',
+        anioAcademico: anio.toString(),
+      },
+      select: {
+        alumnoId: true,
+      },
+    });
+
+    if (inscripciones.length === 0) {
+      return []; // No hay alumnos inscritos
+    }
+
+    const idsAlumnos = inscripciones.map((i) => i.alumnoId);
+
     const alumnos = await this.prisma.alumno.findMany({
       where: {
-        cursos: { some: { id_curso: cursoId } },
+        id_alumno: { in: idsAlumnos },
         activo: true,
       },
       select: { id_alumno: true, nombre: true, apellido: true },
@@ -72,10 +89,27 @@ export class ResumenService {
     const { cursoId, trimestre, anio } = query;
     const anioAcademicoStr = anio.toString();
 
-    // 1. Obtener alumnos del curso
+    // 1. Obtener alumnos del curso usando la tabla pivote AlumnoCurso
+    const inscripciones = await this.prisma.alumnoCurso.findMany({
+      where: {
+        cursoId: cursoId,
+        estado: 'ACTIVO',
+        anioAcademico: anioAcademicoStr,
+      },
+      select: {
+        alumnoId: true,
+      },
+    });
+
+    if (inscripciones.length === 0) {
+      return []; // No hay alumnos inscritos
+    }
+
+    const idsAlumnos = inscripciones.map((i) => i.alumnoId);
+
     const alumnos = await this.prisma.alumno.findMany({
       where: {
-        cursos: { some: { id_curso: cursoId } },
+        id_alumno: { in: idsAlumnos },
         activo: true,
       },
       select: { id_alumno: true, nombre: true, apellido: true },

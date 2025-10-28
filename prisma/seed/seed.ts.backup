@@ -977,97 +977,12 @@ async function ensureMVAsignaciones() {
 
 // Función para asignar alumnos a cursos
 async function asignarAlumnosACursos() {
-  console.log('Asignando alumnos a cursos...');
-
-  // Año académico actual
-  const anioActual = '2025';
-
-  // --- Buscamos las infracciones que creamos en seedInfracciones() ---
-  const faltaLeve = await prisma.infraccionCatalogo.findUnique({
-    where: { articulo: 'MG-003' }, // 'Incumplimiento de tareas'
-    select: { id_infraccion: true },
-  });
-  const faltaGrave = await prisma.infraccionCatalogo.findUnique({
-    where: { articulo: 'G-006' }, // 'Uso de celular sin permiso en clase'
-    select: { id_infraccion: true },
-  });
-
-  if (!faltaLeve || !faltaGrave) {
-    throw new Error(
-      'Infracciones de catálogo (MG-003, G-006) no encontradas. Asegúrate de correr seedInfracciones() primero.',
-    );
-  }
-  // --- Fin de la búsqueda de infracciones ---
-
-  // 🔹 Curso
-  const curso7A = await getOrCreateCurso(
-    'Séptimo Grado',
-    'A',
-    gradoSecundaria?.id_grado_academico,
-    orientador!.id_orientador,
-    30,
-    'A-7',
-    '2025',
-  );
-
-  // 🔹 Asignaturas
-  const mat7A = await getOrCreateAsignatura('Matemática', curso7A.id_curso, {
-    ...catalogos,
-    orden_en_reporte: '01',
-    horas_semanas: 5,
-  });
-  const cie7A = await getOrCreateAsignatura('Ciencias', curso7A.id_curso, {
-    ...catalogos,
-    orden_en_reporte: '02',
-    horas_semanas: 4,
-  });
-
-  // 🔹 Asignar al orientador
-  await upsertAsignacionAO({
-    id_asignatura: mat7A.id_asignatura,
-    id_orientador: orientador!.id_orientador,
-    anio_academico: '2025',
-    activo: true,
-  });
-  await upsertAsignacionAO({
-    id_asignatura: cie7A.id_asignatura,
-    id_orientador: orientador!.id_orientador,
-    anio_academico: '2025',
-    activo: true,
-  });
-
-  // 🔹 Crear/Asegurar 5 alumnos de ejemplo (IDEMPOTENTE)
-  const alumnos: { id_alumno: number; nombre: string }[] = [];
-
-  for (let i = 0; i < 5; i++) {
-    const n = i + 1;
-    const numeroMatricula = `MAT-7A-${n}`;
-    const baseData = {
-      nombre: `Alumno${n}`,
-      apellido: `Prueba7A`,
-      genero: n % 2 === 1 ? 'M' : 'F', // alterna M/F
-      // En tu modelo, fechaNacimiento es String (mantengo YYYY-MM-DD para estos)
-      fechaNacimiento: `2011-0${((i % 9) + 1).toString()}-15`,
-      edad: 13,
-      anioEscolar: '2025',
-      estadoMatricula: 'INSCRITO',
-      activo: true,
-    };
-
-    // Upsert por numeroMatricula (UNIQUE)
-    const alumno = await prisma.alumno.upsert({
-      where: { numeroMatricula },
-      update: {
-        ...baseData,
-        // No toques relación aquí para evitar duplicar conexiones si ya existe
-      },
-      create: {
-        ...baseData,
-        numeroMatricula,
-        cursos: { connect: { id_curso: curso7A.id_curso } }, // al crear sí conectamos
-      },
-      select: { id_alumno: true, nombre: true },
   try {
+    console.log('Asignando alumnos a cursos...');
+
+    // Año académico actual
+    const anioActual = '2025';
+
     // 1. Obtener los cursos existentes
     const cursos = await prisma.curso.findMany({
       where: { activo: true },
@@ -1085,74 +1000,6 @@ async function asignarAlumnosACursos() {
       orderBy: { id_alumno: 'asc' },
     });
 
-  // 🔹 Asistencias y conductas (3 trimestres)
-  const fechasTrimestres = [
-    { trimestre: 1, fechas: ['2025-02-01', '2025-02-15', '2025-03-10'] },
-    { trimestre: 2, fechas: ['2025-05-01', '2025-05-15', '2025-06-10'] },
-    { trimestre: 3, fechas: ['2025-08-01', '2025-08-15', '2025-09-10'] },
-  ];
-
-  for (const alumno of alumnos) {
-    for (const { trimestre, fechas } of fechasTrimestres) {
-      for (const fecha of fechas) {
-        const estado =
-          alumno.nombre === 'Alumno5'
-            ? (['P', 'SP', 'E', 'A'] as const)[Math.floor(Math.random() * 4)]
-            : 'P';
-        await prisma.asistencia.createMany({
-          data: [
-            {
-              id_alumno: alumno.id_alumno,
-              id_asignatura: mat7A.id_asignatura,
-              id_orientador: orientador!.id_orientador,
-              fecha: new Date(fecha),
-              estado,
-              anio_academico: '2025',
-              trimestre,
-            },
-            {
-              id_alumno: alumno.id_alumno,
-              id_asignatura: cie7A.id_asignatura,
-              id_orientador: orientador!.id_orientador,
-              fecha: new Date(fecha),
-              estado,
-              anio_academico: '2025',
-              trimestre,
-            },
-          ],
-          skipDuplicates: true, // Esto funciona por el @@unique en Asistencia
-        });
-      }
-
-      // --- BLOQUE DE CONDUCTA ACTUALIZADO ---
-      if (alumno.nombre === 'Alumno5') {
-        // Asignar una falta aleatoria (leve o grave)
-        const faltaAleatoria = Math.random() > 0.5 ? faltaLeve : faltaGrave;
-
-        await prisma.conducta
-          .create({
-            data: {
-              id_alumno: alumno.id_alumno,
-              id_orientador: orientador!.id_orientador,
-              id_asignatura: cie7A.id_asignatura, // Ocurrió en Ciencias
-              fecha: new Date(fechas[1]), // El día 15 del mes
-
-              // Campos NUEVOS:
-              id_infraccion_catalogo: faltaAleatoria.id_infraccion,
-              observacion: `Incidente reportado por orientador en T${trimestre}`,
-
-              // Campos de reporte
-              anio_academico: '2025',
-              trimestre,
-            },
-          })
-          .catch(() => {
-            // Ignorar si ya existe (para idempotencia 'suave')
-            // Para hacerlo 100% idempotente, deberías agregar
-            // @@unique([id_alumno, id_infraccion_catalogo, fecha]) al modelo Conducta
-          });
-      }
-      // --- FIN BLOQUE DE CONDUCTA ---
     if (alumnos.length === 0) {
       console.log('No hay alumnos disponibles para asignar a cursos.');
       return;
@@ -1255,12 +1102,10 @@ async function main() {
   // 4. Crear cursos y asignarlos a docentes
   await seedCursosAsignaturasYAsignaciones(cargos);
 
-  // 5. Crear el curso 7A y sus datos (que AHORA depende de Infracciones)
-  await seedCurso7A();
+  // 5. Asignar alumnos a cursos usando AlumnoCurso
+  await asignarAlumnosACursos();
 
   // 6. Refrescar la Vista Materializada
-  // Asignar alumnos a cursos usando AlumnoCurso
-
   await ensureMVAsignaciones();
 }
 

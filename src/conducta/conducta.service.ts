@@ -197,25 +197,26 @@ export class ConductasService {
     fechaFin: Date,
   ): Promise<ConductaResponse[]> {
     try {
-      // Buscar alumnos del curso
-      const alumnos = await this.prisma.alumno.findMany({
+      // Buscar alumnos del curso usando la tabla pivote AlumnoCurso
+      const inscripciones = await this.prisma.alumnoCurso.findMany({
         where: {
-          cursos: {
-            some: { id_curso },
-          },
+          cursoId: id_curso,
+          estado: 'ACTIVO', // Solo alumnos activos en el curso
         },
-        select: { id_alumno: true },
+        select: { alumnoId: true },
       });
 
-      if (!alumnos.length) {
+      if (!inscripciones.length) {
         throw new NotFoundException(
-          `El curso con ID ${id_curso} no tiene alumnos.`,
+          `El curso con ID ${id_curso} no tiene alumnos activos.`,
         );
       }
 
+      const idsAlumnos = inscripciones.map((i) => i.alumnoId);
+
       const registros = await this.prisma.conducta.findMany({
         where: {
-          id_alumno: { in: alumnos.map((a) => a.id_alumno) },
+          id_alumno: { in: idsAlumnos },
           fecha: { gte: fechaInicio, lte: fechaFin },
         },
         include: {
@@ -231,7 +232,10 @@ export class ConductasService {
       return registros as unknown as ConductaResponse[];
     } catch (error) {
       console.error('❌ Error en findByCursoYRango:', error);
-      throw new InternalServerErrorException(error.message);
+      if (error.status) throw error;
+      throw new InternalServerErrorException(
+        `Error al obtener conductas del curso: ${error.message}`,
+      );
     }
   }
 

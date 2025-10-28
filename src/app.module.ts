@@ -22,9 +22,9 @@ import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { ImportModule } from './import/import.module';
-import { ConductasModule } from './conducta/conducta.module';
+import { ConductaModule as ConductasInfraccionesModule } from './conducta/conducta.module';
 import { ResumenModule } from './asistencias/resumen/resumen.module';
-import { ConductaModule } from './asistencias/conductaAsistencia/conductaAsistencia.module';
+import { ConductaModule as ConductaAsistenciaModule } from './asistencias/conductaAsistencia/conductaAsistencia.module';
 import { AsistenciaModule } from './asistencias/asistencia.module';
 
 import { PromocionesModule } from './promociones/promociones.module';
@@ -50,7 +50,8 @@ import { PromocionesModule } from './promociones/promociones.module';
     SistemasEvaluacionModule,
     ImportModule,
     ResumenModule,
-    ConductaModule,
+    ConductasInfraccionesModule,
+    ConductaAsistenciaModule,
     AsistenciaModule,
     PromocionesModule,
     ScheduleModule.forRoot(),
