@@ -208,6 +208,77 @@ export class CursosService {
   }
 
   /**
+   * Buscar cursos asignados a un orientador
+   * Retorna cursos donde el orientador tiene algún rol (titular, historial o asignatura)
+   */
+  async findCursosAsignadosDocente(orientadorId: number) {
+    const cursos = await this.prisma.curso.findMany({
+      where: {
+        activo: true,
+        OR: [
+          // Opción 1: Es orientador titular del curso
+          {
+            id_orientador: orientadorId,
+          },
+
+          // Opción 2: Está en el historial como orientador o docente (vigente)
+          {
+            historialCurso: {
+              some: {
+                id_orientador: orientadorId,
+                OR: [{ fecha_fin: null }, { fecha_fin: { gt: new Date() } }],
+              },
+            },
+          },
+
+          // Opción 3: Tiene asignaturas asignadas a través de AsignaturaOrientador
+          {
+            asignaturas: {
+              some: {
+                orientadores: {
+                  some: {
+                    id_orientador: orientadorId,
+                    activo: true,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        gradoAcademico: {
+          select: {
+            id_grado_academico: true,
+            nombre: true,
+          },
+        },
+        asignaturas: {
+          select: {
+            id_asignatura: true,
+            nombre: true,
+          },
+          orderBy: {
+            id_asignatura: 'asc',
+          },
+        },
+        orientador: {
+          select: {
+            id_orientador: true,
+            nombre: true,
+            apellido: true,
+          },
+        },
+      },
+      orderBy: {
+        id_curso: 'asc',
+      },
+    });
+
+    return cursos;
+  }
+
+  /**
    * Obtiene información de cupos para un curso específico
    * @param id ID del curso
    * @returns Información detallada sobre cupos totales, ocupados y disponibles

@@ -68,6 +68,29 @@ export class CursosController {
     return this.service.stats();
   }
 
+  /**
+   * Obtener cursos asignados a un orientador específico
+   * Incluye cursos donde el orientador:
+   * - Es el orientador titular (id_orientador)
+   * - Está en el historial vigente
+   * - Tiene asignaturas asignadas
+   */
+  @Get('asignados/:orientadorId')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Obtener cursos asignados a un orientador',
+    description:
+      'Retorna todos los cursos donde el orientador tiene algún rol: titular, en historial vigente o con asignaturas asignadas',
+  })
+  @ApiOkResponse({
+    description: 'Lista de cursos asignados al orientador',
+  })
+  async findCursosAsignadosDocente(
+    @Param('orientadorId', ParseIntPipe) orientadorId: number,
+  ) {
+    return this.service.findCursosAsignadosDocente(orientadorId);
+  }
+
   @Roles('Admin', 'P.A')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
