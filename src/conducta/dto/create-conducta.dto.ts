@@ -1,21 +1,31 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class CreateConductaDto {
   @ApiProperty({ example: 12, description: 'ID del alumno' })
   @IsInt({ message: 'El ID del alumno debe ser un número entero' })
   id_alumno: number;
 
-  @ApiProperty({ example: 7, description: 'ID del orientador que registra la conducta' })
+  @ApiProperty({
+    example: 7,
+    description: 'ID del orientador que registra la conducta',
+  })
   @IsInt({ message: 'El ID del orientador debe ser un número entero' })
   id_orientador: number;
 
   @ApiProperty({
-    example: 'MENOS_GRAVE',
-    description: 'Gravedad de la falta (MENOS_GRAVE, GRAVE, MUY_GRAVE)',
+    example: 1,
+    description: 'ID de la infracción del catálogo',
   })
-  @IsNotEmpty({ message: 'La gravedad es obligatoria' })
-  gravedad: 'MENOS_GRAVE' | 'GRAVE' | 'MUY_GRAVE';
+  @IsInt({ message: 'El ID de la infracción debe ser un número entero' })
+  @IsNotEmpty({ message: 'El ID de la infracción es obligatorio' })
+  id_infraccion: number;
 
   @ApiProperty({
     example: 'Interrumpió la clase varias veces',
@@ -23,7 +33,9 @@ export class CreateConductaDto {
   })
   @IsNotEmpty({ message: 'La descripción es obligatoria' })
   @IsString({ message: 'La descripción debe ser un texto' })
-  @MaxLength(255, { message: 'La descripción no debe superar los 255 caracteres' })
+  @MaxLength(255, {
+    message: 'La descripción no debe superar los 255 caracteres',
+  })
   descripcion: string;
 
   @ApiProperty({

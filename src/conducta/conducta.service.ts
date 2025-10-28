@@ -5,11 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  CreateConductaDto,
-  UpdateConductaDto,
-  ConductaResponse,
-} from './dto';
+import { CreateConductaDto, UpdateConductaDto, ConductaResponse } from './dto';
 
 @Injectable()
 export class ConductasService {
@@ -18,10 +14,19 @@ export class ConductasService {
   /**
    * 📌 Crea un nuevo registro de conducta
    */
-  async create(createConductaDto: CreateConductaDto): Promise<ConductaResponse> {
+  async create(
+    createConductaDto: CreateConductaDto,
+  ): Promise<ConductaResponse> {
     try {
-      const { id_alumno, id_orientador, gravedad, descripcion, fecha, anio_academico, trimestre } =
-        createConductaDto;
+      const {
+        id_alumno,
+        id_orientador,
+        descripcion,
+        fecha,
+        anio_academico,
+        trimestre,
+        id_infraccion,
+      } = createConductaDto;
 
       // Verificar que el alumno exista
       const alumnoExiste = await this.prisma.alumno.findUnique({
@@ -36,7 +41,9 @@ export class ConductasService {
         where: { id_orientador },
       });
       if (!orientadorExiste) {
-        throw new NotFoundException(`El orientador con ID ${id_orientador} no existe.`);
+        throw new NotFoundException(
+          `El orientador con ID ${id_orientador} no existe.`,
+        );
       }
 
       // Calcular año académico y trimestre si no se enviaron
@@ -49,15 +56,18 @@ export class ConductasService {
         data: {
           id_alumno,
           id_orientador,
-          gravedad,
-          descripcion,
+          id_infraccion_catalogo: id_infraccion,
+          observacion: descripcion,
           fecha: fechaRegistro,
           anio_academico: anio,
           trimestre: trimestreCalculado,
         },
         include: {
           alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-          orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
+          orientador: {
+            select: { id_orientador: true, nombre: true, apellido: true },
+          },
+          infraccion: true,
         },
       });
 
@@ -92,12 +102,19 @@ export class ConductasService {
       const conductaActualizada = await this.prisma.conducta.update({
         where: { id_conducta },
         data: {
-          ...(updateConductaDto.gravedad && { gravedad: updateConductaDto.gravedad }),
-          ...(updateConductaDto.descripcion && { descripcion: updateConductaDto.descripcion }),
+          ...(updateConductaDto.descripcion && {
+            observacion: updateConductaDto.descripcion,
+          }),
+          ...(updateConductaDto.id_infraccion && {
+            id_infraccion_catalogo: updateConductaDto.id_infraccion,
+          }),
         },
         include: {
           alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-          orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
+          orientador: {
+            select: { id_orientador: true, nombre: true, apellido: true },
+          },
+          infraccion: true,
         },
       });
 
@@ -120,7 +137,10 @@ export class ConductasService {
         where: { id_orientador },
         include: {
           alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-          orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
+          orientador: {
+            select: { id_orientador: true, nombre: true, apellido: true },
+          },
+          infraccion: true,
         },
         orderBy: { fecha: 'desc' },
       });
@@ -147,7 +167,10 @@ export class ConductasService {
         where: { id_alumno },
         include: {
           alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-          orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
+          orientador: {
+            select: { id_orientador: true, nombre: true, apellido: true },
+          },
+          infraccion: true,
         },
         orderBy: { fecha: 'desc' },
       });
@@ -185,7 +208,9 @@ export class ConductasService {
       });
 
       if (!alumnos.length) {
-        throw new NotFoundException(`El curso con ID ${id_curso} no tiene alumnos.`);
+        throw new NotFoundException(
+          `El curso con ID ${id_curso} no tiene alumnos.`,
+        );
       }
 
       const registros = await this.prisma.conducta.findMany({
@@ -195,7 +220,10 @@ export class ConductasService {
         },
         include: {
           alumno: { select: { id_alumno: true, nombre: true, apellido: true } },
-          orientador: { select: { id_orientador: true, nombre: true, apellido: true } },
+          orientador: {
+            select: { id_orientador: true, nombre: true, apellido: true },
+          },
+          infraccion: true,
         },
         orderBy: [{ fecha: 'desc' }],
       });

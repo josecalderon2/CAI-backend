@@ -22,9 +22,10 @@ import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { ImportModule } from './import/import.module';
-import { AsistenciaModule } from './asistencias/asistencias.module';
 import { ConductasModule } from './conducta/conducta.module';
-import { AsistenciaHistorialModule } from './asistencias/asistencia-historial.module';
+import { ResumenModule } from './asistencias/resumen/resumen.module';
+import { ConductaModule } from './asistencias/conductaAsistencia/conductaAsistencia.module';
+import { AsistenciaModule } from './asistencias/asistencia.module';
 
 @Module({
   imports: [
@@ -42,14 +43,15 @@ import { AsistenciaHistorialModule } from './asistencias/asistencia-historial.mo
     JornadasModule,
     ActividadesRecientesModule,
     AsignaturasModule,
-    AsistenciaModule,
     AsignacionesModule,
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
     ConductasModule,
     ImportModule,
-    AsistenciaHistorialModule,
+    ResumenModule,
+    ConductaModule,
+    AsistenciaModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

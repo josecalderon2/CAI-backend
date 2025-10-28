@@ -1,16 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateConductaDto {
   @ApiPropertyOptional({
-    example: 'GRAVE',
-    description: 'Nueva gravedad (MENOS_GRAVE, GRAVE o MUY_GRAVE)',
+    example: 1,
+    description: 'Nuevo ID de la infracción del catálogo',
   })
   @IsOptional()
-  @IsEnum(['MENOS_GRAVE', 'GRAVE', 'MUY_GRAVE'], {
-    message: 'La gravedad debe ser MENOS_GRAVE, GRAVE o MUY_GRAVE',
-  })
-  gravedad?: 'MENOS_GRAVE' | 'GRAVE' | 'MUY_GRAVE';
+  @IsInt({ message: 'El ID de la infracción debe ser un número entero' })
+  id_infraccion?: number;
 
   @ApiPropertyOptional({
     example: 'El alumno interrumpió nuevamente la clase.',
@@ -18,6 +22,8 @@ export class UpdateConductaDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(255, { message: 'La descripción no debe superar los 255 caracteres' })
+  @MaxLength(255, {
+    message: 'La descripción no debe superar los 255 caracteres',
+  })
   descripcion?: string;
 }

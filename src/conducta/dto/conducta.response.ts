@@ -11,16 +11,28 @@ export class ConductaResponse {
   id_orientador: number;
 
   @ApiProperty({
-    example: 'MENOS_GRAVE',
-    description: 'Gravedad de la falta (MENOS_GRAVE, GRAVE, MUY_GRAVE)',
+    example: 1,
+    description: 'ID de la infracción del catálogo',
   })
-  gravedad: 'MENOS_GRAVE' | 'GRAVE' | 'MUY_GRAVE';
+  id_infraccion_catalogo: number;
+
+  @ApiProperty({
+    description: 'Infracción del catálogo',
+    example: {
+      id_infraccion: 1,
+      articulo: '5.1.3',
+      descripcion: 'Interrumpir la clase',
+      puntos: 1.0,
+      categoria: 'MENOS_GRAVE',
+    },
+  })
+  infraccion: any;
 
   @ApiProperty({
     example: 'Interrumpió la clase varias veces',
-    description: 'Descripción del comportamiento o falta',
+    description: 'Observaciones específicas del incidente',
   })
-  descripcion: string;
+  observacion: string;
 
   @ApiProperty({
     example: '2025-10-22T00:00:00.000Z',

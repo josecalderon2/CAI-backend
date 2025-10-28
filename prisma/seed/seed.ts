@@ -1,5 +1,9 @@
 // prisma/seed/seed.ts
-import { PrismaClient, Prisma } from '@prisma/client';
+import {
+  PrismaClient,
+  Prisma,
+  CategoriaInfraccion, // Importar el nuevo Enum
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -199,6 +203,141 @@ async function seedGradosAcademicos() {
   }
 
   console.log('Grados Académicos OK:', grados.map((g) => g.nombre).join(', '));
+}
+
+/* ==============================
+   NUEVO SEED: Catálogo Infracciones
+============================== */
+/**
+ * Puebla la tabla `InfraccionCatalogo` con datos del manual.
+ */
+async function seedInfracciones() {
+  console.log('⏳ Poblando Catálogo de Infracciones...');
+
+  // Definimos la data de las infracciones
+  const infraccionesData: Prisma.InfraccionCatalogoCreateInput[] = [
+    // --- Menos Graves (1 punto) ---
+    {
+      categoria: CategoriaInfraccion.MENOS_GRAVE,
+      articulo: 'MG-001',
+      descripcion: 'Presentación personal indecorosa o uniforme incompleto',
+      puntos: 1,
+    },
+    {
+      categoria: CategoriaInfraccion.MENOS_GRAVE,
+      articulo: 'MG-002',
+      descripcion: 'Llegada tardía (Acumulación)',
+      puntos: 1,
+    },
+    {
+      categoria: CategoriaInfraccion.MENOS_GRAVE,
+      articulo: 'MG-003',
+      descripcion: 'Incumplimiento de tareas',
+      puntos: 1,
+    },
+    {
+      categoria: CategoriaInfraccion.MENOS_GRAVE,
+      articulo: 'MG-004',
+      descripcion: 'Uso de lenguaje inadecuado (sobrenombres, vulgar)',
+      puntos: 1,
+    },
+
+    // --- Graves (3 puntos) ---
+    {
+      categoria: CategoriaInfraccion.GRAVE,
+      articulo: 'G-001',
+      descripcion: 'Uso de maquillaje, tinte o uñas acrílicas',
+      puntos: 3,
+    },
+    {
+      categoria: CategoriaInfraccion.GRAVE,
+      articulo: 'G-002',
+      descripcion: 'Manifestaciones de noviazgo',
+      puntos: 3,
+    },
+    {
+      categoria: CategoriaInfraccion.GRAVE,
+      articulo: 'G-003',
+      descripcion: 'Dañar mobiliario o infraestructura',
+      puntos: 3,
+    },
+    {
+      categoria: CategoriaInfraccion.GRAVE,
+      articulo: 'G-004',
+      descripcion: 'Falta de respeto al personal (docente, admin, etc.)',
+      puntos: 3,
+    },
+    {
+      categoria: CategoriaInfraccion.GRAVE,
+      articulo: 'G-005',
+      descripcion: 'Intento de fraude en tareas o trabajos',
+      puntos: 3,
+    },
+    {
+      categoria: CategoriaInfraccion.GRAVE,
+      articulo: 'G-006',
+      descripcion: 'Uso de celular sin permiso en clase',
+      puntos: 3,
+    },
+    // Este maneja el caso de 0.3 puntos visto en el Excel
+    {
+      categoria: CategoriaInfraccion.GRAVE,
+      articulo: 'G-007',
+      descripcion: 'Falta de respeto (Artículo 5.1.3 literal e) - Peso 0.3',
+      puntos: 0.3,
+    },
+
+    // --- Muy Graves (5 puntos) ---
+    {
+      categoria: CategoriaInfraccion.MUY_GRAVE,
+      articulo: 'MGV-001',
+      descripcion: 'Abandonar el colegio sin autorización',
+      puntos: 5,
+    },
+    {
+      categoria: CategoriaInfraccion.MUY_GRAVE,
+      articulo: 'MGV-002',
+      descripcion: 'Hurto o robo de pertenencias',
+      puntos: 5,
+    },
+    {
+      categoria: CategoriaInfraccion.MUY_GRAVE,
+      articulo: 'MGV-003',
+      descripcion: 'Agresión física o verbal (Atentar contra la integridad)',
+      puntos: 5,
+    },
+    {
+      categoria: CategoriaInfraccion.MUY_GRAVE,
+      articulo: 'MGV-004',
+      descripcion: 'Acoso escolar (Bullying)',
+      puntos: 5,
+    },
+    {
+      categoria: CategoriaInfraccion.MUY_GRAVE,
+      articulo: 'MGV-005',
+      descripcion: 'Introducir/ingerir alcohol o sustancias prohibidas',
+      puntos: 5,
+    },
+    {
+      categoria: CategoriaInfraccion.MUY_GRAVE,
+      articulo: 'MGV-006',
+      descripcion: 'Fraude comprobado en exámenes',
+      puntos: 5,
+    },
+  ];
+
+  // Usamos upsert para que sea idempotente, usando 'articulo' como llave
+  for (const data of infraccionesData) {
+    await prisma.infraccionCatalogo.upsert({
+      where: { articulo: data.articulo },
+      update: data,
+      create: data,
+    });
+  }
+
+  console.log(
+    `✅ Catálogo de Infracciones OK (${infraccionesData.length} registros).`,
+  );
 }
 
 /* =========================
@@ -877,11 +1016,13 @@ async function ensureMVAsignaciones() {
   console.log('Materialized View OK: mv_asignaciones');
 }
 
-/* =========================
-   7°A: Idempotente con UPSERT
-========================= */
+/* =================================
+   MODIFICADO: 7°A con Conducta Nueva
+================================= */
 async function seedCurso7A() {
-  console.log('⏳ Creando datos de prueba para 7°A...');
+  console.log(
+    '⏳ Creando datos de prueba para 7°A (con conducta actualizada)...',
+  );
 
   const orientador = await prisma.orientador.findUnique({
     where: { email: 'orientador@colegio.edu' },
@@ -890,6 +1031,23 @@ async function seedCurso7A() {
     where: { nombre: 'Secundaria' },
   });
   const catalogos = await getCatalogIds();
+
+  // --- Buscamos las infracciones que creamos en seedInfracciones() ---
+  const faltaLeve = await prisma.infraccionCatalogo.findUnique({
+    where: { articulo: 'MG-003' }, // 'Incumplimiento de tareas'
+    select: { id_infraccion: true },
+  });
+  const faltaGrave = await prisma.infraccionCatalogo.findUnique({
+    where: { articulo: 'G-006' }, // 'Uso de celular sin permiso en clase'
+    select: { id_infraccion: true },
+  });
+
+  if (!faltaLeve || !faltaGrave) {
+    throw new Error(
+      'Infracciones de catálogo (MG-003, G-006) no encontradas. Asegúrate de correr seedInfracciones() primero.',
+    );
+  }
+  // --- Fin de la búsqueda de infracciones ---
 
   // 🔹 Curso
   const curso7A = await getOrCreateCurso(
@@ -980,9 +1138,7 @@ async function seedCurso7A() {
     alumnos.push(alumno);
   }
 
-  // 🔹 Asistencias y conductas (3 trimestres) — idempotente "suave":
-  // Para no duplicar infinitamente, usaremos createMany con fechas fijas; si ya existen,
-  // en una segunda corrida podrías limpiar antes o agregar lógica de "find or create".
+  // 🔹 Asistencias y conductas (3 trimestres)
   const fechasTrimestres = [
     { trimestre: 1, fechas: ['2025-02-01', '2025-02-15', '2025-03-10'] },
     { trimestre: 2, fechas: ['2025-05-01', '2025-05-15', '2025-06-10'] },
@@ -1017,35 +1173,44 @@ async function seedCurso7A() {
               trimestre,
             },
           ],
-          skipDuplicates: true, // evita duplicar si hay unique en tu modelo (si lo configuras)
+          skipDuplicates: true, // Esto funciona por el @@unique en Asistencia
         });
       }
 
+      // --- BLOQUE DE CONDUCTA ACTUALIZADO ---
       if (alumno.nombre === 'Alumno5') {
-        const gravedad = ['MENOS_GRAVE', 'GRAVE', 'MUY_GRAVE'] as const;
-        // Para no duplicar la misma conducta, intenta un upsert por una clave "natural" si existe
+        // Asignar una falta aleatoria (leve o grave)
+        const faltaAleatoria = Math.random() > 0.5 ? faltaLeve : faltaGrave;
+
         await prisma.conducta
           .create({
             data: {
               id_alumno: alumno.id_alumno,
               id_orientador: orientador!.id_orientador,
-              id_asignatura: cie7A.id_asignatura,
-              fecha: new Date(fechas[1]),
-              gravedad: gravedad[Math.floor(Math.random() * gravedad.length)],
-              descripcion: `Falta disciplinaria durante el trimestre ${trimestre}`,
+              id_asignatura: cie7A.id_asignatura, // Ocurrió en Ciencias
+              fecha: new Date(fechas[1]), // El día 15 del mes
+
+              // Campos NUEVOS:
+              id_infraccion_catalogo: faltaAleatoria.id_infraccion,
+              observacion: `Incidente reportado por orientador en T${trimestre}`,
+
+              // Campos de reporte
               anio_academico: '2025',
               trimestre,
             },
           })
           .catch(() => {
-            // Si ya existe, lo ignoramos (por falta de unique natural).
+            // Ignorar si ya existe (para idempotencia 'suave')
+            // Para hacerlo 100% idempotente, deberías agregar
+            // @@unique([id_alumno, id_infraccion_catalogo, fecha]) al modelo Conducta
           });
       }
+      // --- FIN BLOQUE DE CONDUCTA ---
     }
   }
 
   console.log(
-    '✅ Curso 7°A, alumnos, asistencias y conductas creados/asegurados correctamente.',
+    '✅ Curso 7°A, alumnos, asistencias y conductas (NUEVO MODELO) creados/asegurados.',
   );
 }
 
@@ -1063,13 +1228,27 @@ async function main() {
   await seedUsuarios(cargos);
   await seedParentescos();
   await seedTipoActividades();
-  await seedAlumnoEjemplo();
-  await seedAlumnoEjemplo2(); // segundo alumno
+
+  // --- NUEVO ORDEN ---
+  // 1. Poblar catálogos de evaluación
   await seedMetodosEvaluacion();
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
+
+  // 2. Poblar el NUEVO catálogo de infracciones
+  await seedInfracciones();
+
+  // 3. Crear alumnos de ejemplo
+  await seedAlumnoEjemplo();
+  await seedAlumnoEjemplo2(); // segundo alumno
+
+  // 4. Crear cursos y asignarlos a docentes
   await seedCursosAsignaturasYAsignaciones(cargos);
+
+  // 5. Crear el curso 7A y sus datos (que AHORA depende de Infracciones)
   await seedCurso7A();
+
+  // 6. Refrescar la Vista Materializada
   await ensureMVAsignaciones();
 }
 
