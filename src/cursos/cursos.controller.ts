@@ -91,6 +91,24 @@ export class CursosController {
     return this.service.findCursosAsignadosDocente(orientadorId);
   }
 
+  /**
+   * Obtener alumnos de un curso específico
+   * Retorna la lista de alumnos matriculados en el curso
+   */
+  @Get(':id/alumnos')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Obtener alumnos de un curso',
+    description:
+      'Retorna todos los alumnos matriculados en un curso específico',
+  })
+  @ApiOkResponse({
+    description: 'Lista de alumnos del curso',
+  })
+  async getAlumnosPorCurso(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getAlumnosPorCurso(id);
+  }
+
   @Roles('Admin', 'P.A')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

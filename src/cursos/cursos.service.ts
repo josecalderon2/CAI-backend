@@ -279,6 +279,44 @@ export class CursosService {
   }
 
   /**
+   * Obtener alumnos de un curso específico
+   * Retorna la lista de alumnos matriculados activamente en el curso
+   */
+  async getAlumnosPorCurso(cursoId: number) {
+    // Verificar que el curso existe
+    await this.findOne(cursoId);
+
+    // Obtener alumnos del curso a través de la tabla pivote AlumnoCurso
+    const alumnosCurso = await this.prisma.alumnoCurso.findMany({
+      where: {
+        cursoId: cursoId,
+        estado: 'ACTIVO', // Solo alumnos activos
+      },
+      include: {
+        alumno: {
+          select: {
+            id_alumno: true,
+            nombre: true,
+            apellido: true,
+          },
+        },
+      },
+      orderBy: {
+        alumno: {
+          apellido: 'asc',
+        },
+      },
+    });
+
+    // Mapear para retornar solo los datos del alumno
+    return alumnosCurso.map((ac) => ({
+      id_alumno: ac.alumno.id_alumno,
+      nombre: ac.alumno.nombre,
+      apellido: ac.alumno.apellido,
+    }));
+  }
+
+  /**
    * Obtiene información de cupos para un curso específico
    * @param id ID del curso
    * @returns Información detallada sobre cupos totales, ocupados y disponibles
