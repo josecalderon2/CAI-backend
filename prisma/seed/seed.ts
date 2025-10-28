@@ -8,9 +8,6 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-/* =========================
-   Helpers / Catálogos
-========================= */
 async function getOrCreateCargo(nombre: 'Admin' | 'P.A' | 'Orientador') {
   const up = await prisma.cargo_administrativo.findFirst({
     where: { nombre },
@@ -344,6 +341,7 @@ async function seedInfracciones() {
    Alumno Ejemplo (detallado)
 ========================= */
 async function seedAlumnoEjemplo() {
+  // Responsables con campos nuevos (tipoDocumento, numeroDocumento, naturalizado, telefonoFijo)
   const responsablePadre = await prisma.responsable.upsert({
     where: { dui: '01234567-8' },
     update: {
@@ -427,13 +425,16 @@ async function seedAlumnoEjemplo() {
   const parentescoPadre = await prisma.parentesco.findFirst({
     where: { nombre: 'Padre' },
   });
+
   const parentescoMadre = await prisma.parentesco.findFirst({
     where: { nombre: 'Madre' },
   });
+
   const parentescoTio = await prisma.parentesco.findFirst({
     where: { nombre: 'Tío/a' },
   });
 
+  // Alumno + nuevos campos (matrícula/autoriza/transporte/religión) con UPSERT por numeroMatricula
   const alumnoCreado = await prisma.alumno.upsert({
     where: { numeroMatricula: 'MAT-2025-0001' },
     update: {
@@ -455,7 +456,6 @@ async function seedAlumnoEjemplo() {
       nombre: 'Diego Antonio',
       apellido: 'Acosta Pineda',
       genero: 'M',
-      // En tu modelo usas String; mantengo formato mixto como venía
       fechaNacimiento: '23/06/2010',
       nacionalidad: 'Salvadoreña',
       edad: 14,
@@ -483,6 +483,7 @@ async function seedAlumnoEjemplo() {
       condicionado: false,
       activo: true,
 
+      // Nuevos (vigentes)
       anioEscolar: '2025',
       numeroMatricula: 'MAT-2025-0001',
       fechaMatricula: new Date('2025-01-10T15:30:00Z'),
@@ -547,29 +548,8 @@ async function seedAlumnoEjemplo() {
     },
   });
 
-  console.log('Alumno 1 creado/actualizado:', alumnoCreado.id_alumno);
+  console.log('Alumno de ejemplo creado/actualizado:', alumnoCreado.id_alumno);
   return alumnoCreado;
-}
-
-async function seedAlumnoEjemplo2() {
-  const alumno2 = await prisma.alumno.upsert({
-    where: { numeroMatricula: 'MAT-2025-0002' },
-    update: { anioEscolar: '2025', estadoMatricula: 'INSCRITO' },
-    create: {
-      nombre: 'Ruth',
-      apellido: 'Lemus',
-      genero: 'F',
-      fechaNacimiento: '12/02/2010',
-      edad: 15,
-      activo: true,
-      anioEscolar: '2025',
-      numeroMatricula: 'MAT-2025-0002',
-      fechaMatricula: new Date('2025-01-11T15:30:00Z'),
-      estadoMatricula: 'INSCRITO',
-    },
-  });
-  console.log('Alumno 2 creado/actualizado:', alumno2.id_alumno);
-  return alumno2;
 }
 
 async function seedMetodosEvaluacion() {
@@ -632,9 +612,6 @@ async function seedSistemasEvaluacion() {
   console.log('Sistemas de Evaluación OK');
 }
 
-/* =========================
-   Cursos / Asignaturas / AO
-========================= */
 async function ensureOrientadorExtra(
   email: string,
   nombre: string,
@@ -672,6 +649,8 @@ async function getOrCreateCurso(
   const found = await prisma.curso.findFirst({ where: { nombre, seccion } });
   if (found) {
     const dataUpdate: Prisma.CursoUpdateInput = {};
+
+    // ✅ usar la relación en updates
     if (found.id_orientador !== id_orientador) {
       dataUpdate.orientador = { connect: { id_orientador } };
     }
@@ -680,6 +659,7 @@ async function getOrCreateCurso(
     if (anio_academico && found.anio_academico !== anio_academico) {
       dataUpdate.anio_academico = anio_academico;
     }
+
     if (Object.keys(dataUpdate).length) {
       return prisma.curso.update({
         where: { id_curso: found.id_curso },
@@ -689,12 +669,13 @@ async function getOrCreateCurso(
     return found;
   }
 
+  // En create puedes mantener el FK directo
   return prisma.curso.create({
     data: {
       nombre,
       seccion,
       id_grado_academico,
-      id_orientador,
+      id_orientador, // también podría ser: orientador: { connect: { id_orientador } }
       cupo,
       aula,
       activo: true,
@@ -889,6 +870,7 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     fecha_asignacion: fAsign,
     activo: true,
   });
+
   await upsertAsignacionAO({
     id_asignatura: len5A.id_asignatura,
     id_orientador: ori2.id_orientador,
@@ -896,6 +878,7 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     fecha_asignacion: fAsign,
     activo: true,
   });
+
   await upsertAsignacionAO({
     id_asignatura: mat6B.id_asignatura,
     id_orientador: ori2.id_orientador,
@@ -903,6 +886,7 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     fecha_asignacion: fAsign,
     activo: true,
   });
+
   await upsertAsignacionAO({
     id_asignatura: soc6B.id_asignatura,
     id_orientador: ori1.id_orientador,
@@ -925,33 +909,8 @@ async function seedCursosAsignaturasYAsignaciones(cargos: {
     ],
     orientadores: [ori1.id_orientador, ori2.id_orientador],
   });
-
-  // === IDs útiles para probar asistencia ===
-  const ids = {
-    orientadores: {
-      ori1: ori1.id_orientador,
-      ori2: ori2.id_orientador,
-    },
-    cursos: {
-      curso5A: curso5A.id_curso,
-      curso6B: curso6B.id_curso,
-    },
-    asignaturas: {
-      mat5A: mat5A.id_asignatura,
-      len5A: len5A.id_asignatura,
-      cie5A: cie5A.id_asignatura,
-      mat6B: mat6B.id_asignatura,
-      len6B: len6B.id_asignatura,
-      soc6B: soc6B.id_asignatura,
-    },
-  };
-  console.log('=== IDs para probar asistencia ===');
-  console.log(JSON.stringify(ids, null, 2));
 }
 
-/* =========================
-   MV Asignaciones
-========================= */
 async function ensureMVAsignaciones() {
   await prisma.$executeRawUnsafe(`
     DO $$
@@ -1016,21 +975,12 @@ async function ensureMVAsignaciones() {
   console.log('Materialized View OK: mv_asignaciones');
 }
 
-/* =================================
-   MODIFICADO: 7°A con Conducta Nueva
-================================= */
-async function seedCurso7A() {
-  console.log(
-    '⏳ Creando datos de prueba para 7°A (con conducta actualizada)...',
-  );
+// Función para asignar alumnos a cursos
+async function asignarAlumnosACursos() {
+  console.log('Asignando alumnos a cursos...');
 
-  const orientador = await prisma.orientador.findUnique({
-    where: { email: 'orientador@colegio.edu' },
-  });
-  const gradoSecundaria = await prisma.grado_Academico.findFirst({
-    where: { nombre: 'Secundaria' },
-  });
-  const catalogos = await getCatalogIds();
+  // Año académico actual
+  const anioActual = '2025';
 
   // --- Buscamos las infracciones que creamos en seedInfracciones() ---
   const faltaLeve = await prisma.infraccionCatalogo.findUnique({
@@ -1117,26 +1067,23 @@ async function seedCurso7A() {
         cursos: { connect: { id_curso: curso7A.id_curso } }, // al crear sí conectamos
       },
       select: { id_alumno: true, nombre: true },
+  try {
+    // 1. Obtener los cursos existentes
+    const cursos = await prisma.curso.findMany({
+      where: { activo: true },
+      orderBy: { id_curso: 'asc' },
     });
 
-    // Intento de conectar al curso si entramos por "update":
-    // si ya estaba conectado, ignoramos el error (p.ej. por unique en tabla intermedia)
-    try {
-      await prisma.alumno.update({
-        where: { id_alumno: alumno.id_alumno },
-        data: { cursos: { connect: { id_curso: curso7A.id_curso } } },
-        select: { id_alumno: true },
-      });
-    } catch (e: any) {
-      // Ignorar duplicado de conexión; si es otro error, lo relanzamos
-      if (e?.code !== 'P2002') {
-        // Algunos drivers podrían no dar code; si quieres ser más laxo, comenta el if
-        // console.warn('Aviso al conectar curso7A:', e?.message ?? e);
-      }
+    if (cursos.length === 0) {
+      console.log('No hay cursos disponibles para asignar alumnos.');
+      return;
     }
 
-    alumnos.push(alumno);
-  }
+    // 2. Obtener los alumnos existentes
+    const alumnos = await prisma.alumno.findMany({
+      where: { activo: true },
+      orderBy: { id_alumno: 'asc' },
+    });
 
   // 🔹 Asistencias y conductas (3 trimestres)
   const fechasTrimestres = [
@@ -1206,17 +1153,80 @@ async function seedCurso7A() {
           });
       }
       // --- FIN BLOQUE DE CONDUCTA ---
+    if (alumnos.length === 0) {
+      console.log('No hay alumnos disponibles para asignar a cursos.');
+      return;
     }
-  }
 
-  console.log(
-    '✅ Curso 7°A, alumnos, asistencias y conductas (NUEVO MODELO) creados/asegurados.',
-  );
+    // 3. Distribuir alumnos en los cursos disponibles
+    const asignaciones: any[] = [];
+
+    // Distribuir los primeros 20 alumnos en diferentes cursos
+    for (let i = 0; i < Math.min(alumnos.length, 20); i++) {
+      const cursoIndex = i % cursos.length; // Distribuir equitativamente
+      const alumno = alumnos[i];
+      const curso = cursos[cursoIndex];
+
+      // Verificar si ya existe una asignación
+      const asignacionExistente = await prisma.alumnoCurso.findUnique({
+        where: {
+          alumnoId_cursoId_anioAcademico: {
+            alumnoId: alumno.id_alumno,
+            cursoId: curso.id_curso,
+            anioAcademico: anioActual,
+          },
+        },
+      });
+
+      if (!asignacionExistente) {
+        // Crear la relación AlumnoCurso
+        const asignacion = await prisma.alumnoCurso.create({
+          data: {
+            alumnoId: alumno.id_alumno,
+            cursoId: curso.id_curso,
+            anioAcademico: anioActual,
+            estado: 'ACTIVO',
+            fechaInscripcion: new Date(2025, 0, 15), // 15 de enero de 2025
+          },
+        });
+
+        asignaciones.push(asignacion);
+
+        // Actualizar el año escolar del alumno
+        await prisma.alumno.update({
+          where: { id_alumno: alumno.id_alumno },
+          data: {
+            anioEscolar: anioActual,
+          },
+        });
+      }
+    }
+
+    console.log(
+      `Se crearon ${asignaciones.length} asignaciones de alumnos a cursos.`,
+    );
+
+    // Agregar algunos datos específicos para pruebas de promoción
+    // Crear unos registros de historial para pruebas
+    for (let i = 0; i < Math.min(asignaciones.length, 5); i++) {
+      const asignacion = asignaciones[i];
+
+      await prisma.historialAcademico.create({
+        data: {
+          alumnoId: asignacion.alumnoId,
+          cursoId: asignacion.cursoId,
+          anioAcademico: anioActual,
+          fechaInicio: new Date(2025, 0, 15),
+        },
+      });
+    }
+
+    console.log('Alumnos asignados a cursos correctamente.');
+  } catch (error) {
+    console.error('Error al asignar alumnos a cursos:', error);
+  }
 }
 
-/* =========================
-   MAIN
-========================= */
 async function main() {
   console.log('DATABASE_URL:', process.env.DATABASE_URL);
   await prisma.$connect();
@@ -1231,6 +1241,7 @@ async function main() {
 
   // --- NUEVO ORDEN ---
   // 1. Poblar catálogos de evaluación
+  await seedAlumnoEjemplo(); // incluye nuevos campos del schema
   await seedMetodosEvaluacion();
   await seedTiposAsignatura();
   await seedSistemasEvaluacion();
@@ -1240,7 +1251,6 @@ async function main() {
 
   // 3. Crear alumnos de ejemplo
   await seedAlumnoEjemplo();
-  await seedAlumnoEjemplo2(); // segundo alumno
 
   // 4. Crear cursos y asignarlos a docentes
   await seedCursosAsignaturasYAsignaciones(cargos);
@@ -1249,6 +1259,8 @@ async function main() {
   await seedCurso7A();
 
   // 6. Refrescar la Vista Materializada
+  // Asignar alumnos a cursos usando AlumnoCurso
+
   await ensureMVAsignaciones();
 }
 

@@ -27,6 +27,7 @@ import { ResumenModule } from './asistencias/resumen/resumen.module';
 import { ConductaModule } from './asistencias/conductaAsistencia/conductaAsistencia.module';
 import { AsistenciaModule } from './asistencias/asistencia.module';
 
+import { PromocionesModule } from './promociones/promociones.module';
 @Module({
   imports: [
     AdministrativoModule,
@@ -47,11 +48,11 @@ import { AsistenciaModule } from './asistencias/asistencia.module';
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
-    ConductasModule,
     ImportModule,
     ResumenModule,
     ConductaModule,
     AsistenciaModule,
+    PromocionesModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

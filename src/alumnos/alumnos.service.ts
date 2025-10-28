@@ -479,4 +479,202 @@ export class AlumnosService {
 
     return resultados;
   }
+
+  /**
+   * Inscribe un alumno a un curso
+   * @param alumnoId ID del alumno a inscribir
+   * @param inscripcionDto Datos de la inscripción
+   */
+  async inscribirAlumnoCurso(alumnoId: number, inscripcionDto: any) {
+    // Verificar que el alumno existe y está activo
+    const alumno = await this.prisma.alumno.findUnique({
+      where: { id_alumno: alumnoId },
+    });
+
+    if (!alumno) {
+      throw new NotFoundException(`Alumno con ID ${alumnoId} no encontrado`);
+    }
+
+    if (!alumno.activo) {
+      throw new BadRequestException('No se puede inscribir un alumno inactivo');
+    }
+
+    // Verificar que el curso existe y está activo
+    const curso = await this.prisma.curso.findUnique({
+      where: { id_curso: inscripcionDto.cursoId },
+    });
+
+    if (!curso) {
+      throw new NotFoundException(
+        `Curso con ID ${inscripcionDto.cursoId} no encontrado`,
+      );
+    }
+
+    if (!curso.activo) {
+      throw new BadRequestException(
+        'No se puede inscribir en un curso inactivo',
+      );
+    }
+
+    // Verificar que no haya cupos disponibles
+    const alumnosInscritos = await this.prisma.alumnoCurso.count({
+      where: {
+        cursoId: inscripcionDto.cursoId,
+        estado: 'ACTIVO',
+      },
+    });
+
+    if (curso.cupo && alumnosInscritos >= curso.cupo) {
+      throw new BadRequestException('El curso no tiene cupos disponibles');
+    }
+
+    // Verificar si ya está inscrito en el mismo curso para el mismo año
+    const inscripcionExistente = await this.prisma.alumnoCurso.findFirst({
+      where: {
+        alumnoId,
+        cursoId: inscripcionDto.cursoId,
+        anioAcademico: inscripcionDto.anioAcademico,
+      },
+    });
+
+    if (inscripcionExistente) {
+      throw new BadRequestException(
+        `El alumno ya está inscrito en este curso para el año académico ${inscripcionDto.anioAcademico}`,
+      );
+    }
+
+    // Crear la inscripción
+    const inscripcion = await this.prisma.alumnoCurso.create({
+      data: {
+        alumnoId,
+        cursoId: inscripcionDto.cursoId,
+        anioAcademico: inscripcionDto.anioAcademico,
+        seccionAsignada: inscripcionDto.seccionAsignada || curso.seccion,
+        estado: inscripcionDto.estado || 'ACTIVO',
+        observaciones: inscripcionDto.observaciones,
+      },
+      include: {
+        alumno: {
+          select: {
+            id_alumno: true,
+            nombre: true,
+            apellido: true,
+          },
+        },
+        curso: {
+          select: {
+            id_curso: true,
+            nombre: true,
+            seccion: true,
+            gradoAcademico: {
+              select: {
+                nombre: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Registrar la actividad
+    await this.actividadRegistroService.registrarCreacionAlumno(
+      alumnoId,
+      `${alumno.nombre} ${alumno.apellido}`,
+    );
+
+    return inscripcion;
+  }
+
+  /**
+   * Obtiene todas las inscripciones de un alumno
+   * @param alumnoId ID del alumno
+   */
+  async obtenerInscripciones(alumnoId: number) {
+    const alumno = await this.prisma.alumno.findUnique({
+      where: { id_alumno: alumnoId },
+    });
+
+    if (!alumno) {
+      throw new NotFoundException(`Alumno con ID ${alumnoId} no encontrado`);
+    }
+
+    return this.prisma.alumnoCurso.findMany({
+      where: { alumnoId },
+      include: {
+        curso: {
+          select: {
+            id_curso: true,
+            nombre: true,
+            seccion: true,
+            aula: true,
+            gradoAcademico: {
+              select: {
+                nombre: true,
+              },
+            },
+            orientador: {
+              select: {
+                nombre: true,
+                apellido: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        fechaInscripcion: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Retira a un alumno de un curso
+   * @param alumnoId ID del alumno
+   * @param inscripcionId ID de la inscripción
+   */
+  async retirarAlumnoCurso(alumnoId: number, inscripcionId: number) {
+    const inscripcion = await this.prisma.alumnoCurso.findUnique({
+      where: { id: inscripcionId },
+      include: {
+        alumno: true,
+        curso: true,
+      },
+    });
+
+    if (!inscripcion) {
+      throw new NotFoundException(
+        `Inscripción con ID ${inscripcionId} no encontrada`,
+      );
+    }
+
+    if (inscripcion.alumnoId !== alumnoId) {
+      throw new BadRequestException(
+        'La inscripción no pertenece a este alumno',
+      );
+    }
+
+    // Actualizar el estado y fecha de retiro
+    const inscripcionActualizada = await this.prisma.alumnoCurso.update({
+      where: { id: inscripcionId },
+      data: {
+        estado: 'INACTIVO',
+        fechaRetiro: new Date(),
+      },
+      include: {
+        curso: {
+          select: {
+            nombre: true,
+          },
+        },
+      },
+    });
+
+    // Registrar la actividad
+    await this.actividadRegistroService.registrarActualizacionAlumno(
+      alumnoId,
+      `${inscripcion.alumno.nombre} ${inscripcion.alumno.apellido}`,
+    );
+
+    return inscripcionActualizada;
+  }
 }

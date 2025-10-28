@@ -225,14 +225,11 @@ export class CursosService {
 
     if (!curso) throw new NotFoundException('Curso no encontrado');
 
-    // Obtener el conteo de alumnos en este curso
-    const alumnosCount = await this.prisma.alumno.count({
+    // Obtener el conteo de alumnos en este curso usando la tabla pivote AlumnoCurso
+    const alumnosCount = await this.prisma.alumnoCurso.count({
       where: {
-        cursos: {
-          some: {
-            id_curso: id,
-          },
-        },
+        cursoId: id,
+        estado: 'ACTIVO', // Solo contar alumnos activos en el curso
       },
     });
 
@@ -312,14 +309,11 @@ export class CursosService {
 
     // Procesar cada curso para obtener el conteo de alumnos y la descripción
     const cursosPromises = cursos.map(async (curso) => {
-      // Obtener el conteo de alumnos
-      const alumnosCount = await this.prisma.alumno.count({
+      // Obtener el conteo de alumnos usando la tabla pivote AlumnoCurso
+      const alumnosCount = await this.prisma.alumnoCurso.count({
         where: {
-          cursos: {
-            some: {
-              id_curso: curso.id_curso,
-            },
-          },
+          cursoId: curso.id_curso,
+          estado: 'ACTIVO', // Solo contar alumnos activos en el curso
         },
       });
 
@@ -358,96 +352,5 @@ export class CursosService {
       pages: Math.ceil(total / limit),
       items,
     };
-  }
-
-  /**
-   * Obtiene los cursos asignados a un docente específico.
-   * Devuelve un arreglo con el shape amigable para el front:
-   * { id, nombre, nivel, asignatura, alumnos }
-   */
-  async findCursosAsignadosDocente(docenteId: number) {
-    // Traemos cursos activos cuyo id_orientador === docenteId
-    const cursos = await this.prisma.curso.findMany({
-      where: {
-        activo: true,
-        id_orientador: Number(docenteId),
-      },
-      select: {
-        id_curso: true,
-        nombre: true,
-        seccion: true,
-        // Si tienes relación de asignaturas en curso, dejamos esto:
-        asignaturas: {
-          select: { id_asignatura: true, nombre: true },
-        },
-      },
-      orderBy: [{ nombre: 'asc' }, { seccion: 'asc' }],
-    });
-
-    // Para cada curso, contamos alumnos via relación M:N en alumno.cursos
-    const items = await Promise.all(
-      cursos.map(async (c) => {
-        const alumnosCount = await this.prisma.alumno.count({
-          where: {
-            cursos: {
-              some: { id_curso: c.id_curso },
-            },
-          },
-        });
-
-        const asignaturaObj = c.asignaturas?.[0]
-          ? {
-              id_asignatura: c.asignaturas[0].id_asignatura,
-              nombre: c.asignaturas[0].nombre,
-            }
-          : undefined; // O un objeto default si lo prefieres
-
-        return {
-          id: String(c.id_curso),
-          nombre: c.nombre,
-          nivel: c.seccion ?? '',
-          asignatura: asignaturaObj, // <-- Enviar el objeto
-          alumnos: alumnosCount,
-        };
-      }),
-    );
-
-    return items;
-  }
-
-  /**
-   * Obtiene la lista de alumnos matriculados en un curso específico.
-   * Devuelve el shape: { id, nombre, apellido, rut, cursoId }
-   */
-  async getAlumnosPorCurso(cursoId: number) {
-    // Verificamos existencia del curso (opcional pero recomendado)
-    const curso = await this.prisma.curso.findUnique({
-      where: { id_curso: Number(cursoId) },
-      select: { id_curso: true },
-    });
-    if (!curso) throw new NotFoundException('Curso no encontrado');
-
-    // Recuperamos alumnos que tengan el curso en la relación M:N "cursos"
-    const alumnos = await this.prisma.alumno.findMany({
-      where: {
-        cursos: {
-          some: { id_curso: Number(cursoId) },
-        },
-      },
-      select: {
-        id_alumno: true,
-        nombre: true,
-        apellido: true,
-      },
-      orderBy: [{ apellido: 'asc' }, { nombre: 'asc' }],
-    });
-
-    // Mapeo al shape que estás consumiendo en el front
-    return alumnos.map((a) => ({
-      id: String(a.id_alumno),
-      nombre: a.nombre,
-      apellido: a.apellido,
-      cursoId: String(cursoId),
-    }));
   }
 }

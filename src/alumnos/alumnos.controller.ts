@@ -14,6 +14,7 @@ import {
   CreateAlumnoDto,
   CreateAlumnoResponsableDto,
   UpdateAlumnoDto,
+  InscribirAlumnoCursoDto,
 } from './dto';
 
 @ApiTags('Alumnos')
@@ -111,5 +112,33 @@ export class AlumnosController {
     @Param('responsableId') responsableId: string,
   ) {
     return this.alumnosService.eliminarResponsable(+alumnoId, +responsableId);
+  }
+
+  @ApiOperation({ summary: 'Inscribir un alumno a un curso' })
+  @ApiParam({ name: 'id', description: 'ID del alumno' })
+  @Post(':id/inscripciones')
+  inscribirAlumnoCurso(
+    @Param('id') id: string,
+    @Body() inscripcionDto: InscribirAlumnoCursoDto,
+  ) {
+    return this.alumnosService.inscribirAlumnoCurso(+id, inscripcionDto);
+  }
+
+  @ApiOperation({ summary: 'Obtener todas las inscripciones de un alumno' })
+  @ApiParam({ name: 'id', description: 'ID del alumno' })
+  @Get(':id/inscripciones')
+  obtenerInscripciones(@Param('id') id: string) {
+    return this.alumnosService.obtenerInscripciones(+id);
+  }
+
+  @ApiOperation({ summary: 'Retirar un alumno de un curso' })
+  @ApiParam({ name: 'id', description: 'ID del alumno' })
+  @ApiParam({ name: 'inscripcionId', description: 'ID de la inscripción' })
+  @Patch(':id/inscripciones/:inscripcionId/retirar')
+  retirarAlumnoCurso(
+    @Param('id') id: string,
+    @Param('inscripcionId') inscripcionId: string,
+  ) {
+    return this.alumnosService.retirarAlumnoCurso(+id, +inscripcionId);
   }
 }
