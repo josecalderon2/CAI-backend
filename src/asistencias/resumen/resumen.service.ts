@@ -84,6 +84,17 @@ export class ResumenService {
   /**
    * REEMPLAZA LA VISTA 'TRIMESTRAL.CSV'
    * Devuelve el resumen trimestral combinado de asistencia E infracciones.
+   *
+   * INCLUYE CÁLCULO AUTOMÁTICO DE PUNTUACIÓN DE CONDUCTA:
+   * Fórmula: 10 - (SP × 0.2) - (Menos Graves × 1) - (Graves × 2) - (Muy Graves × 3)
+   *
+   * Donde:
+   * - SP = Total de ausencias Sin Permiso
+   * - Menos Graves = Total de infracciones categoría MENOS_GRAVE
+   * - Graves = Total de infracciones categoría GRAVE
+   * - Muy Graves = Total de infracciones categoría MUY_GRAVE
+   *
+   * La puntuación final se redondea a 1 decimal y no puede ser negativa.
    */
   async getResumenTrimestral(query: ResumenTrimestralDto) {
     const { cursoId, trimestre, anio } = query;
@@ -172,19 +183,46 @@ export class ResumenService {
         (c) => c.id_alumno === alumno.id_alumno,
       );
 
-      // Mapeamos a la estructura del CSV
+      // Mapeamos a la estructura del CSV y contamos por categoría
+      let totalMenosGraves = 0;
+      let totalGraves = 0;
+      let totalMuyGraves = 0;
+
       const infracciones = conductasAlumno.map((c) => {
         const catalogo = catalogoInfracciones.find(
           (cat) => cat.id_infraccion === c.id_infraccion_catalogo,
         );
+        const conteo = c._count.id_conducta;
+        const categoria = catalogo?.categoria || 'DESCONOCIDA';
+
+        // Acumular por tipo de infracción
+        if (categoria === 'MENOS_GRAVE') {
+          totalMenosGraves += conteo;
+        } else if (categoria === 'GRAVE') {
+          totalGraves += conteo;
+        } else if (categoria === 'MUY_GRAVE') {
+          totalMuyGraves += conteo;
+        }
+
         return {
-          categoria: catalogo?.categoria || 'DESCONOCIDA',
+          categoria,
           articulo: catalogo?.articulo || 'N/A',
-          // descripcion: catalogo?.descripcion || 'N/A',
-          conteo: c._count.id_conducta, // Esto es lo que pide el CSV
-          // puntos_totales: c._sum.infraccion.puntos, // Opcional
+          descripcion: catalogo?.descripcion || 'N/A',
+          conteo,
         };
       });
+
+      // --- CÁLCULO DE PUNTUACIÓN DE CONDUCTA ---
+      // Fórmula: 10 - (Total SP * 0.2) - (Menos Graves * 1) - (Graves * 2) - (Muy Graves * 3)
+      const puntuacionConducta =
+        10 -
+        injustificadas * 0.2 -
+        totalMenosGraves * 1 -
+        totalGraves * 2 -
+        totalMuyGraves * 3;
+
+      // Asegurar que no sea negativa
+      const puntuacionFinal = Math.max(0, puntuacionConducta);
 
       return {
         id_alumno: alumno.id_alumno,
@@ -193,6 +231,12 @@ export class ResumenService {
         total_justificadas: justificadas, // 'P' en el CSV
         total_injustificadas: injustificadas, // 'SP' en el CSV
         infracciones,
+        // Resumen de conducta
+        total_menos_graves: totalMenosGraves,
+        total_graves: totalGraves,
+        total_muy_graves: totalMuyGraves,
+        // Puntuación final calculada
+        puntuacion_conducta: parseFloat(puntuacionFinal.toFixed(1)), // Redondear a 1 decimal
       };
     });
   }
