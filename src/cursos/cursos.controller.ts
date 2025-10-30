@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { CursosService } from './cursos.service';
 import { CreateCursoDto } from './dto/create-curso.dto';
@@ -43,6 +44,45 @@ export class CursosController {
   @ApiOkResponse({ description: 'Lista simple de cursos activos' })
   findAllSimple() {
     return this.service.findAllSimple();
+  }
+
+  /**
+   * GET /cursos/mis-cursos
+   * Obtiene los cursos asignados al docente/orientador autenticado
+   * Usa el token JWT para identificar al usuario automáticamente
+   *
+   * Ventajas de seguridad:
+   * - No expone todos los cursos del sistema
+   * - Valida el token JWT en cada request
+   * - Solo retorna cursos autorizados para el usuario
+   */
+  @Get('mis-cursos')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Obtener mis cursos asignados (usuario autenticado)',
+    description:
+      'Retorna todos los cursos donde el usuario autenticado tiene algún rol: orientador titular, en historial vigente o con asignaturas asignadas. Usa automáticamente el ID del usuario del token JWT.',
+  })
+  @ApiOkResponse({
+    description: 'Lista de cursos asignados al usuario autenticado',
+  })
+  async getMisCursos(@Request() req) {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const userTipo = req.user.tipo;
+
+    console.log(
+      `🔍 Usuario autenticado: ID=${userId}, Role=${userRole}, Tipo=${userTipo}`,
+    );
+
+    // Si es Admin o P.A, retornar todos los cursos
+    if (userRole === 'Admin' || userRole === 'P.A') {
+      console.log('👑 Usuario es Admin/P.A - Retornando todos los cursos');
+      return this.service.findAllCursosConRelaciones();
+    }
+
+    // Si es Orientador, retornar solo sus cursos asignados
+    return this.service.findCursosByOrientador(userId);
   }
 
   @Roles('Admin')

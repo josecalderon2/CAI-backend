@@ -279,6 +279,131 @@ export class CursosService {
   }
 
   /**
+   * Obtiene los cursos asignados a un orientador específico
+   * Método optimizado para el endpoint /cursos/mis-cursos
+   *
+   * Este método retorna SOLO los cursos donde el orientador:
+   * - Es el orientador titular (id_orientador)
+   * - Está en el historial vigente
+   * - Tiene asignaturas asignadas
+   *
+   * Incluye las relaciones necesarias para el frontend
+   */
+  async findCursosByOrientador(orientadorId: number) {
+    console.log(` Buscando cursos para orientador ID: ${orientadorId}`);
+
+    const cursos = await this.prisma.curso.findMany({
+      where: {
+        activo: true,
+        OR: [
+          // Opción 1: Es orientador titular del curso
+          {
+            id_orientador: orientadorId,
+          },
+
+          // Opción 2: Está en el historial como orientador o docente (vigente)
+          {
+            historialCurso: {
+              some: {
+                id_orientador: orientadorId,
+                OR: [{ fecha_fin: null }, { fecha_fin: { gt: new Date() } }],
+              },
+            },
+          },
+
+          // Opción 3: Tiene asignaturas asignadas a través de AsignaturaOrientador
+          {
+            asignaturas: {
+              some: {
+                orientadores: {
+                  some: {
+                    id_orientador: orientadorId,
+                    activo: true,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        gradoAcademico: {
+          select: {
+            id_grado_academico: true,
+            nombre: true,
+          },
+        },
+        orientador: {
+          select: {
+            id_orientador: true,
+            nombre: true,
+            apellido: true,
+          },
+        },
+        asignaturas: {
+          select: {
+            id_asignatura: true,
+            nombre: true,
+          },
+          orderBy: {
+            nombre: 'asc',
+          },
+        },
+      },
+      orderBy: {
+        nombre: 'asc',
+      },
+    });
+
+    console.log(` Encontrados ${cursos.length} cursos para el orientador`);
+    return cursos;
+  }
+
+  /**
+   * 🔒 Obtiene todos los cursos con sus relaciones
+   * Usado para Admin/P.A en el endpoint /cursos/mis-cursos
+   */
+  async findAllCursosConRelaciones() {
+    console.log('📚 Obteniendo todos los cursos (Admin/P.A)');
+
+    const cursos = await this.prisma.curso.findMany({
+      where: {
+        activo: true,
+      },
+      include: {
+        gradoAcademico: {
+          select: {
+            id_grado_academico: true,
+            nombre: true,
+          },
+        },
+        orientador: {
+          select: {
+            id_orientador: true,
+            nombre: true,
+            apellido: true,
+          },
+        },
+        asignaturas: {
+          select: {
+            id_asignatura: true,
+            nombre: true,
+          },
+          orderBy: {
+            nombre: 'asc',
+          },
+        },
+      },
+      orderBy: {
+        nombre: 'asc',
+      },
+    });
+
+    console.log(` Encontrados ${cursos.length} cursos activos`);
+    return cursos;
+  }
+
+  /**
    * Obtener alumnos de un curso específico
    * Retorna la lista de alumnos matriculados activamente en el curso
    */
