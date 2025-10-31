@@ -74,6 +74,109 @@ export class AsistenciaController {
     return this.asistenciaService.findAll();
   }
 
+  /**
+   * IMPORTANTE: Rutas específicas ANTES de rutas con parámetros
+   * Busca asistencias con filtros para el historial
+   */
+  @Get('buscar/filtros')
+  @ApiOperation({
+    summary: 'Buscar asistencias con filtros',
+    description:
+      'Permite buscar asistencias por curso, alumno, fecha, rango de fechas o estado. Útil para encontrar registros que necesitan modificación.',
+  })
+  @ApiOkResponse({
+    description: 'Asistencias encontradas exitosamente',
+  })
+  findWithFilters(@Query() filters: any) {
+    return this.asistenciaService.findWithFilters({
+      cursoId: filters.cursoId ? parseInt(filters.cursoId) : undefined,
+      alumnoId: filters.alumnoId ? parseInt(filters.alumnoId) : undefined,
+      fecha: filters.fecha,
+      fechaDesde: filters.fechaDesde,
+      fechaHasta: filters.fechaHasta,
+      estado: filters.estado,
+    });
+  }
+
+  /**
+   * Obtiene el historial de cambios de un registro de asistencia
+   */
+  @Get('historial/:id')
+  @ApiOperation({
+    summary: 'Obtener historial de cambios de una asistencia',
+    description:
+      'Muestra todas las modificaciones realizadas sobre un registro de asistencia específico para auditoría.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del registro de asistencia',
+    type: Number,
+  })
+  @ApiOkResponse({
+    description: 'Historial obtenido exitosamente',
+  })
+  getHistorial(@Param('id', ParseIntPipe) id: number) {
+    return this.asistenciaService.getHistorial(id);
+  }
+
+  /**
+   * Obtiene el historial de cambios de un alumno
+   */
+  @Get('historial/alumno/:id_alumno')
+  @ApiOperation({
+    summary: 'Obtener historial de cambios de un alumno',
+    description:
+      'Muestra todas las modificaciones de asistencia realizadas sobre un alumno específico.',
+  })
+  @ApiParam({
+    name: 'id_alumno',
+    description: 'ID del alumno',
+    type: Number,
+  })
+  @ApiOkResponse({
+    description: 'Historial del alumno obtenido exitosamente',
+  })
+  getHistorialAlumno(
+    @Param('id_alumno', ParseIntPipe) id_alumno: number,
+    @Query('fechaDesde') fechaDesde?: string,
+    @Query('fechaHasta') fechaHasta?: string,
+  ) {
+    return this.asistenciaService.getHistorialAlumno(
+      id_alumno,
+      fechaDesde,
+      fechaHasta,
+    );
+  }
+
+  /**
+   * Verifica el estado de asistencia de un alumno en una fecha específica
+   */
+  @Get('verificar/:id_alumno/:fecha')
+  @ApiOperation({
+    summary: 'Verificar estado de asistencia de un alumno en una fecha',
+    description:
+      'Retorna el estado de asistencia de un alumno para una fecha específica si existe.',
+  })
+  @ApiParam({
+    name: 'id_alumno',
+    description: 'ID del alumno',
+    type: Number,
+  })
+  @ApiParam({
+    name: 'fecha',
+    description: 'Fecha en formato YYYY-MM-DD',
+    type: String,
+  })
+  @ApiOkResponse({
+    description: 'Estado de asistencia encontrado o null si no existe',
+  })
+  verificarEstadoAlumno(
+    @Param('id_alumno', ParseIntPipe) id_alumno: number,
+    @Param('fecha') fecha: string,
+  ) {
+    return this.asistenciaService.verificarEstadoAlumno(id_alumno, fecha);
+  }
+
   @Get('alumno/:id_alumno')
   @ApiOperation({
     summary: 'Obtener asistencias de un alumno',
@@ -162,78 +265,5 @@ export class AsistenciaController {
   })
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.asistenciaService.remove(id);
-  }
-
-  /**
-   * Busca asistencias con filtros para el historial
-   */
-  @Get('buscar/filtros')
-  @ApiOperation({
-    summary: 'Buscar asistencias con filtros',
-    description:
-      'Permite buscar asistencias por curso, alumno, fecha, rango de fechas o estado. Útil para encontrar registros que necesitan modificación.',
-  })
-  @ApiOkResponse({
-    description: 'Asistencias encontradas exitosamente',
-  })
-  findWithFilters(@Query() filters: any) {
-    return this.asistenciaService.findWithFilters({
-      cursoId: filters.cursoId ? parseInt(filters.cursoId) : undefined,
-      alumnoId: filters.alumnoId ? parseInt(filters.alumnoId) : undefined,
-      fecha: filters.fecha,
-      fechaDesde: filters.fechaDesde,
-      fechaHasta: filters.fechaHasta,
-      estado: filters.estado,
-    });
-  }
-
-  /**
-   * Obtiene el historial de cambios de un registro de asistencia
-   */
-  @Get('historial/:id')
-  @ApiOperation({
-    summary: 'Obtener historial de cambios de una asistencia',
-    description:
-      'Muestra todas las modificaciones realizadas sobre un registro de asistencia específico para auditoría.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'ID del registro de asistencia',
-    type: Number,
-  })
-  @ApiOkResponse({
-    description: 'Historial obtenido exitosamente',
-  })
-  getHistorial(@Param('id', ParseIntPipe) id: number) {
-    return this.asistenciaService.getHistorial(id);
-  }
-
-  /**
-   * Obtiene el historial de cambios de un alumno
-   */
-  @Get('historial/alumno/:id_alumno')
-  @ApiOperation({
-    summary: 'Obtener historial de cambios de un alumno',
-    description:
-      'Muestra todas las modificaciones de asistencia realizadas sobre un alumno específico.',
-  })
-  @ApiParam({
-    name: 'id_alumno',
-    description: 'ID del alumno',
-    type: Number,
-  })
-  @ApiOkResponse({
-    description: 'Historial del alumno obtenido exitosamente',
-  })
-  getHistorialAlumno(
-    @Param('id_alumno', ParseIntPipe) id_alumno: number,
-    @Query('fechaDesde') fechaDesde?: string,
-    @Query('fechaHasta') fechaHasta?: string,
-  ) {
-    return this.asistenciaService.getHistorialAlumno(
-      id_alumno,
-      fechaDesde,
-      fechaHasta,
-    );
   }
 }
