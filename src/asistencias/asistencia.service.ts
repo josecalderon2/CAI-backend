@@ -98,13 +98,42 @@ export class AsistenciaService {
 
   /**
    * Actualiza un único registro de asistencia (para correcciones).
+   * Casos de uso comunes:
+   * - Cambiar de SP (Sin Permiso) a E (Excusado) cuando traen justificación
+   * - Corregir estados incorrectos
+   * - Agregar o modificar observaciones
+   *
+   * NOTA: Esta operación también registra el cambio en AsistenciaHistorial
+   * para mantener trazabilidad de todas las modificaciones.
    */
   async update(id_asistencia: number, dto: UpdateAsistenciaDto) {
-    await this.findOne(id_asistencia); // Verifica que exista
-    return this.prisma.asistencia.update({
+    // Obtener el registro actual antes de actualizarlo
+    const asistenciaActual = await this.findOne(id_asistencia);
+
+    // Actualizar el registro
+    const asistenciaActualizada = await this.prisma.asistencia.update({
       where: { id_asistencia },
       data: dto,
     });
+
+    // Registrar el cambio en el historial (para auditoría)
+    await this.prisma.asistenciaHistorial.create({
+      data: {
+        id_asistencia: id_asistencia,
+        id_alumno: asistenciaActual.id_alumno,
+        id_asignatura: asistenciaActual.id_asignatura,
+        fecha: asistenciaActual.fecha,
+        accion: 'UPDATE',
+        id_orientador_registro:
+          dto.id_orientador ?? asistenciaActual.id_orientador,
+        estado_anterior: asistenciaActual.estado,
+        estado_nuevo: dto.estado ?? asistenciaActual.estado,
+        observ_anterior: asistenciaActual.observacion,
+        observ_nueva: dto.observacion ?? asistenciaActual.observacion,
+      },
+    });
+
+    return asistenciaActualizada;
   }
 
   /**
@@ -114,6 +143,104 @@ export class AsistenciaService {
     await this.findOne(id_asistencia); // Verifica que exista
     return this.prisma.asistencia.delete({
       where: { id_asistencia },
+    });
+  }
+
+  /**
+   * Busca asistencias con filtros avanzados para el historial.
+   * Útil para encontrar registros que necesitan ser modificados.
+   */
+  async findWithFilters(filters: {
+    cursoId?: number;
+    alumnoId?: number;
+    fecha?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
+    estado?: string;
+  }) {
+    const where: any = {};
+
+    if (filters.alumnoId) {
+      where.id_alumno = filters.alumnoId;
+    }
+
+    if (filters.fecha) {
+      where.fecha = filters.fecha;
+    }
+
+    if (filters.fechaDesde || filters.fechaHasta) {
+      where.fecha = {};
+      if (filters.fechaDesde) {
+        where.fecha.gte = filters.fechaDesde;
+      }
+      if (filters.fechaHasta) {
+        where.fecha.lte = filters.fechaHasta;
+      }
+    }
+
+    if (filters.estado) {
+      where.estado = filters.estado;
+    }
+
+    // Si se filtró por curso, necesitamos obtener los alumnos del curso
+    if (filters.cursoId) {
+      const alumnos = await this.prisma.alumnoCurso.findMany({
+        where: {
+          cursoId: filters.cursoId,
+          estado: 'ACTIVO',
+        },
+        select: { alumnoId: true },
+      });
+      const alumnoIds = alumnos.map((a) => a.alumnoId);
+      where.id_alumno = { in: alumnoIds };
+    }
+
+    return this.prisma.asistencia.findMany({
+      where,
+      orderBy: { fecha: 'desc' },
+      include: {
+        alumno: { select: { nombre: true, apellido: true } },
+        asignatura: { select: { nombre: true } },
+        orientador: { select: { nombre: true, apellido: true } },
+      },
+      take: 100, // Limitar resultados para evitar sobrecarga
+    });
+  }
+
+  /**
+   * Obtiene el historial de cambios de un registro de asistencia.
+   * Muestra todas las modificaciones que se han hecho sobre ese registro.
+   */
+  async getHistorial(id_asistencia: number) {
+    return this.prisma.asistenciaHistorial.findMany({
+      where: { id_asistencia },
+      orderBy: { creadoEn: 'desc' },
+    });
+  }
+
+  /**
+   * Obtiene el historial de cambios de un alumno en un rango de fechas.
+   */
+  async getHistorialAlumno(
+    id_alumno: number,
+    fechaDesde?: string,
+    fechaHasta?: string,
+  ) {
+    const where: any = { id_alumno };
+
+    if (fechaDesde || fechaHasta) {
+      where.fecha = {};
+      if (fechaDesde) {
+        where.fecha.gte = fechaDesde;
+      }
+      if (fechaHasta) {
+        where.fecha.lte = fechaHasta;
+      }
+    }
+
+    return this.prisma.asistenciaHistorial.findMany({
+      where,
+      orderBy: { creadoEn: 'desc' },
     });
   }
 }

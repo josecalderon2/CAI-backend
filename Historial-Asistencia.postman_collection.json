@@ -1,0 +1,255 @@
+{
+  "info": {
+    "name": "Historial Asistencia - CAI Backend",
+    "description": "Colección de endpoints para gestión de historial de asistencia",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Buscar Asistencias con Filtros",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/asistencia/buscar/filtros?cursoId=1&fechaDesde=2025-10-01&fechaHasta=2025-10-31&estado=SP",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", "buscar", "filtros"],
+          "query": [
+            {
+              "key": "cursoId",
+              "value": "1",
+              "description": "ID del curso (opcional)"
+            },
+            {
+              "key": "alumnoId",
+              "value": "",
+              "description": "ID del alumno (opcional)",
+              "disabled": true
+            },
+            {
+              "key": "fecha",
+              "value": "",
+              "description": "Fecha específica YYYY-MM-DD (opcional)",
+              "disabled": true
+            },
+            {
+              "key": "fechaDesde",
+              "value": "2025-10-01",
+              "description": "Fecha inicio del rango (opcional)"
+            },
+            {
+              "key": "fechaHasta",
+              "value": "2025-10-31",
+              "description": "Fecha fin del rango (opcional)"
+            },
+            {
+              "key": "estado",
+              "value": "SP",
+              "description": "Estado: P, E, SP, A (opcional)"
+            }
+          ]
+        },
+        "description": "Busca registros de asistencia aplicando múltiples filtros. Útil para encontrar registros que necesitan modificación."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Buscar Solo por Estado SP (Sin Permiso)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/asistencia/buscar/filtros?estado=SP",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", "buscar", "filtros"],
+          "query": [
+            {
+              "key": "estado",
+              "value": "SP",
+              "description": "Filtrar solo faltas injustificadas"
+            }
+          ]
+        },
+        "description": "Encuentra todas las faltas sin permiso que potencialmente necesitan justificación."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Obtener Asistencia por ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/asistencia/:id",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", ":id"],
+          "variable": [
+            {
+              "key": "id",
+              "value": "1",
+              "description": "ID del registro de asistencia"
+            }
+          ]
+        },
+        "description": "Obtiene los detalles completos de un registro de asistencia específico."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Modificar Asistencia (SP → E)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estado\": \"E\",\n  \"observacion\": \"Cambio de SP a E - Alumno presentó constancia médica válida del 28/10/2025\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/asistencia/:id",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", ":id"],
+          "variable": [
+            {
+              "key": "id",
+              "value": "1",
+              "description": "ID del registro a modificar"
+            }
+          ]
+        },
+        "description": "Modifica el estado de una asistencia de 'Sin Permiso' a 'Excusado'. Este cambio se registra automáticamente en el historial."
+      },
+      "response": []
+    },
+    {
+      "name": "5. Modificar Solo Observación",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"observacion\": \"Actualización: Alumno confirmó que presentará constancia mañana\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/asistencia/:id",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", ":id"],
+          "variable": [
+            {
+              "key": "id",
+              "value": "1",
+              "description": "ID del registro a modificar"
+            }
+          ]
+        },
+        "description": "Agrega o modifica solo la observación sin cambiar el estado."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Obtener Historial de una Asistencia",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/asistencia/historial/:id",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", "historial", ":id"],
+          "variable": [
+            {
+              "key": "id",
+              "value": "1",
+              "description": "ID del registro de asistencia"
+            }
+          ]
+        },
+        "description": "Obtiene todos los cambios realizados sobre un registro específico (auditoría)."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Obtener Historial de un Alumno",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/asistencia/historial/alumno/:id_alumno?fechaDesde=2025-10-01&fechaHasta=2025-10-31",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", "historial", "alumno", ":id_alumno"],
+          "query": [
+            {
+              "key": "fechaDesde",
+              "value": "2025-10-01",
+              "description": "Fecha inicio (opcional)"
+            },
+            {
+              "key": "fechaHasta",
+              "value": "2025-10-31",
+              "description": "Fecha fin (opcional)"
+            }
+          ],
+          "variable": [
+            {
+              "key": "id_alumno",
+              "value": "1",
+              "description": "ID del alumno"
+            }
+          ]
+        },
+        "description": "Obtiene todas las modificaciones de asistencia realizadas sobre un alumno específico."
+      },
+      "response": []
+    },
+    {
+      "name": "8. Obtener Todas las Asistencias",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/asistencia",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia"]
+        },
+        "description": "Lista todas las asistencias registradas (usar con precaución en producción)."
+      },
+      "response": []
+    },
+    {
+      "name": "9. Obtener Asistencias de un Alumno",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/asistencia/alumno/:id_alumno",
+          "host": ["{{base_url}}"],
+          "path": ["asistencia", "alumno", ":id_alumno"],
+          "variable": [
+            {
+              "key": "id_alumno",
+              "value": "1",
+              "description": "ID del alumno"
+            }
+          ]
+        },
+        "description": "Obtiene todos los registros de asistencia de un alumno específico."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
