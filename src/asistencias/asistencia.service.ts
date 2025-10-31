@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAsistenciaDto } from './dto/create-asistencia.dto';
 import { UpdateAsistenciaDto } from './dto/update-asistencia.dto';
 import { BulkAsistenciaDto } from './dto/bulk-asistencia.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AsistenciaService {
@@ -11,28 +12,44 @@ export class AsistenciaService {
   /**
    * Registra la asistencia para múltiples alumnos en una transacción.
    * Utiliza upsert para ser idempotente (evitar duplicados).
+   * ✅ ACTUALIZADO: Ahora soporta asistencia por curso (sin asignatura obligatoria)
    */
   async createBulk(dto: BulkAsistenciaDto) {
     const { registros } = dto;
 
     const upsertOperations = registros.map((registro) => {
-      // Clave única para el upsert
-      const where = {
-        id_alumno_id_asignatura_fecha: {
-          id_alumno: registro.id_alumno,
-          id_asignatura: registro.id_asignatura,
-          fecha: registro.fecha,
-        },
+      // ✅ CAMBIO: Clave única ahora es solo alumno + fecha (asistencia por curso)
+
+      // ✅ Preparar data para create/update (manejar id_asignatura opcional)
+      const createData: any = {
+        id_alumno: registro.id_alumno,
+        fecha: registro.fecha,
+        estado: registro.estado,
+        observacion: registro.observacion,
+        id_orientador: registro.id_orientador,
       };
 
+      const updateData: any = {
+        estado: registro.estado,
+        observacion: registro.observacion,
+        id_orientador: registro.id_orientador,
+      };
+
+      // Solo agregar id_asignatura si viene en el request
+      if (registro.id_asignatura !== undefined) {
+        createData.id_asignatura = registro.id_asignatura;
+        updateData.id_asignatura = registro.id_asignatura;
+      }
+
       return this.prisma.asistencia.upsert({
-        where: where,
-        update: {
-          estado: registro.estado,
-          observacion: registro.observacion,
-          id_orientador: registro.id_orientador, // Actualiza quién lo modificó
+        where: {
+          id_alumno_fecha: {
+            id_alumno: registro.id_alumno,
+            fecha: registro.fecha,
+          },
         },
-        create: registro,
+        update: updateData,
+        create: createData,
       });
     });
 
@@ -42,10 +59,25 @@ export class AsistenciaService {
 
   /**
    * Crea un único registro de asistencia (para correcciones).
+   * ✅ ACTUALIZADO: Maneja id_asignatura opcional
    */
   async create(dto: CreateAsistenciaDto) {
+    // ✅ Preparar data (manejar id_asignatura opcional)
+    const data: any = {
+      id_alumno: dto.id_alumno,
+      fecha: dto.fecha,
+      estado: dto.estado,
+      observacion: dto.observacion,
+      id_orientador: dto.id_orientador,
+    };
+
+    // Solo agregar id_asignatura si viene en el request
+    if (dto.id_asignatura !== undefined) {
+      data.id_asignatura = dto.id_asignatura;
+    }
+
     return this.prisma.asistencia.create({
-      data: dto,
+      data,
     });
   }
 

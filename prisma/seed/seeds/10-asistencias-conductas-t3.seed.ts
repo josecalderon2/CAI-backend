@@ -58,69 +58,94 @@ export async function seedAsistenciasConductasTrimestre3(prisma: PrismaClient) {
     },
     { fecha: new Date('2025-09-05T12:00:00Z'), descripcion: 'Todos presentes' },
     { fecha: new Date('2025-09-10T12:00:00Z'), descripcion: 'Atraso' },
+    // ✅ NUEVAS FECHAS DE OCTUBRE 2025
+    {
+      fecha: new Date('2025-10-01T12:00:00Z'),
+      descripcion: 'Inicio de octubre',
+    },
+    { fecha: new Date('2025-10-15T12:00:00Z'), descripcion: 'Algunos atrasos' },
+    {
+      fecha: new Date('2025-10-31T12:00:00Z'),
+      descripcion: 'Día actual - Halloween',
+    },
   ];
 
   let asistenciasCreadas = 0;
 
+  // ✅ CAMBIO: Ahora la asistencia es POR CURSO (una por alumno por día)
+  // Ya NO iteramos por asignatura, solo por alumno
   for (const { fecha, descripcion } of fechas) {
     console.log(`   📅 ${fecha.toISOString().split('T')[0]} - ${descripcion}`);
 
-    for (const asignatura of asignaturasC1) {
-      for (let i = 0; i < alumnosC1.length; i++) {
-        const alumno = alumnosC1[i];
-        let estado: EstadoAsistencia = EstadoAsistencia.P;
-        let observacion: string | undefined;
+    for (let i = 0; i < alumnosC1.length; i++) {
+      const alumno = alumnosC1[i];
+      let estado: EstadoAsistencia = EstadoAsistencia.P;
+      let observacion: string | undefined;
 
-        // Lógica de asistencia según fecha y alumno
-        if (fecha.toISOString().includes('2025-08-15')) {
-          // 15 de agosto: último alumno SP, penúltimo A
-          if (i === alumnosC1.length - 1) {
-            estado = EstadoAsistencia.SP;
-            observacion = 'Ausencia injustificada';
-          } else if (i === alumnosC1.length - 2) {
-            estado = EstadoAsistencia.A;
-            observacion = 'Llegó 15 min tarde';
-          }
-        } else if (fecha.toISOString().includes('2025-08-20')) {
-          // 20 de agosto: último alumno E (justificado)
-          if (i === alumnosC1.length - 1) {
-            estado = EstadoAsistencia.E;
-            observacion = 'Enfermedad (justificante médico)';
-          }
-        } else if (fecha.toISOString().includes('2025-09-10')) {
-          // 10 de septiembre: último alumno A (atraso)
-          if (i === alumnosC1.length - 1) {
-            estado = EstadoAsistencia.A;
-            observacion = 'Llegó tarde';
-          }
+      // Lógica de asistencia según fecha y alumno
+      if (fecha.toISOString().includes('2025-08-15')) {
+        // 15 de agosto: último alumno SP, penúltimo A
+        if (i === alumnosC1.length - 1) {
+          estado = EstadoAsistencia.SP;
+          observacion = 'Ausencia injustificada';
+        } else if (i === alumnosC1.length - 2) {
+          estado = EstadoAsistencia.A;
+          observacion = 'Llegó 15 min tarde';
         }
+      } else if (fecha.toISOString().includes('2025-08-20')) {
+        // 20 de agosto: último alumno E (justificado)
+        if (i === alumnosC1.length - 1) {
+          estado = EstadoAsistencia.E;
+          observacion = 'Enfermedad (justificante médico)';
+        }
+      } else if (fecha.toISOString().includes('2025-09-10')) {
+        // 10 de septiembre: último alumno A (atraso)
+        if (i === alumnosC1.length - 1) {
+          estado = EstadoAsistencia.A;
+          observacion = 'Llegó tarde';
+        }
+      } else if (fecha.toISOString().includes('2025-10-15')) {
+        // 15 de octubre: algunos alumnos con atraso
+        if (i % 3 === 0) {
+          // Cada 3 alumnos
+          estado = EstadoAsistencia.A;
+          observacion = 'Llegó tarde por tráfico';
+        }
+      } else if (fecha.toISOString().includes('2025-10-31')) {
+        // 31 de octubre (Halloween): variedad de estados
+        if (i % 4 === 0) {
+          estado = EstadoAsistencia.E;
+          observacion = 'Justificado - Día festivo';
+        } else if (i % 5 === 0) {
+          estado = EstadoAsistencia.A;
+          observacion = 'Llegó tarde - Celebración Halloween';
+        }
+      }
 
-        // Verificar si ya existe
-        const existe = await prisma.asistencia.findUnique({
-          where: {
-            id_alumno_id_asignatura_fecha: {
-              id_alumno: alumno.id_alumno,
-              id_asignatura: asignatura.id_asignatura,
-              fecha: fecha,
-            },
+      // ✅ CAMBIO: Verificar con la nueva clave única (alumno + fecha)
+      const existe = await prisma.asistencia.findUnique({
+        where: {
+          id_alumno_fecha: {
+            id_alumno: alumno.id_alumno,
+            fecha: fecha,
+          },
+        },
+      });
+
+      if (!existe) {
+        await prisma.asistencia.create({
+          data: {
+            id_alumno: alumno.id_alumno,
+            // ✅ Ya NO enviamos id_asignatura (es opcional ahora)
+            id_orientador: orientador.id_orientador,
+            fecha: fecha,
+            estado: estado,
+            observacion: observacion,
+            anio_academico: anio,
+            trimestre: trimestre,
           },
         });
-
-        if (!existe) {
-          await prisma.asistencia.create({
-            data: {
-              id_alumno: alumno.id_alumno,
-              id_asignatura: asignatura.id_asignatura,
-              id_orientador: orientador.id_orientador,
-              fecha: fecha,
-              estado: estado,
-              observacion: observacion,
-              anio_academico: anio,
-              trimestre: trimestre,
-            },
-          });
-          asistenciasCreadas++;
-        }
+        asistenciasCreadas++;
       }
     }
   }

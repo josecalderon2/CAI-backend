@@ -404,26 +404,27 @@ enum EstadoAsistencia {
   A // Atraso (Llegada tardía)
 }
 
-// --- MODELO ASISTENCIA (Sin cambios, ya cumple los requisitos) ---
+// --- MODELO ASISTENCIA (Modificado para asistencia por curso) ---
 model Asistencia {
   id_asistencia  Int      @id @default(autoincrement())
   id_alumno      Int
-  id_asignatura  Int
-  id_orientador  Int // Quién tomó la asistencia
+  id_asignatura  Int?     // ✅ OPCIONAL - Para mantener compatibilidad con registros antiguos
+  id_orientador  Int      // Quién tomó la asistencia
   fecha          DateTime
   estado         EstadoAsistencia // P, E, SP, A
   observacion    String?
   creadoEn       DateTime @default(now())
   anio_academico String?
   trimestre      Int?
-  alumno         Alumno     @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
-  asignatura     Asignatura @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
-  orientador     Orientador @relation(fields: [id_orientador], references: [id_orientador], onDelete: Cascade)
+  alumno         Alumno      @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
+  asignatura     Asignatura? @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
+  orientador     Orientador  @relation(fields: [id_orientador], references: [id_orientador], onDelete: Cascade)
   historial      AsistenciaHistorial[] @relation("AsistenciaLog")
 
-  @@unique([id_alumno, id_asignatura, fecha])
+  @@unique([id_alumno, fecha]) // ✅ CAMBIO: Ahora solo alumno + fecha (una asistencia por día)
   @@index([fecha])
   @@index([trimestre])
+  @@index([id_asignatura]) // Nuevo índice para consultas opcionales
 }
 
 model AsistenciaHistorial {
@@ -431,7 +432,7 @@ model AsistenciaHistorial {
   id_asistencia          Int?
   asistencia             Asistencia?    @relation("AsistenciaLog", fields: [id_asistencia], references: [id_asistencia], onDelete: SetNull)
   id_alumno              Int
-  id_asignatura          Int
+  id_asignatura          Int?           // ✅ OPCIONAL - Para mantener compatibilidad
   fecha                  DateTime
   accion                 AccionAsistencia
   id_orientador_registro Int
@@ -442,7 +443,7 @@ model AsistenciaHistorial {
   creadoEn               DateTime       @default(now())
 
   @@index([id_asistencia])
-  @@index([id_alumno, id_asignatura, fecha])
+  @@index([id_alumno, fecha]) // ✅ CAMBIO: Índice simplificado
   @@index([id_orientador_registro])
 }
 

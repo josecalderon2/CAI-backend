@@ -16,7 +16,8 @@ export class CreateAsistenciaDto {
 
   @IsInt()
   @IsPositive()
-  id_asignatura: number;
+  @IsOptional() // ✅ AHORA ES OPCIONAL - Ya no es requerido para asistencia por curso
+  id_asignatura?: number;
 
   @IsInt()
   @IsPositive()
