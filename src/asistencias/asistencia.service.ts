@@ -4,6 +4,7 @@ import { CreateAsistenciaDto } from './dto/create-asistencia.dto';
 import { UpdateAsistenciaDto } from './dto/update-asistencia.dto';
 import { BulkAsistenciaDto } from './dto/bulk-asistencia.dto';
 import { Prisma } from '@prisma/client';
+import { calcularTrimestre, obtenerAnioAcademico } from './utils/fecha-helpers';
 
 @Injectable()
 export class AsistenciaService {
@@ -20,6 +21,11 @@ export class AsistenciaService {
     const upsertOperations = registros.map((registro) => {
       // ✅ CAMBIO: Clave única ahora es solo alumno + fecha (asistencia por curso)
 
+      // ✅ Calcular automáticamente trimestre y año si no vienen
+      const anioAcademico =
+        registro.anio_academico || obtenerAnioAcademico(registro.fecha);
+      const trimestre = registro.trimestre || calcularTrimestre(registro.fecha);
+
       // ✅ Preparar data para create/update (manejar id_asignatura opcional)
       const createData: any = {
         id_alumno: registro.id_alumno,
@@ -27,12 +33,16 @@ export class AsistenciaService {
         estado: registro.estado,
         observacion: registro.observacion,
         id_orientador: registro.id_orientador,
+        anio_academico: anioAcademico,
+        trimestre: trimestre,
       };
 
       const updateData: any = {
         estado: registro.estado,
         observacion: registro.observacion,
         id_orientador: registro.id_orientador,
+        anio_academico: anioAcademico,
+        trimestre: trimestre,
       };
 
       // Solo agregar id_asignatura si viene en el request
@@ -62,6 +72,10 @@ export class AsistenciaService {
    * ✅ ACTUALIZADO: Maneja id_asignatura opcional
    */
   async create(dto: CreateAsistenciaDto) {
+    // ✅ Calcular automáticamente trimestre y año si no vienen
+    const anioAcademico = dto.anio_academico || obtenerAnioAcademico(dto.fecha);
+    const trimestre = dto.trimestre || calcularTrimestre(dto.fecha);
+
     // ✅ Preparar data (manejar id_asignatura opcional)
     const data: any = {
       id_alumno: dto.id_alumno,
@@ -69,6 +83,8 @@ export class AsistenciaService {
       estado: dto.estado,
       observacion: dto.observacion,
       id_orientador: dto.id_orientador,
+      anio_academico: anioAcademico,
+      trimestre: trimestre,
     };
 
     // Solo agregar id_asignatura si viene en el request

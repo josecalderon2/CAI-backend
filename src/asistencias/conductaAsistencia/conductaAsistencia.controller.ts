@@ -9,12 +9,15 @@ import {
   ParseIntPipe,
   UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ConductaAsistenciaService } from './conductaAsistencia.service';
 import { CreateConductaDto } from './dto/create-conducta.dto';
 import { UpdateConductaDto } from './dto/update-conducta.dto';
 import { CreateInfraccionCatalogoDto } from './dto/create-infraccion-catalogo.dto';
 import { UpdateInfraccionCatalogoDto } from './dto/update-infraccion-catalogo.dto';
 import { ApiTags } from '@nestjs/swagger';
+import { RolesGuard } from '../../auth/roles.guard';
+import { Roles } from '../../auth/roles.decorator';
 
 @ApiTags('Conducta y Catálogo') // Agrupa en Swagger
 @Controller('conducta')
@@ -42,6 +45,8 @@ export class ConductaController {
   }
 
   @Patch('catalogo/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin', 'P.A')
   updateCatalogo(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateInfraccionCatalogoDto,
@@ -50,6 +55,8 @@ export class ConductaController {
   }
 
   @Delete('catalogo/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin', 'P.A')
   removeCatalogo(@Param('id', ParseIntPipe) id: number) {
     return this.conductaService.removeCatalogo(id);
   }

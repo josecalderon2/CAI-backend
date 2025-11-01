@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service'; // Ajusta la ruta
-import { EstadoAsistencia, Prisma } from '@prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { EstadoAsistencia } from '@prisma/client';
 import { ResumenMensualDto } from './dto/resumen-mensual.dto';
 import { ResumenTrimestralDto } from './dto/resumen-trimestral.dto';
 
@@ -46,11 +46,11 @@ export class ResumenService {
       orderBy: { apellido: 'asc' },
     });
 
-    // 3. Agrupar conteos de asistencia (sólo ausencias y atrasos)
+    // 3. ✅ CORREGIDO: Agrupar conteos de asistencia por ALUMNOS del curso
     const conteos = await this.prisma.asistencia.groupBy({
       by: ['id_alumno', 'estado'],
       where: {
-        asignatura: { id_curso: cursoId },
+        id_alumno: { in: idsAlumnos }, // ✅ Buscar por alumnos del curso
         fecha: { gte: startDate, lte: endDate },
         estado: {
           in: [EstadoAsistencia.E, EstadoAsistencia.SP, EstadoAsistencia.A],
@@ -59,7 +59,7 @@ export class ResumenService {
       _count: { id_asistencia: true },
     });
 
-    // 4. Mapear resultados (idéntico a la lógica del Consolidados.csv)
+    // 4. Mapear resultados
     return alumnos.map((alumno) => {
       const conteosAlumno = conteos.filter(
         (c) => c.id_alumno === alumno.id_alumno,
@@ -73,7 +73,6 @@ export class ResumenService {
         id_alumno: alumno.id_alumno,
         nombre: alumno.nombre,
         apellido: alumno.apellido,
-        // Lógica del CSV: 'E' (Excusado) se cuenta como 'P' (justificadas)
         justificadas: getCount(EstadoAsistencia.E),
         injustificadas: getCount(EstadoAsistencia.SP),
         atrasos: getCount(EstadoAsistencia.A),
@@ -87,14 +86,6 @@ export class ResumenService {
    *
    * INCLUYE CÁLCULO AUTOMÁTICO DE PUNTUACIÓN DE CONDUCTA:
    * Fórmula: 10 - (SP × 0.2) - (Menos Graves × 1) - (Graves × 2) - (Muy Graves × 3)
-   *
-   * Donde:
-   * - SP = Total de ausencias Sin Permiso
-   * - Menos Graves = Total de infracciones categoría MENOS_GRAVE
-   * - Graves = Total de infracciones categoría GRAVE
-   * - Muy Graves = Total de infracciones categoría MUY_GRAVE
-   *
-   * La puntuación final se redondea a 1 decimal y no puede ser negativa.
    */
   async getResumenTrimestral(query: ResumenTrimestralDto) {
     const { cursoId, trimestre, anio } = query;
@@ -113,7 +104,7 @@ export class ResumenService {
     });
 
     if (inscripciones.length === 0) {
-      return []; // No hay alumnos inscritos
+      return [];
     }
 
     const idsAlumnos = inscripciones.map((i) => i.alumnoId);
@@ -128,23 +119,24 @@ export class ResumenService {
     });
 
     if (alumnos.length === 0) {
-      return []; // No hay alumnos, devolver array vacío
+      return [];
     }
 
-    // 2. Obtener Resumen de Asistencia del Trimestre
+    // 2. ✅ CORREGIDO: Obtener Resumen de Asistencia del Trimestre por ALUMNOS
     const conteosAsistencia = await this.prisma.asistencia.groupBy({
       by: ['id_alumno', 'estado'],
       where: {
-        asignatura: { id_curso: cursoId },
+        id_alumno: { in: idsAlumnos }, // ✅ Buscar por alumnos del curso
         trimestre: trimestre,
         anio_academico: anioAcademicoStr,
-        estado: { in: [EstadoAsistencia.E, EstadoAsistencia.SP] },
+        estado: {
+          in: [EstadoAsistencia.E, EstadoAsistencia.SP, EstadoAsistencia.A],
+        },
       },
       _count: { id_asistencia: true },
     });
 
     // 3. Obtener Resumen de Infracciones del Trimestre
-    // Agrupamos por alumno Y por tipo de infracción
     const conteosConductaAgrupados = await this.prisma.conducta.groupBy({
       by: ['id_alumno', 'id_infraccion_catalogo'],
       where: {
@@ -152,9 +144,7 @@ export class ResumenService {
         trimestre: trimestre,
         anio_academico: anioAcademicoStr,
       },
-      _count: { id_conducta: true }, // Contamos cuántas veces se cometió
-      // Podríamos sumar puntos si quisiéramos:
-      // _sum: { infraccion: { select: { puntos: true } } },
+      _count: { id_conducta: true },
     });
 
     // 4. Obtener los detalles de las infracciones contadas
@@ -177,13 +167,15 @@ export class ResumenService {
       const injustificadas =
         asistenciasAlumno.find((c) => c.estado === EstadoAsistencia.SP)?._count
           .id_asistencia || 0;
+      const atrasos =
+        asistenciasAlumno.find((c) => c.estado === EstadoAsistencia.A)?._count
+          .id_asistencia || 0;
 
       // --- Parte de Conducta (Infracciones) ---
       const conductasAlumno = conteosConductaAgrupados.filter(
         (c) => c.id_alumno === alumno.id_alumno,
       );
 
-      // Mapeamos a la estructura del CSV y contamos por categoría
       let totalMenosGraves = 0;
       let totalGraves = 0;
       let totalMuyGraves = 0;
@@ -195,7 +187,6 @@ export class ResumenService {
         const conteo = c._count.id_conducta;
         const categoria = catalogo?.categoria || 'DESCONOCIDA';
 
-        // Acumular por tipo de infracción
         if (categoria === 'MENOS_GRAVE') {
           totalMenosGraves += conteo;
         } else if (categoria === 'GRAVE') {
@@ -213,7 +204,7 @@ export class ResumenService {
       });
 
       // --- CÁLCULO DE PUNTUACIÓN DE CONDUCTA ---
-      // Fórmula: 10 - (Total SP * 0.2) - (Menos Graves * 1) - (Graves * 2) - (Muy Graves * 3)
+      // Fórmula: 10 - (SP × 0.2) - (Menos Graves × 1) - (Graves × 2) - (Muy Graves × 3)
       const puntuacionConducta =
         10 -
         injustificadas * 0.2 -
@@ -221,22 +212,20 @@ export class ResumenService {
         totalGraves * 2 -
         totalMuyGraves * 3;
 
-      // Asegurar que no sea negativa
       const puntuacionFinal = Math.max(0, puntuacionConducta);
 
       return {
         id_alumno: alumno.id_alumno,
         nombre: alumno.nombre,
         apellido: alumno.apellido,
-        total_justificadas: justificadas, // 'P' en el CSV
-        total_injustificadas: injustificadas, // 'SP' en el CSV
+        total_justificadas: justificadas,
+        total_injustificadas: injustificadas,
+        total_atrasos: atrasos,
         infracciones,
-        // Resumen de conducta
         total_menos_graves: totalMenosGraves,
         total_graves: totalGraves,
         total_muy_graves: totalMuyGraves,
-        // Puntuación final calculada
-        puntuacion_conducta: parseFloat(puntuacionFinal.toFixed(1)), // Redondear a 1 decimal
+        puntuacion_conducta: parseFloat(puntuacionFinal.toFixed(1)),
       };
     });
   }

@@ -59,6 +59,12 @@ export class ResumenTrimestralResponseDto {
   total_injustificadas: number;
 
   @ApiProperty({
+    description: 'Total de atrasos (A - Atrasos)',
+    example: 1,
+  })
+  total_atrasos: number;
+
+  @ApiProperty({
     description: 'Detalle de infracciones cometidas',
     type: [InfraccionDetalleDto],
     isArray: true,
