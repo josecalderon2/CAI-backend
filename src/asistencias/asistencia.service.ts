@@ -212,14 +212,13 @@ export class AsistenciaService {
       where.id_alumno = filters.alumnoId;
     }
 
-    // Convertir fecha string a DateTime ISO-8601
+    // Convertir fecha string a DateTime considerando zona horaria de El Salvador (UTC-6)
     if (filters.fecha) {
-      // Si viene solo la fecha (YYYY-MM-DD), convertir a rango de ese día completo
-      const fechaInicio = new Date(filters.fecha);
-      fechaInicio.setHours(0, 0, 0, 0);
-
-      const fechaFin = new Date(filters.fecha);
-      fechaFin.setHours(23, 59, 59, 999);
+      // Si viene solo la fecha (YYYY-MM-DD), convertir a rango de ese día completo en hora local
+      // Usamos 'T06:00:00.000Z' para 00:00 El Salvador y 'T05:59:59.999Z' del día siguiente para 23:59:59 El Salvador
+      const fechaInicio = new Date(filters.fecha + 'T06:00:00.000Z');
+      const fechaFin = new Date(filters.fecha + 'T05:59:59.999Z');
+      fechaFin.setDate(fechaFin.getDate() + 1); // Sumar 1 día para el fin
 
       where.fecha = {
         gte: fechaInicio.toISOString(),
@@ -227,17 +226,18 @@ export class AsistenciaService {
       };
     }
 
-    // Convertir rango de fechas a DateTime ISO-8601
+    // Convertir rango de fechas a DateTime considerando zona horaria de El Salvador (UTC-6)
     if (filters.fechaDesde || filters.fechaHasta) {
       where.fecha = {};
       if (filters.fechaDesde) {
-        const fechaDesde = new Date(filters.fechaDesde);
-        fechaDesde.setHours(0, 0, 0, 0);
+        // 00:00:00 El Salvador = 06:00:00 UTC
+        const fechaDesde = new Date(filters.fechaDesde + 'T06:00:00.000Z');
         where.fecha.gte = fechaDesde.toISOString();
       }
       if (filters.fechaHasta) {
-        const fechaHasta = new Date(filters.fechaHasta);
-        fechaHasta.setHours(23, 59, 59, 999);
+        // 23:59:59 El Salvador = 05:59:59 UTC del día siguiente
+        const fechaHasta = new Date(filters.fechaHasta + 'T05:59:59.999Z');
+        fechaHasta.setDate(fechaHasta.getDate() + 1);
         where.fecha.lte = fechaHasta.toISOString();
       }
     }
@@ -319,17 +319,18 @@ export class AsistenciaService {
   ) {
     const where: any = { id_alumno };
 
-    // Convertir fechas string a DateTime ISO-8601
+    // Convertir fechas string a DateTime considerando zona horaria de El Salvador (UTC-6)
     if (fechaDesde || fechaHasta) {
       where.fecha = {};
       if (fechaDesde) {
-        const fechaDesdeDate = new Date(fechaDesde);
-        fechaDesdeDate.setHours(0, 0, 0, 0);
+        // 00:00:00 El Salvador = 06:00:00 UTC
+        const fechaDesdeDate = new Date(fechaDesde + 'T06:00:00.000Z');
         where.fecha.gte = fechaDesdeDate.toISOString();
       }
       if (fechaHasta) {
-        const fechaHastaDate = new Date(fechaHasta);
-        fechaHastaDate.setHours(23, 59, 59, 999);
+        // 23:59:59 El Salvador = 05:59:59 UTC del día siguiente
+        const fechaHastaDate = new Date(fechaHasta + 'T05:59:59.999Z');
+        fechaHastaDate.setDate(fechaHastaDate.getDate() + 1);
         where.fecha.lte = fechaHastaDate.toISOString();
       }
     }
@@ -345,12 +346,12 @@ export class AsistenciaService {
    * y retorna su estado si existe.
    */
   async verificarEstadoAlumno(id_alumno: number, fecha: string) {
-    // Convertir fecha string a rango del día completo en DateTime ISO-8601
-    const fechaInicio = new Date(fecha);
-    fechaInicio.setHours(0, 0, 0, 0);
-
-    const fechaFin = new Date(fecha);
-    fechaFin.setHours(23, 59, 59, 999);
+    // Convertir fecha string a rango del día completo considerando zona horaria de El Salvador (UTC-6)
+    // 00:00:00 El Salvador = 06:00:00 UTC
+    const fechaInicio = new Date(fecha + 'T06:00:00.000Z');
+    // 23:59:59 El Salvador = 05:59:59 UTC del día siguiente
+    const fechaFin = new Date(fecha + 'T05:59:59.999Z');
+    fechaFin.setDate(fechaFin.getDate() + 1);
 
     const asistencia = await this.prisma.asistencia.findFirst({
       where: {
