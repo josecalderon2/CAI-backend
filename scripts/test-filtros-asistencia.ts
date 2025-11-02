@@ -13,7 +13,9 @@ async function testFiltros() {
   });
 
   todasAsistencias.forEach((a) => {
-    console.log(`   ID: ${a.id_asistencia}, Alumno: ${a.id_alumno}, Fecha: ${a.fecha}, Estado: ${a.estado}`);
+    console.log(
+      `   ID: ${a.id_asistencia}, Alumno: ${a.id_alumno}, Fecha: ${a.fecha}, Estado: ${a.estado}`,
+    );
   });
 
   // 2. Buscar por fecha específica
@@ -24,7 +26,9 @@ async function testFiltros() {
   const fechaFin = new Date('2025-10-31');
   fechaFin.setHours(23, 59, 59, 999);
 
-  console.log(`   Rango: ${fechaInicio.toISOString()} a ${fechaFin.toISOString()}`);
+  console.log(
+    `   Rango: ${fechaInicio.toISOString()} a ${fechaFin.toISOString()}`,
+  );
 
   const porFecha = await prisma.asistencia.findMany({
     where: {
@@ -59,7 +63,9 @@ async function testFiltros() {
     },
   });
 
-  console.log(`   ✅ Resultado: ${asistenciasCurso.length} asistencias encontradas`);
+  console.log(
+    `   ✅ Resultado: ${asistenciasCurso.length} asistencias encontradas`,
+  );
 
   // 5. Combinar filtros (curso + fecha)
   console.log('\n🔍 Test 4: Curso 1 + Fecha 2025-10-31');
