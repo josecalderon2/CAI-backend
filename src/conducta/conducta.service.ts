@@ -73,7 +73,6 @@ export class ConductasService {
 
       return nuevaConducta as unknown as ConductaResponse;
     } catch (error) {
-      console.error('❌ Error al crear conducta:', error);
       if (error.status) throw error;
       throw new InternalServerErrorException(
         `Error interno al registrar conducta: ${error.message}`,
@@ -120,7 +119,6 @@ export class ConductasService {
 
       return conductaActualizada as unknown as ConductaResponse;
     } catch (error) {
-      console.error('❌ Error en updateConducta:', error);
       if (error.status) throw error;
       throw new InternalServerErrorException(
         `Error al actualizar conducta: ${error.message}`,
@@ -153,7 +151,6 @@ export class ConductasService {
 
       return registros as unknown as ConductaResponse[];
     } catch (error) {
-      console.error('❌ Error en findByOrientador:', error);
       throw new InternalServerErrorException(error.message);
     }
   }
@@ -183,7 +180,6 @@ export class ConductasService {
 
       return registros as unknown as ConductaResponse[];
     } catch (error) {
-      console.error('❌ Error en findByAlumno:', error);
       throw new InternalServerErrorException(error.message);
     }
   }
@@ -231,7 +227,6 @@ export class ConductasService {
 
       return registros as unknown as ConductaResponse[];
     } catch (error) {
-      console.error('❌ Error en findByCursoYRango:', error);
       if (error.status) throw error;
       throw new InternalServerErrorException(
         `Error al obtener conductas del curso: ${error.message}`,
@@ -260,7 +255,6 @@ export class ConductasService {
 
       return { message: `Conducta ${id_conducta} eliminada exitosamente.` };
     } catch (error) {
-      console.error('❌ Error en removeConducta:', error);
       throw new InternalServerErrorException(error.message);
     }
   }

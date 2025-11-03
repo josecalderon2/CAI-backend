@@ -86,6 +86,8 @@ export class ConductaController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateConductaDto,
@@ -94,6 +96,8 @@ export class ConductaController {
   }
 
   @Delete(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.conductaService.remove(id);
   }

@@ -27,18 +27,7 @@ function deepNormalize(obj: any) {
 @Injectable()
 export class LogNormalizeQueryPipe implements PipeTransform {
   transform(value: any, metadata: ArgumentMetadata) {
-    // Loguea lo que llega crudo del framework
-    // (aparecerá SIEMPRE aunque falle luego la validación)
-    // eslint-disable-next-line no-console
-    console.log('[GET /asignaciones/historial] raw query =>', value);
-
     const normalized = deepNormalize(value);
-
-    // eslint-disable-next-line no-console
-    console.log(
-      '[GET /asignaciones/historial] normalized query =>',
-      normalized,
-    );
 
     // Convierte explícitamente a number los que deben serlo si existen
     const n = normalized;
@@ -52,9 +41,6 @@ export class LogNormalizeQueryPipe implements PipeTransform {
 
     if (n.page !== undefined) n.page = toNum(n.page);
     if (n.limit !== undefined) n.limit = toNum(n.limit);
-
-    // eslint-disable-next-line no-console
-    console.log('[GET /asignaciones/historial] final query =>', n);
 
     return n;
   }

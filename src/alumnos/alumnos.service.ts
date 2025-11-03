@@ -34,8 +34,6 @@ export class AlumnosService {
         data: datosAlumno,
       });
 
-      console.log('Alumno creado con ID:', alumno.id_alumno);
-
       // 2. Si hay detalles, los creamos
       if (detalle) {
         await prisma.alumno_Detalle.create({
@@ -62,21 +60,14 @@ export class AlumnosService {
       try {
         // Pasar el cliente prisma de la transacción
         const alumnoCompleto = await this.findOne(alumno.id_alumno, prisma);
-        console.log(
-          'Alumno encontrado para retornar:',
-          alumnoCompleto.id_alumno,
-        );
         return alumnoCompleto;
       } catch (error) {
-        console.error('Error al buscar el alumno creado:', error.message);
-
         // En caso de error, intentamos retornar el alumno básico sin relaciones
         const alumnoBasico = await prisma.alumno.findUnique({
           where: { id_alumno: alumno.id_alumno },
         });
 
         if (alumnoBasico) {
-          console.log('Retornando alumno básico:', alumnoBasico.id_alumno);
           return alumnoBasico;
         }
 

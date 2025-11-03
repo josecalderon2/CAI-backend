@@ -10,6 +10,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AsistenciaService } from './asistencia.service';
 import { CreateAsistenciaDto } from './dto/create-asistencia.dto';
 import { UpdateAsistenciaDto } from './dto/update-asistencia.dto';
@@ -22,10 +23,12 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { BulkAsistenciaDto } from './dto/bulk-asistencia.dto';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 
 @ApiTags('Asistencia') // Agrupa en Swagger
 @Controller('asistencia')
-// @UseGuards(TuGuardiaDeAutenticacion) // Descomenta para proteger
+@UseGuards(AuthGuard('jwt'), RolesGuard) // 🔒 Proteger todas las rutas
 export class AsistenciaController {
   constructor(private readonly asistenciaService: AsistenciaService) {}
 
@@ -33,6 +36,7 @@ export class AsistenciaController {
    * Endpoint principal para la toma de asistencia masiva por parte del docente.
    */
   @Post('bulk')
+  @Roles('Orientador') // 🔒 Solo orientadores pueden tomar asistencia
   @ApiOperation({
     summary: 'Registrar asistencia en lote',
     description:
@@ -49,6 +53,7 @@ export class AsistenciaController {
    * Crea un único registro de asistencia (corrección).
    */
   @Post()
+  @Roles('Orientador') // 🔒 Solo orientadores pueden registrar asistencia
   @ApiOperation({
     summary: 'Registrar una asistencia individual',
     description:
@@ -224,6 +229,7 @@ export class AsistenciaController {
    * Útil para correcciones posteriores (ej. justificación con constancia médica)
    */
   @Patch(':id')
+  @Roles('Orientador', 'Admin', 'P.A') // 🔒 Orientadores modifican, Admin/P.A para auditoría
   @ApiOperation({
     summary: 'Modificar una asistencia',
     description:
@@ -248,6 +254,7 @@ export class AsistenciaController {
   }
 
   @Delete(':id')
+  @Roles('Admin', 'P.A') // 🔒 Solo Admin/P.A pueden eliminar (auditoría crítica)
   @ApiOperation({
     summary: 'Eliminar una asistencia',
     description: 'Elimina un registro de asistencia. Use con precaución.',

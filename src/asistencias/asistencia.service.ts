@@ -225,11 +225,6 @@ export class AsistenciaService {
         gte: fechaInicio.toISOString(),
         lte: fechaFin.toISOString(),
       };
-
-      console.log(`🔍 Buscando asistencias para fecha: ${filters.fecha}`);
-      console.log(
-        `   Rango: ${fechaInicio.toISOString()} a ${fechaFin.toISOString()}`,
-      );
     }
 
     // Convertir rango de fechas a DateTime ISO-8601
@@ -262,11 +257,6 @@ export class AsistenciaService {
           select: { alumnoId: true },
         });
 
-        console.log(
-          `🔍 Alumnos encontrados en curso ${filters.cursoId}:`,
-          alumnos.length,
-        );
-
         if (alumnos.length === 0) {
           // No hay alumnos inscritos en este curso, retornar array vacío
           console.log(
@@ -278,17 +268,11 @@ export class AsistenciaService {
         const alumnoIds = alumnos.map((a) => a.alumnoId);
         where.id_alumno = { in: alumnoIds };
       } catch (error) {
-        console.error('❌ Error al buscar alumnos del curso:', error);
         throw new Error(`Error al buscar alumnos del curso: ${error.message}`);
       }
     }
 
     try {
-      console.log(
-        '🔍 WHERE clause para query:',
-        JSON.stringify(where, null, 2),
-      );
-
       const asistencias = await this.prisma.asistencia.findMany({
         where,
         orderBy: { fecha: 'desc' },
@@ -300,18 +284,8 @@ export class AsistenciaService {
         take: 100,
       });
 
-      console.log(`✅ Asistencias encontradas: ${asistencias.length}`);
-      if (asistencias.length > 0) {
-        console.log(`📝 Primera asistencia:`, {
-          id: asistencias[0].id_asistencia,
-          fecha: asistencias[0].fecha,
-          alumno: asistencias[0].id_alumno,
-          estado: asistencias[0].estado,
-        });
-      }
       return asistencias;
     } catch (error) {
-      console.error('❌ Error al buscar asistencias:', error);
       throw new Error(`Error al buscar asistencias: ${error.message}`);
     }
   }
