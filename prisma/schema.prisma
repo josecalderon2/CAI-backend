@@ -257,29 +257,30 @@ model Notas {
   id_nota        Int        @id @default(autoincrement())
   id_asignatura  Int
   trimestre      String?
-  id_actividad   Int?
+  id_evaluacion  Int?
   calificacion   Float?
   fecha_registro DateTime?
   id_alumno      Int
   asignatura     Asignatura @relation(fields: [id_asignatura], references: [id_asignatura])
-  actividad      Actividad? @relation(fields: [id_actividad], references: [id_actividad])
+  evaluacion     Evaluacion? @relation(fields: [id_evaluacion], references: [id_evaluacion])
   alumno         Alumno     @relation(fields: [id_alumno], references: [id_alumno])
 }
 
-model Actividad {
-  id_actividad      Int            @id @default(autoincrement())
-  nombre            String
-  puntaje_maximo    Float?
-  puntaje_minimo    Float?
-  id_tipo_actividad Int
-  tipoActividad     Tipo_actividad @relation(fields: [id_tipo_actividad], references: [id_tipo_actividad])
-  notas             Notas[]
+model Evaluacion {
+  id_evaluacion      Int            @id @default(autoincrement())
+  nombre             String
+  puntaje_maximo     Float?
+  puntaje_minimo     Float?
+  id_tipo_evaluacion Int
+  tipoEvaluacion     Tipo_evaluacion @relation(fields: [id_tipo_evaluacion], references: [id_tipo_evaluacion])
+  notas              Notas[]
 }
 
-model Tipo_actividad {
-  id_tipo_actividad Int         @id @default(autoincrement())
-  nombre            String
-  actividades       Actividad[]
+model Tipo_evaluacion {
+  id_tipo_evaluacion Int          @id @default(autoincrement())
+  nombre             String
+  activo             Boolean      @default(true)
+  evaluaciones       Evaluacion[]
 }
 
 model Administrativo {
