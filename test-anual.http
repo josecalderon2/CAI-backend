@@ -1,0 +1,57 @@
+### Test Resumen Anual - 2025
+# Obtener resumen anual del curso 1 (Quinto Grado) para el año 2025
+GET http://localhost:3000/resumen/anual?cursoId=1&anio=2025
+
+### Expected Response Structure:
+# [
+#   {
+#     "id_alumno": 1,
+#     "nombre": "Juan",
+#     "apellido": "Pérez",
+#     "total_justificadas": 10,
+#     "total_injustificadas": 5,
+#     "total_atrasos": 3,
+#     "infracciones": [
+#       {
+#         "categoria": "MENOS_GRAVE",
+#         "articulo": "Art. 1",
+#         "descripcion": "...",
+#         "conteo": 2
+#       }
+#     ],
+#     "total_menos_graves": 2,
+#     "total_graves": 1,
+#     "total_muy_graves": 0,
+#     "puntuacion_conducta_anual": 7.0,
+#     "desglose_trimestral": {
+#       "trimestre_1": {
+#         "total_injustificadas": 0,
+#         "total_menos_graves": 0,
+#         "total_graves": 0,
+#         "total_muy_graves": 0,
+#         "puntuacion": 10.0
+#       },
+#       "trimestre_2": {
+#         "total_injustificadas": 0,
+#         "total_menos_graves": 0,
+#         "total_graves": 0,
+#         "total_muy_graves": 0,
+#         "puntuacion": 10.0
+#       },
+#       "trimestre_3": {
+#         "total_injustificadas": 5,
+#         "total_menos_graves": 2,
+#         "total_graves": 1,
+#         "total_muy_graves": 0,
+#         "puntuacion": 7.0
+#       },
+#       "trimestre_4": {
+#         "total_injustificadas": 0,
+#         "total_menos_graves": 0,
+#         "total_graves": 0,
+#         "total_muy_graves": 0,
+#         "puntuacion": 10.0
+#       }
+#     }
+#   }
+# ]
