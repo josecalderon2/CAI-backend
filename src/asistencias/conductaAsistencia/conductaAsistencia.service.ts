@@ -128,6 +128,65 @@ export class ConductaAsistenciaService {
   // ======================================================
 
   /**
+   * Obtiene todos los años académicos disponibles en los registros de conducta
+   * Incluye información de trimestres disponibles y cantidad de registros por año
+   * @returns Lista de años académicos con sus trimestres y estadísticas
+   */
+  async getAniosDisponibles() {
+    // Obtener todos los registros de conducta agrupados por año y trimestre
+    const registros = await this.prisma.conducta.groupBy({
+      by: ['anio_academico', 'trimestre'],
+      _count: {
+        id_conducta: true,
+      },
+      orderBy: [{ anio_academico: 'desc' }, { trimestre: 'asc' }],
+    });
+
+    // Agrupar por año académico
+    const aniosPorAnio = registros.reduce(
+      (acc, registro) => {
+        const anio = registro.anio_academico;
+        // Filtrar registros sin año académico
+        if (!anio) return acc;
+
+        if (!acc[anio]) {
+          acc[anio] = {
+            anio_academico: anio,
+            trimestres_disponibles: [],
+            total_registros: 0,
+          };
+        }
+        
+        // Solo agregar trimestre si existe
+        if (registro.trimestre) {
+          acc[anio].trimestres_disponibles.push(registro.trimestre);
+        }
+        acc[anio].total_registros += registro._count.id_conducta;
+        return acc;
+      },
+      {} as Record<
+        string,
+        {
+          anio_academico: string;
+          trimestres_disponibles: number[];
+          total_registros: number;
+        }
+      >,
+    );
+
+    // Convertir a array y ordenar trimestres
+    const aniosArray = Object.values(aniosPorAnio).map((anio) => ({
+      ...anio,
+      trimestres_disponibles: anio.trimestres_disponibles.sort((a, b) => a - b),
+    }));
+
+    return {
+      total_anios: aniosArray.length,
+      anios: aniosArray,
+    };
+  }
+
+  /**
    * Obtiene todos los alumnos QUE TIENEN infracciones aplicando filtros opcionales
    * IMPORTANTE: Solo retorna alumnos con al menos 1 infracción (excluye alumnos sin infracciones)
    * @param filtros - Objeto con filtros opcionales (id_curso, anio_academico, trimestre)

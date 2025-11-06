@@ -82,6 +82,39 @@ export class ConductaController {
     return this.conductaService.findAll();
   }
 
+  @Get('anios-disponibles')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Obtener años académicos disponibles en registros de conducta',
+    description:
+      'Retorna todos los años académicos que tienen registros de conducta/infracciones. ' +
+      'Útil para llenar filtros dinámicamente según los datos existentes en la base de datos.',
+  })
+  @ApiOkResponse({
+    description:
+      'Lista de años académicos disponibles con trimestres para cada año.',
+    schema: {
+      example: {
+        anios: [
+          {
+            anio_academico: '2025',
+            trimestres_disponibles: [1, 2, 3],
+            total_registros: 45,
+          },
+          {
+            anio_academico: '2024',
+            trimestres_disponibles: [1, 2, 3, 4],
+            total_registros: 120,
+          },
+        ],
+      },
+    },
+  })
+  getAniosDisponibles() {
+    return this.conductaService.getAniosDisponibles();
+  }
+
   @Get('alumnos-con-infracciones')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Admin', 'P.A')
