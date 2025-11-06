@@ -232,6 +232,7 @@ model Asignatura {
   asistencias           Asistencia[]
   conductas             Conducta[]
   historialDocente      Historial_curso_orientador[] @relation("AsignaturaHistorial")
+  evaluaciones          Evaluacion[]
 }
 
 model Metodo_evaluacion {
@@ -272,8 +273,15 @@ model Evaluacion {
   puntaje_maximo     Float?
   puntaje_minimo     Float?
   id_tipo_evaluacion Int
+  id_asignatura      Int
+  id_orientador      Int
   tipoEvaluacion     Tipo_evaluacion @relation(fields: [id_tipo_evaluacion], references: [id_tipo_evaluacion])
+  asignatura         Asignatura     @relation(fields: [id_asignatura], references: [id_asignatura])
+  orientador         Orientador     @relation(fields: [id_orientador], references: [id_orientador])
   notas              Notas[]
+  
+  @@index([id_orientador])
+  @@index([id_asignatura])
 }
 
 model Tipo_evaluacion {
@@ -330,6 +338,7 @@ model Orientador {
   asistencias             Asistencia[]
 
   conductas Conducta[] // <== Relación a Conducta (sin cambios)
+  evaluaciones Evaluacion[]
 
   @@map("orientadores")
 }

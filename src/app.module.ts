@@ -27,6 +27,7 @@ import { ResumenModule } from './asistencias/resumen/resumen.module';
 import { ConductaModule as ConductaAsistenciaModule } from './asistencias/conductaAsistencia/conductaAsistencia.module';
 import { AsistenciaModule } from './asistencias/asistencia.module';
 import { TipoEvaluacionModule } from './tipo_evaluacion/tipo-evaluacion.module';
+import { EvaluacionesModule } from './evaluaciones/evaluaciones.module';
 
 import { PromocionesModule } from './promociones/promociones.module';
 @Module({
@@ -55,6 +56,7 @@ import { PromocionesModule } from './promociones/promociones.module';
     ConductaAsistenciaModule,
     AsistenciaModule,
     TipoEvaluacionModule,
+    EvaluacionesModule,
     PromocionesModule,
     ScheduleModule.forRoot(),
   ],
