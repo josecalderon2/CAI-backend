@@ -132,4 +132,36 @@ export class TipoEvaluacionService {
       message: `Tipo de evaluación "${tipoEvaluacion.nombre}" desactivado exitosamente`,
     };
   }
+
+  /**
+   * Reactivar un tipo de evaluación
+   */
+  async restore(id: number) {
+    // Verificar que existe
+    const tipoEvaluacion = await this.prisma.tipo_evaluacion.findUnique({
+      where: { id_tipo_evaluacion: id },
+    });
+
+    if (!tipoEvaluacion) {
+      throw new NotFoundException(
+        `Tipo de evaluación con ID ${id} no encontrado`,
+      );
+    }
+
+    if (tipoEvaluacion.activo) {
+      throw new ConflictException(
+        `El tipo de evaluación "${tipoEvaluacion.nombre}" ya está activo`,
+      );
+    }
+
+    // Reactivar
+    await this.prisma.tipo_evaluacion.update({
+      where: { id_tipo_evaluacion: id },
+      data: { activo: true },
+    });
+
+    return {
+      message: `Tipo de evaluación "${tipoEvaluacion.nombre}" reactivado exitosamente`,
+    };
+  }
 }

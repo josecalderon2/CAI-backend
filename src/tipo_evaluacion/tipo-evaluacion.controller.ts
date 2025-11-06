@@ -81,4 +81,15 @@ export class TipoEvaluacionController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.tipoEvaluacionService.remove(id);
   }
+
+  /**
+   * PATCH /tipos-evaluacion/:id/restore
+   * Reactivar un tipo de evaluación desactivado
+   * Acceso: Solo administradores
+   */
+  @Patch(':id/restore')
+  @Roles('Admin')
+  restore(@Param('id', ParseIntPipe) id: number) {
+    return this.tipoEvaluacionService.restore(id);
+  }
 }
