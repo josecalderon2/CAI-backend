@@ -27,6 +27,17 @@ export class ConductaAsistenciaService {
     });
   }
 
+  async findAllCatalogoIncludingInactive() {
+    return this.prisma.infraccionCatalogo.findMany({
+      // Sin filtro de activo, retorna TODAS (activas e inactivas)
+      orderBy: [
+        { activo: 'desc' }, // Primero las activas
+        { categoria: 'asc' },
+        { articulo: 'asc' },
+      ],
+    });
+  }
+
   async findOneCatalogo(id_infraccion: number) {
     const infraccion = await this.prisma.infraccionCatalogo.findUnique({
       where: { id_infraccion },
@@ -55,6 +66,14 @@ export class ConductaAsistenciaService {
     return this.prisma.infraccionCatalogo.update({
       where: { id_infraccion },
       data: { activo: false },
+    });
+  }
+
+  async restoreCatalogo(id_infraccion: number) {
+    await this.findOneCatalogo(id_infraccion); // Verifica que exista
+    return this.prisma.infraccionCatalogo.update({
+      where: { id_infraccion },
+      data: { activo: true },
     });
   }
 
@@ -156,7 +175,7 @@ export class ConductaAsistenciaService {
             total_registros: 0,
           };
         }
-        
+
         // Solo agregar trimestre si existe
         if (registro.trimestre) {
           acc[anio].trimestres_disponibles.push(registro.trimestre);

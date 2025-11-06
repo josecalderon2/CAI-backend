@@ -42,8 +42,25 @@ export class ConductaController {
   }
 
   @Get('catalogo')
+  @ApiOperation({
+    summary: 'Obtener infracciones activas del catálogo',
+    description:
+      'Retorna solo las infracciones activas (activo: true). Para obtener todas incluyendo inactivas, usar /catalogo/all',
+  })
   findAllCatalogo() {
     return this.conductaService.findAllCatalogo();
+  }
+
+  @Get('catalogo/all')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Obtener TODAS las infracciones del catálogo (incluye inactivas)',
+    description:
+      'Retorna todas las infracciones del catálogo, tanto activas como inactivas. Solo para administradores.',
+  })
+  findAllCatalogoIncludingInactive() {
+    return this.conductaService.findAllCatalogoIncludingInactive();
   }
 
   @Get('catalogo/:id')
@@ -64,8 +81,27 @@ export class ConductaController {
   @Delete('catalogo/:id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Desactivar infracción del catálogo (Soft Delete)',
+    description:
+      'Desactiva una infracción del catálogo marcándola como inactiva (activo: false). ' +
+      'Los registros históricos de alumnos con esta infracción se mantienen intactos.',
+  })
   removeCatalogo(@Param('id', ParseIntPipe) id: number) {
     return this.conductaService.removeCatalogo(id);
+  }
+
+  @Patch('catalogo/:id/restore')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin')
+  @ApiOperation({
+    summary: 'Reactivar infracción del catálogo',
+    description:
+      'Reactiva una infracción previamente desactivada, marcándola como activa (activo: true). ' +
+      'La infracción volverá a estar disponible para asignar a nuevos registros de conducta.',
+  })
+  restoreCatalogo(@Param('id', ParseIntPipe) id: number) {
+    return this.conductaService.restoreCatalogo(id);
   }
 
   // ======================================================
