@@ -147,6 +147,75 @@ export class ConductaAsistenciaService {
   // ======================================================
 
   /**
+   * Obtiene todos los cursos que tienen alumnos con registros de conducta
+   * Útil para llenar filtros dinámicamente según los datos existentes
+   * @returns Lista de cursos con alumnos que tienen infracciones
+   */
+  async getCursosConInfracciones() {
+    // Obtener todos los alumnos que tienen infracciones
+    const alumnosConInfracciones = await this.prisma.conducta.findMany({
+      select: {
+        id_alumno: true,
+      },
+      distinct: ['id_alumno'],
+    });
+
+    const idsAlumnos = alumnosConInfracciones.map((c) => c.id_alumno);
+
+    if (idsAlumnos.length === 0) {
+      return {
+        total_cursos: 0,
+        cursos: [],
+      };
+    }
+
+    // Obtener los cursos de esos alumnos
+    const inscripciones = await this.prisma.alumnoCurso.findMany({
+      where: {
+        alumnoId: { in: idsAlumnos },
+        estado: 'ACTIVO',
+      },
+      select: {
+        cursoId: true,
+        anioAcademico: true,
+      },
+      distinct: ['cursoId'],
+    });
+
+    const idsCursos = [...new Set(inscripciones.map((i) => i.cursoId))];
+
+    // Obtener información completa de los cursos
+    const cursos = await this.prisma.curso.findMany({
+      where: {
+        id_curso: { in: idsCursos },
+        activo: true,
+      },
+      select: {
+        id_curso: true,
+        nombre: true,
+        seccion: true,
+        gradoAcademico: {
+          select: {
+            nombre: true,
+          },
+        },
+      },
+      orderBy: [{ nombre: 'asc' }, { seccion: 'asc' }],
+    });
+
+    return {
+      total_cursos: cursos.length,
+      cursos: cursos.map((curso) => ({
+        id_curso: curso.id_curso,
+        nombre: curso.nombre,
+        seccion: curso.seccion || '',
+        grado: curso.gradoAcademico?.nombre || '',
+        nombre_completo: `${curso.gradoAcademico?.nombre || ''} ${curso.nombre}${curso.seccion ? ` - Sección ${curso.seccion}` : ''}`,
+      })),
+    };
+  }
+
+  /**
    * Obtiene todos los años académicos disponibles en los registros de conducta
    * Incluye información de trimestres disponibles y cantidad de registros por año
    * @returns Lista de años académicos con sus trimestres y estadísticas

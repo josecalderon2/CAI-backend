@@ -118,6 +118,43 @@ export class ConductaController {
     return this.conductaService.findAll();
   }
 
+  @Get('cursos-con-infracciones')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles('Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Obtener cursos que tienen alumnos con infracciones',
+    description:
+      'Retorna todos los cursos que tienen alumnos con registros de conducta/infracciones. ' +
+      'Útil para llenar filtros dinámicamente según los datos existentes en la base de datos.',
+  })
+  @ApiOkResponse({
+    description: 'Lista de cursos con alumnos que tienen infracciones.',
+    schema: {
+      example: {
+        total_cursos: 3,
+        cursos: [
+          {
+            id_curso: 1,
+            nombre: '1° Básico',
+            seccion: 'A',
+            grado: 'Primer Año',
+            nombre_completo: 'Primer Año 1° Básico - Sección A',
+          },
+          {
+            id_curso: 2,
+            nombre: '2° Básico',
+            seccion: 'B',
+            grado: 'Segundo Año',
+            nombre_completo: 'Segundo Año 2° Básico - Sección B',
+          },
+        ],
+      },
+    },
+  })
+  getCursosConInfracciones() {
+    return this.conductaService.getCursosConInfracciones();
+  }
+
   @Get('anios-disponibles')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('Admin', 'P.A')
