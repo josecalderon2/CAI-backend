@@ -275,6 +275,9 @@ model Evaluacion {
   id_tipo_evaluacion Int
   id_asignatura      Int
   id_orientador      Int
+  anio_academico     String?        @default("2024") // Año académico (ej: "2025", "2025-2026")
+  trimestre          String?        // Trimestre (ej: "1", "2", "3")
+  createdAt          DateTime       @default(now())
   tipoEvaluacion     Tipo_evaluacion @relation(fields: [id_tipo_evaluacion], references: [id_tipo_evaluacion])
   asignatura         Asignatura     @relation(fields: [id_asignatura], references: [id_asignatura])
   orientador         Orientador     @relation(fields: [id_orientador], references: [id_orientador])
@@ -282,6 +285,8 @@ model Evaluacion {
   
   @@index([id_orientador])
   @@index([id_asignatura])
+  @@index([anio_academico])
+  @@index([trimestre])
 }
 
 model Tipo_evaluacion {
