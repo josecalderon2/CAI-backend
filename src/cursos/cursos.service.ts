@@ -442,6 +442,47 @@ export class CursosService {
   }
 
   /**
+   * Obtiene el nivel educativo de un curso basado en su grado académico
+   * @param cursoId ID del curso
+   * @returns Información del curso y su nivel educativo (BASICA o BACHILLERATO)
+   */
+  async getNivelEducativoCurso(cursoId: number) {
+    const curso = await this.prisma.curso.findUnique({
+      where: { id_curso: cursoId },
+      select: {
+        id_curso: true,
+        nombre: true,
+        id_grado_academico: true,
+        gradoAcademico: {
+          select: {
+            id_grado_academico: true,
+            nombre: true,
+            nivel_educativo: true,
+          },
+        },
+      },
+    });
+
+    if (!curso) {
+      throw new NotFoundException(`Curso con ID ${cursoId} no encontrado`);
+    }
+
+    if (!curso.gradoAcademico) {
+      throw new BadRequestException(
+        `El curso ${curso.nombre} no tiene un grado académico asignado`,
+      );
+    }
+
+    return {
+      id_curso: curso.id_curso,
+      nombre_curso: curso.nombre,
+      id_grado_academico: curso.gradoAcademico.id_grado_academico,
+      nombre_grado: curso.gradoAcademico.nombre,
+      nivel_educativo: curso.gradoAcademico.nivel_educativo,
+    };
+  }
+
+  /**
    * Obtiene información de cupos para un curso específico
    * @param id ID del curso
    * @returns Información detallada sobre cupos totales, ocupados y disponibles

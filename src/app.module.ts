@@ -20,15 +20,14 @@ import { AsignacionesModule } from './asignaciones/asignaciones.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion.module';
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
-import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { ImportModule } from './import/import.module';
 import { ConductaModule as ConductasInfraccionesModule } from './conducta/conducta.module';
 import { ResumenModule } from './asistencias/resumen/resumen.module';
 import { ConductaModule as ConductaAsistenciaModule } from './asistencias/conductaAsistencia/conductaAsistencia.module';
 import { AsistenciaModule } from './asistencias/asistencia.module';
 import { SistemaEvaluacionModule } from './sistema-evaluacion/sistema-evaluacion.module';
-
 import { PromocionesModule } from './promociones/promociones.module';
+
 @Module({
   imports: [
     AdministrativoModule,
@@ -48,13 +47,12 @@ import { PromocionesModule } from './promociones/promociones.module';
     AsignacionesModule,
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
-    SistemasEvaluacionModule,
     ImportModule,
     ResumenModule,
     ConductasInfraccionesModule,
     ConductaAsistenciaModule,
     AsistenciaModule,
-    SistemaEvaluacionModule,
+    SistemaEvaluacionModule, // ✅ Módulo unificado (incluye catálogo + operaciones)
     PromocionesModule,
     ScheduleModule.forRoot(),
   ],

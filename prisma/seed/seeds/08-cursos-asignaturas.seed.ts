@@ -19,9 +19,13 @@ export async function seedCursosYAsignaturas(prisma: PrismaClient) {
     where: { nombre: 'Primaria' },
   });
 
-  if (!primaria) {
+  const bachillerato = await prisma.grado_Academico.findFirst({
+    where: { nombre: 'Bachillerato' },
+  });
+
+  if (!primaria || !bachillerato) {
     throw new Error(
-      'Grado "Primaria" no encontrado. Ejecuta seedGradosAcademicos() primero.',
+      'Grados "Primaria" o "Bachillerato" no encontrados. Ejecuta seedGradosAcademicos() primero.',
     );
   }
 
@@ -29,14 +33,17 @@ export async function seedCursosYAsignaturas(prisma: PrismaClient) {
   const metodo = await prisma.metodo_evaluacion.findFirst({
     where: { nombre: 'Numerico' },
   });
-  const tipo = await prisma.tipo_Asignatura.findFirst({
+  const tipoBasica = await prisma.tipo_Asignatura.findFirst({
     where: { nombre: 'Basica' },
   });
-  const sistema = await prisma.sistema_Evaluacion.findFirst({
+  const sistemaBasica = await prisma.sistema_Evaluacion.findFirst({
     where: { nombre: 'Educacion Basica - 4' },
   });
+  const sistemaBachillerato = await prisma.sistema_Evaluacion.findFirst({
+    where: { nombre: 'Bachillerato General - 4 etapas' },
+  });
 
-  if (!metodo || !tipo || !sistema) {
+  if (!metodo || !tipoBasica || !sistemaBasica || !sistemaBachillerato) {
     throw new Error(
       'Catálogos de evaluación no encontrados. Ejecuta seedCatalogosEvaluacion() primero.',
     );
@@ -60,7 +67,7 @@ export async function seedCursosYAsignaturas(prisma: PrismaClient) {
     },
   });
 
-  // Crear asignaturas
+  // Crear asignaturas BÁSICA
   const matematica = await prisma.asignatura.upsert({
     where: { id_asignatura: 1 },
     update: {},
@@ -70,8 +77,8 @@ export async function seedCursosYAsignaturas(prisma: PrismaClient) {
       orden_en_reporte: '01',
       horas_semanas: 5,
       id_metodo_evaluacion: metodo.id_metodo_evaluacion,
-      id_tipo_asignatura: tipo.id_tipo_asignatura,
-      id_sistema_evaluacion: sistema.id_sistema_evaluacion,
+      id_tipo_asignatura: tipoBasica.id_tipo_asignatura,
+      id_sistema_evaluacion: sistemaBasica.id_sistema_evaluacion,
     },
   });
 
@@ -84,8 +91,8 @@ export async function seedCursosYAsignaturas(prisma: PrismaClient) {
       orden_en_reporte: '02',
       horas_semanas: 4,
       id_metodo_evaluacion: metodo.id_metodo_evaluacion,
-      id_tipo_asignatura: tipo.id_tipo_asignatura,
-      id_sistema_evaluacion: sistema.id_sistema_evaluacion,
+      id_tipo_asignatura: tipoBasica.id_tipo_asignatura,
+      id_sistema_evaluacion: sistemaBasica.id_sistema_evaluacion,
     },
   });
 
@@ -124,5 +131,119 @@ export async function seedCursosYAsignaturas(prisma: PrismaClient) {
     },
   });
 
-  console.log('✅ Cursos y Asignaturas OK');
+  // ===================================
+  // CURSO Y ASIGNATURAS BACHILLERATO
+  // ===================================
+
+  const cursoBachillerato = await prisma.curso.upsert({
+    where: { id_curso: 2 },
+    update: {},
+    create: {
+      nombre: '1º Bachillerato',
+      seccion: 'A',
+      id_grado_academico: bachillerato.id_grado_academico,
+      id_orientador: ori1.id_orientador,
+      cupo: 30,
+      aula: 'B-1',
+      anio_academico: anio,
+      activo: true,
+    },
+  });
+
+  // Asignaturas Bachillerato
+  const matematicaBach = await prisma.asignatura.upsert({
+    where: { id_asignatura: 6 },
+    update: {},
+    create: {
+      nombre: 'Matemática I - Bach',
+      id_curso: cursoBachillerato.id_curso,
+      orden_en_reporte: '01',
+      horas_semanas: 5,
+      id_metodo_evaluacion: metodo.id_metodo_evaluacion,
+      id_tipo_asignatura: tipoBasica.id_tipo_asignatura,
+      id_sistema_evaluacion: sistemaBachillerato.id_sistema_evaluacion,
+    },
+  });
+
+  const lenguajeBach = await prisma.asignatura.upsert({
+    where: { id_asignatura: 7 },
+    update: {},
+    create: {
+      nombre: 'Lenguaje y Literatura - Bach',
+      id_curso: cursoBachillerato.id_curso,
+      orden_en_reporte: '02',
+      horas_semanas: 4,
+      id_metodo_evaluacion: metodo.id_metodo_evaluacion,
+      id_tipo_asignatura: tipoBasica.id_tipo_asignatura,
+      id_sistema_evaluacion: sistemaBachillerato.id_sistema_evaluacion,
+    },
+  });
+
+  const cienciasBach = await prisma.asignatura.upsert({
+    where: { id_asignatura: 8 },
+    update: {},
+    create: {
+      nombre: 'Ciencias Naturales - Bach',
+      id_curso: cursoBachillerato.id_curso,
+      orden_en_reporte: '03',
+      horas_semanas: 4,
+      id_metodo_evaluacion: metodo.id_metodo_evaluacion,
+      id_tipo_asignatura: tipoBasica.id_tipo_asignatura,
+      id_sistema_evaluacion: sistemaBachillerato.id_sistema_evaluacion,
+    },
+  });
+
+  // Asignar Bachillerato al orientador
+  await prisma.asignaturaOrientador.upsert({
+    where: {
+      id_asignatura_id_orientador_anio_academico: {
+        id_asignatura: matematicaBach.id_asignatura,
+        id_orientador: ori1.id_orientador,
+        anio_academico: anio,
+      },
+    },
+    update: { activo: true },
+    create: {
+      id_asignatura: matematicaBach.id_asignatura,
+      id_orientador: ori1.id_orientador,
+      anio_academico: anio,
+      activo: true,
+    },
+  });
+
+  await prisma.asignaturaOrientador.upsert({
+    where: {
+      id_asignatura_id_orientador_anio_academico: {
+        id_asignatura: lenguajeBach.id_asignatura,
+        id_orientador: ori1.id_orientador,
+        anio_academico: anio,
+      },
+    },
+    update: { activo: true },
+    create: {
+      id_asignatura: lenguajeBach.id_asignatura,
+      id_orientador: ori1.id_orientador,
+      anio_academico: anio,
+      activo: true,
+    },
+  });
+
+  await prisma.asignaturaOrientador.upsert({
+    where: {
+      id_asignatura_id_orientador_anio_academico: {
+        id_asignatura: cienciasBach.id_asignatura,
+        id_orientador: ori1.id_orientador,
+        anio_academico: anio,
+      },
+    },
+    update: { activo: true },
+    create: {
+      id_asignatura: cienciasBach.id_asignatura,
+      id_orientador: ori1.id_orientador,
+      anio_academico: anio,
+      activo: true,
+    },
+  });
+
+  console.log('✅ Cursos y Asignaturas OK (Básica + Bachillerato)');
 }
