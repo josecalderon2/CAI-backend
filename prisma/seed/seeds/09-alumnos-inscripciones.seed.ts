@@ -41,12 +41,29 @@ export async function seedAlumnosInscripciones(prisma: PrismaClient) {
     }),
   );
 
-  // Distribuir alumnos en cursos
+  // Distribuir alumnos en cursos (UN ALUMNO = UN CURSO ACTIVO por año académico)
   let asignacionesCreadas = 0;
   for (let i = 0; i < alumnos.length; i++) {
     const cursoIndex = i % cursos.length;
     const alumno = alumnos[i];
     const curso = cursos[cursoIndex];
+
+    // Verificar si el alumno ya tiene inscripción activa este año
+    const inscripcionExistente = await prisma.alumnoCurso.findFirst({
+      where: {
+        alumnoId: alumno.id_alumno,
+        anioAcademico: anioActual,
+        estado: 'ACTIVO',
+      },
+    });
+
+    // Si ya tiene inscripción activa, saltarla
+    if (inscripcionExistente) {
+      console.log(
+        `⚠️  Alumno ${alumno.nombre} ya tiene inscripción activa en ${anioActual}`,
+      );
+      continue;
+    }
 
     const existente = await prisma.alumnoCurso.findUnique({
       where: {
