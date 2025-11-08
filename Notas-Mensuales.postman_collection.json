@@ -1,0 +1,246 @@
+{
+  "info": {
+    "name": "Notas Mensuales API",
+    "_postman_id": "notas-mensuales-collection",
+    "description": "Colección de endpoints para el módulo de Notas Mensuales",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Crear Nota Mensual - Completa",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_alumno\": 1,\n  \"id_asignatura\": 1,\n  \"mes\": 3,\n  \"anio\": 2025,\n  \"tarea_1\": 8.5,\n  \"revision_libros_cuadernos\": 9.0,\n  \"tarea_2\": 7.5,\n  \"laboratorio_escrito\": 8.0,\n  \"examen_mensual\": 9.0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"]
+        },
+        "description": "Crea una nota mensual con todas las actividades"
+      }
+    },
+    {
+      "name": "2. Crear Nota Mensual - Parcial",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id_alumno\": 2,\n  \"id_asignatura\": 1,\n  \"mes\": 4,\n  \"anio\": 2025,\n  \"tarea_1\": 8.0,\n  \"examen_mensual\": 8.5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"]
+        },
+        "description": "Crea una nota mensual con solo algunas actividades"
+      }
+    },
+    {
+      "name": "3. Actualizar Nota Mensual - Todas las notas",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tarea_1\": 9.0,\n  \"revision_libros_cuadernos\": 9.5,\n  \"tarea_2\": 8.5,\n  \"laboratorio_escrito\": 9.0,\n  \"examen_mensual\": 9.5\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales", "1"]
+        },
+        "description": "Actualiza todas las notas de una nota mensual"
+      }
+    },
+    {
+      "name": "4. Actualizar Nota Mensual - Solo examen",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"examen_mensual\": 8.0\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales", "1"]
+        },
+        "description": "Actualiza solo el examen mensual"
+      }
+    },
+    {
+      "name": "5. Obtener Todas las Notas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"]
+        },
+        "description": "Obtiene todas las notas mensuales sin filtros"
+      }
+    },
+    {
+      "name": "6. Filtrar por Alumno",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales?id_alumno=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"],
+          "query": [
+            {
+              "key": "id_alumno",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Obtiene todas las notas de un alumno específico"
+      }
+    },
+    {
+      "name": "7. Filtrar por Asignatura",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales?id_asignatura=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"],
+          "query": [
+            {
+              "key": "id_asignatura",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Obtiene todas las notas de una asignatura específica"
+      }
+    },
+    {
+      "name": "8. Filtrar por Alumno y Asignatura",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales?id_alumno=1&id_asignatura=1",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"],
+          "query": [
+            {
+              "key": "id_alumno",
+              "value": "1"
+            },
+            {
+              "key": "id_asignatura",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "Obtiene las notas de un alumno en una asignatura específica"
+      }
+    },
+    {
+      "name": "9. Filtrar por Mes y Año",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales?mes=3&anio=2025",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"],
+          "query": [
+            {
+              "key": "mes",
+              "value": "3"
+            },
+            {
+              "key": "anio",
+              "value": "2025"
+            }
+          ]
+        },
+        "description": "Obtiene todas las notas de un mes y año específico"
+      }
+    },
+    {
+      "name": "10. Filtrar Completo",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales?id_alumno=1&id_asignatura=1&mes=3&anio=2025",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales"],
+          "query": [
+            {
+              "key": "id_alumno",
+              "value": "1"
+            },
+            {
+              "key": "id_asignatura",
+              "value": "1"
+            },
+            {
+              "key": "mes",
+              "value": "3"
+            },
+            {
+              "key": "anio",
+              "value": "2025"
+            }
+          ]
+        },
+        "description": "Obtiene una nota específica con todos los filtros"
+      }
+    },
+    {
+      "name": "11. Obtener Nota por ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notas-mensuales/1",
+          "host": ["{{baseUrl}}"],
+          "path": ["notas-mensuales", "1"]
+        },
+        "description": "Obtiene una nota mensual específica por su ID"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ]
+}
