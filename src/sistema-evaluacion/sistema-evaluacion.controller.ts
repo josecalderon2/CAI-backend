@@ -1031,6 +1031,76 @@ export class SistemaEvaluacionController {
     );
   }
 
+  @Get('catalogo/tipos-actividad/asignatura/:id_asignatura')
+  @ApiOperation({
+    summary: '🎯 Obtener tipos de actividad según asignatura (RECOMENDADO)',
+    description:
+      'Obtiene automáticamente los tipos de actividad correctos para una asignatura específica.\n\n' +
+      '**¿Por qué usar este endpoint?**\n' +
+      '- ✅ Detecta automáticamente el nivel educativo (BASICA o BACHILLERATO) según el grado del curso\n' +
+      '- ✅ Devuelve solo los tipos de actividad válidos para esa asignatura\n' +
+      '- ✅ Incluye información de ponderaciones y categorías\n' +
+      '- ✅ Frontend no necesita saber el nivel educativo\n\n' +
+      '**Ejemplo de uso:**\n' +
+      'Si la asignatura es de 5to grado (BASICA) → devuelve actividades de básica\n' +
+      'Si la asignatura es de 1er año bachillerato → devuelve actividades categorizadas',
+  })
+  @ApiParam({
+    name: 'id_asignatura',
+    description:
+      'ID de la asignatura. El sistema detectará automáticamente si es BASICA o BACHILLERATO',
+    type: 'number',
+    example: 2,
+    examples: {
+      'Asignatura Básica': {
+        value: 2,
+        description: 'Matemática de 5to grado (BASICA)',
+      },
+      'Asignatura Bachillerato': {
+        value: 6,
+        description: 'Matemática de 1er año Bachillerato',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Lista de tipos de actividad disponibles para la asignatura (con nivel educativo detectado)',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id_tipo_actividad: { type: 'number', example: 1 },
+          nombre: { type: 'string', example: 'Tarea' },
+          categoria: { type: 'string', example: 'TAREA', nullable: true },
+          peso: { type: 'number', example: 0.05, nullable: true },
+          activo: { type: 'boolean', example: true },
+          orden: { type: 'number', example: 1, nullable: true },
+          nivel_educativo: { type: 'string', example: 'BASICA' },
+          permite_multiples_instancias: {
+            type: 'boolean',
+            example: true,
+            description:
+              'Indica si se puede agregar múltiples veces (ej: Tarea 1, Tarea 2)',
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description:
+      'Asignatura no encontrada o no se pudo determinar el nivel educativo',
+  })
+  async obtenerTiposActividadPorAsignatura(
+    @Param('id_asignatura', ParseIntPipe) id_asignatura: number,
+  ) {
+    return this.sistemaEvaluacionService.obtenerTiposActividadPorAsignatura(
+      id_asignatura,
+    );
+  }
+
   /**
    * ========================================================
    * ============= ENDPOINTS SIMPLIFICADOS ==================
