@@ -1044,14 +1044,82 @@ export class SistemaEvaluacionController {
   @ApiOperation({
     summary: '🆕 Crear nota mensual simplificada (alias)',
     description:
-      'Alias de nota-mensual/simple. Crea una nota mensual con formato simplificado.',
+      'Alias de nota-mensual/simple. Crea una nota mensual con formato simplificado. ' +
+      'Si ya existe una nota para el mismo alumno/asignatura/mes/año, la actualiza automáticamente.',
   })
   @ApiResponse({
     status: 201,
-    description: 'Nota mensual creada exitosamente',
+    description: 'Nota mensual creada/actualizada exitosamente',
   })
   async crearNotaSimplificadaAlias(@Body() dto: any) {
     return this.sistemaEvaluacionService.crearNotaSimplificada(dto);
+  }
+
+  // Ruta PATCH para actualizar notas simplificadas por ID
+  @Patch('notas/simplificadas/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '🆕 Actualizar nota mensual simplificada por ID',
+    description:
+      'Actualiza una nota mensual existente usando su ID. ' +
+      'Acepta formato simplificado con mes numérico (1-12) y año numérico.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID de la nota mensual a actualizar',
+    type: 'number',
+    example: 1,
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        actividades: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id_tipo_actividad: { type: 'number' },
+              numero_actividad: { type: 'number', nullable: true },
+              nota: { type: 'number' },
+            },
+          },
+        },
+        examen_mensual: { type: 'number' },
+        examen_parcial: { type: 'number', nullable: true },
+      },
+    },
+    examples: {
+      BASICA: {
+        summary: 'Actualización de nota en Básica',
+        value: {
+          actividades: [
+            { id_tipo_actividad: 1, numero_actividad: 1, nota: 8.5 },
+            { id_tipo_actividad: 2, numero_actividad: null, nota: 9.0 },
+            { id_tipo_actividad: 1, numero_actividad: 2, nota: 8.0 },
+            { id_tipo_actividad: 3, numero_actividad: null, nota: 8.5 },
+          ],
+          examen_mensual: 9.0,
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nota mensual actualizada exitosamente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Nota mensual no encontrada',
+  })
+  async actualizarNotaSimplificadaPorId(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: any,
+  ) {
+    return this.sistemaEvaluacionService.actualizarNotaSimplificadaPorId(
+      id,
+      dto,
+    );
   }
 
   // Ruta GET alternativa para compatibilidad con el frontend
