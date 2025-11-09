@@ -1038,7 +1038,23 @@ export class SistemaEvaluacionController {
     return this.sistemaEvaluacionService.crearNotaSimplificada(dto);
   }
 
-  // Ruta alternativa para compatibilidad con el frontend
+  // Ruta POST alternativa para compatibilidad con el frontend
+  @Post('notas/simplificadas')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: '🆕 Crear nota mensual simplificada (alias)',
+    description:
+      'Alias de nota-mensual/simple. Crea una nota mensual con formato simplificado.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Nota mensual creada exitosamente',
+  })
+  async crearNotaSimplificadaAlias(@Body() dto: any) {
+    return this.sistemaEvaluacionService.crearNotaSimplificada(dto);
+  }
+
+  // Ruta GET alternativa para compatibilidad con el frontend
   @Get('notas/simplificadas')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
