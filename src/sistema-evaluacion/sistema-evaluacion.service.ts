@@ -1931,4 +1931,267 @@ export class SistemaEvaluacionService {
       ), // Indica si se puede agregar múltiples veces (ej: Tarea 1, Tarea 2)
     }));
   }
+
+  /**
+   * ========================================================
+   * ============= ENDPOINTS SIMPLIFICADOS ==================
+   * ========================================================
+   * Estos endpoints usan formato numérico (mes: 1-12, año: 2025)
+   * para mayor facilidad de uso desde el frontend
+   */
+
+  /**
+   * Convierte número de mes (1-12) a nombre en español
+   */
+  private convertirMesNumericoANombre(mesNumerico: number): string {
+    const meses = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    return meses[mesNumerico - 1];
+  }
+
+  /**
+   * Convierte nombre de mes a número (1-12)
+   */
+  private convertirNombreMesANumerico(nombreMes: string): number {
+    const meses = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    return meses.indexOf(nombreMes) + 1;
+  }
+
+  /**
+   * Calcula automáticamente el trimestre basado en el mes numérico
+   * Trimestre 1: Febrero (2), Marzo (3), Abril (4)
+   * Trimestre 2: Mayo (5), Junio (6), Julio (7)
+   * Trimestre 3: Agosto (8), Septiembre (9), Octubre (10)
+   * Periodo 4: Noviembre (11) - Solo para Bachillerato
+   */
+  private calcularTrimestrePorMes(mesNumerico: number): number {
+    if (mesNumerico >= 2 && mesNumerico <= 4) return 1;
+    if (mesNumerico >= 5 && mesNumerico <= 7) return 2;
+    if (mesNumerico >= 8 && mesNumerico <= 10) return 3;
+    if (mesNumerico === 11) return 4; // Periodo 4 para Bachillerato
+    throw new BadRequestException(
+      `El mes ${mesNumerico} no es válido para el calendario académico. Debe ser entre 2 (Febrero) y 11 (Noviembre)`,
+    );
+  }
+
+  /**
+   * Crea una nota mensual usando formato simplificado (mes numérico, año numérico)
+   * Internamente convierte a formato string y usa el método estándar calcularNotaMensual
+   */
+  async crearNotaSimplificada(dto: any): Promise<any> {
+    // Convertir mes numérico a nombre
+    const mesNombre = this.convertirMesNumericoANombre(dto.mes_numerico);
+
+    // Calcular trimestre automáticamente si no viene
+    const trimestre =
+      dto.trimestre || this.calcularTrimestrePorMes(dto.mes_numerico);
+
+    // Construir DTO en formato estándar
+    const dtoEstandar = {
+      id_alumno: dto.id_alumno,
+      id_asignatura: dto.id_asignatura,
+      mes: mesNombre,
+      trimestre: trimestre,
+      anio_academico: dto.anio.toString(),
+      actividades: dto.actividades,
+      examen_mensual: dto.examen_mensual,
+      examen_parcial: dto.examen_parcial,
+    };
+
+    // Usar el método existente
+    const resultado = await this.calcularNotaMensual(dtoEstandar);
+
+    // Convertir respuesta a formato simplificado
+    return {
+      ...resultado,
+      mes_numerico: dto.mes_numerico,
+      anio: dto.anio,
+    };
+  }
+
+  /**
+   * Consulta notas mensuales usando filtros simplificados (mes numérico, año numérico)
+   */
+  async consultarNotasSimplificadas(filtros: any): Promise<any[]> {
+    // Construir filtros en formato estándar
+    const where: any = {};
+
+    if (filtros.id_alumno) {
+      where.id_alumno = filtros.id_alumno;
+    }
+
+    if (filtros.id_asignatura) {
+      where.id_asignatura = filtros.id_asignatura;
+    }
+
+    if (filtros.mes_numerico) {
+      where.mes = this.convertirMesNumericoANombre(filtros.mes_numerico);
+    }
+
+    if (filtros.trimestre) {
+      where.trimestre = filtros.trimestre;
+    }
+
+    if (filtros.anio) {
+      where.anio_academico = filtros.anio.toString();
+    }
+
+    // Consultar notas
+    const notas = await this.prisma.notaMensual.findMany({
+      where,
+      include: {
+        asignatura: {
+          select: {
+            nombre: true,
+          },
+        },
+        alumno: {
+          select: {
+            nombre: true,
+            apellido: true,
+          },
+        },
+        actividades: {
+          include: {
+            tipoActividad: true,
+          },
+          orderBy: {
+            id_actividad_evaluacion: 'asc',
+          },
+        },
+      },
+      orderBy: [
+        { anio_academico: 'desc' },
+        { trimestre: 'asc' },
+        { mes: 'asc' },
+      ],
+    });
+
+    // Convertir respuesta a formato simplificado
+    return notas.map((nota) => ({
+      id_nota_mensual: nota.id_nota_mensual,
+      id_alumno: nota.id_alumno,
+      id_asignatura: nota.id_asignatura,
+      alumno: nota.alumno,
+      asignatura: nota.asignatura,
+      mes_numerico: this.convertirNombreMesANumerico(nota.mes),
+      mes_nombre: nota.mes,
+      trimestre: nota.trimestre,
+      anio: parseInt(nota.anio_academico),
+      actividades: nota.actividades.map((act) => ({
+        id_actividad_evaluacion: act.id_actividad_evaluacion,
+        id_tipo_actividad: act.id_tipo_actividad,
+        tipo_actividad_nombre: act.tipoActividad.nombre,
+        numero_actividad: act.numero_actividad,
+        nota: act.nota,
+        nombre_completo: act.numero_actividad
+          ? `${act.tipoActividad.nombre} ${act.numero_actividad}`
+          : act.tipoActividad.nombre,
+      })),
+      examen_mensual: nota.examen_mensual,
+      examen_parcial: nota.examen_parcial,
+      promedio_puro_actividades: nota.promedio_puro_actividades,
+      promedio_70_actividades: nota.promedio_70_actividades,
+      promedio_30_examen: nota.promedio_30_examen,
+      nota_mensual: nota.nota_mensual,
+      porcentaje_aporte: nota.porcentaje_aporte,
+      aporte_al_trimestre: nota.aporte_al_trimestre,
+      fecha_registro: nota.fecha_registro,
+      actualizado_en: nota.actualizado_en,
+    }));
+  }
+
+  /**
+   * Obtiene una nota mensual por ID usando formato simplificado
+   */
+  async obtenerNotaSimplificadaPorId(id_nota_mensual: number): Promise<any> {
+    const nota = await this.prisma.notaMensual.findUnique({
+      where: { id_nota_mensual },
+      include: {
+        asignatura: {
+          select: {
+            nombre: true,
+          },
+        },
+        alumno: {
+          select: {
+            nombre: true,
+            apellido: true,
+          },
+        },
+        actividades: {
+          include: {
+            tipoActividad: true,
+          },
+          orderBy: {
+            id_actividad_evaluacion: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!nota) {
+      throw new NotFoundException(
+        `Nota mensual con ID ${id_nota_mensual} no encontrada`,
+      );
+    }
+
+    // Convertir respuesta a formato simplificado
+    return {
+      id_nota_mensual: nota.id_nota_mensual,
+      id_alumno: nota.id_alumno,
+      id_asignatura: nota.id_asignatura,
+      alumno: nota.alumno,
+      asignatura: nota.asignatura,
+      mes_numerico: this.convertirNombreMesANumerico(nota.mes),
+      mes_nombre: nota.mes,
+      trimestre: nota.trimestre,
+      anio: parseInt(nota.anio_academico),
+      actividades: nota.actividades.map((act) => ({
+        id_actividad_evaluacion: act.id_actividad_evaluacion,
+        id_tipo_actividad: act.id_tipo_actividad,
+        tipo_actividad_nombre: act.tipoActividad.nombre,
+        numero_actividad: act.numero_actividad,
+        nota: act.nota,
+        nombre_completo: act.numero_actividad
+          ? `${act.tipoActividad.nombre} ${act.numero_actividad}`
+          : act.tipoActividad.nombre,
+      })),
+      examen_mensual: nota.examen_mensual,
+      examen_parcial: nota.examen_parcial,
+      promedio_puro_actividades: nota.promedio_puro_actividades,
+      promedio_70_actividades: nota.promedio_70_actividades,
+      promedio_30_examen: nota.promedio_30_examen,
+      nota_mensual: nota.nota_mensual,
+      porcentaje_aporte: nota.porcentaje_aporte,
+      aporte_al_trimestre: nota.aporte_al_trimestre,
+      fecha_registro: nota.fecha_registro,
+      actualizado_en: nota.actualizado_en,
+    };
+  }
 }

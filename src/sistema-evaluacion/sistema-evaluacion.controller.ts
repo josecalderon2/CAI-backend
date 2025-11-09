@@ -1030,4 +1030,181 @@ export class SistemaEvaluacionController {
       nivel_educativo as 'BASICA' | 'BACHILLERATO',
     );
   }
+
+  /**
+   * ========================================================
+   * ============= ENDPOINTS SIMPLIFICADOS ==================
+   * ========================================================
+   */
+
+  @Post('nota-mensual/simple')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: '🆕 Crear nota mensual con formato simplificado',
+    description:
+      'Versión simplificada que usa formato numérico (mes: 1-12, año: 2025) ' +
+      'en lugar de strings ("Febrero", "2025"). Más fácil de usar desde el frontend.\n\n' +
+      '**Ventajas:**\n' +
+      '- Mes como número (2 en lugar de "Febrero")\n' +
+      '- Año como número (2025 en lugar de "2025")\n' +
+      '- Cálculo automático de trimestre basado en el mes\n' +
+      '- Guarda todas las actividades individuales\n' +
+      '- Soporta BÁSICA y BACHILLERATO',
+  })
+  @ApiBody({
+    type: 'CrearNotaSimpleDto',
+    examples: {
+      'BÁSICA - Febrero': {
+        summary: 'Básica: Matemática - Febrero (mes numérico: 2)',
+        value: {
+          id_alumno: 1,
+          id_asignatura: 2,
+          mes_numerico: 2,
+          trimestre: 1,
+          anio: 2025,
+          actividades: [
+            { id_tipo_actividad: 1, numero_actividad: 1, nota: 8.5 },
+            { id_tipo_actividad: 2, numero_actividad: null, nota: 9.0 },
+            { id_tipo_actividad: 1, numero_actividad: 2, nota: 7.5 },
+            { id_tipo_actividad: 3, numero_actividad: null, nota: 8.0 },
+          ],
+          examen_mensual: 9.0,
+        },
+      },
+      'BACHILLERATO - Periodo 1': {
+        summary: 'Bachillerato: Matemática - Periodo 1 (mes numérico: 2)',
+        value: {
+          id_alumno: 2,
+          id_asignatura: 6,
+          mes_numerico: 2,
+          trimestre: 1,
+          anio: 2025,
+          actividades: [
+            { id_tipo_actividad: 5, numero_actividad: 1, nota: 8.5 },
+            { id_tipo_actividad: 7, numero_actividad: 1, nota: 9.0 },
+            { id_tipo_actividad: 9, numero_actividad: 1, nota: 8.0 },
+            { id_tipo_actividad: 12, numero_actividad: 1, nota: 8.5 },
+          ],
+          examen_mensual: 9.0,
+          examen_parcial: 8.5,
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Nota mensual creada exitosamente',
+  })
+  async crearNotaSimplificada(@Body() dto: any) {
+    return this.sistemaEvaluacionService.crearNotaSimplificada(dto);
+  }
+
+  @Get('notas-mensuales/simple')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '🆕 Consultar notas mensuales con formato simplificado',
+    description:
+      'Obtiene notas mensuales usando filtros numéricos (mes: 1-12, año: 2025). ' +
+      'Devuelve las actividades individuales guardadas.\n\n' +
+      '**Ventajas:**\n' +
+      '- Filtros con formato numérico\n' +
+      '- Respuesta incluye mes_numerico Y mes_nombre\n' +
+      '- Incluye todas las actividades individuales\n' +
+      '- Incluye información del alumno y asignatura',
+  })
+  @ApiQuery({
+    name: 'id_alumno',
+    description: 'ID del alumno',
+    required: false,
+    type: 'number',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'id_asignatura',
+    description: 'ID de la asignatura',
+    required: false,
+    type: 'number',
+    example: 2,
+  })
+  @ApiQuery({
+    name: 'mes_numerico',
+    description: 'Mes numérico (1-12)',
+    required: false,
+    type: 'number',
+    example: 2,
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Trimestre o periodo (1-4)',
+    required: false,
+    type: 'number',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'anio',
+    description: 'Año académico',
+    required: false,
+    type: 'number',
+    example: 2025,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Notas mensuales recuperadas exitosamente',
+    schema: {
+      example: [
+        {
+          id_nota_mensual: 1,
+          id_alumno: 1,
+          id_asignatura: 2,
+          alumno: { nombre: 'Juan', apellido: 'Pérez' },
+          asignatura: { nombre: 'Matemática I' },
+          mes_numerico: 2,
+          mes_nombre: 'Febrero',
+          trimestre: 1,
+          anio: 2025,
+          actividades: [
+            {
+              id_actividad_evaluacion: 1,
+              id_tipo_actividad: 1,
+              tipo_actividad_nombre: 'Tarea',
+              numero_actividad: 1,
+              nota: 8.5,
+              nombre_completo: 'Tarea 1',
+            },
+          ],
+          examen_mensual: 9.0,
+          nota_mensual: 8.475,
+          fecha_registro: '2025-11-08T10:30:00.000Z',
+        },
+      ],
+    },
+  })
+  async consultarNotasSimplificadas(@Query() filtros: any) {
+    return this.sistemaEvaluacionService.consultarNotasSimplificadas(filtros);
+  }
+
+  @Get('nota-mensual/simple/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '🆕 Obtener nota mensual por ID con formato simplificado',
+    description:
+      'Obtiene una nota mensual específica con formato numérico y todas sus actividades.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID de la nota mensual',
+    type: 'number',
+    example: 1,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nota mensual recuperada exitosamente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Nota mensual no encontrada',
+  })
+  async obtenerNotaSimplificadaPorId(@Param('id', ParseIntPipe) id: number) {
+    return this.sistemaEvaluacionService.obtenerNotaSimplificadaPorId(id);
+  }
 }

@@ -2,7 +2,11 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class QueryNotaMensualDto {
+/**
+ * DTO para consultar notas mensuales con filtros opcionales
+ * Usa formato numérico (mes 1-12, año 2025) para facilidad de uso en frontend
+ */
+export class ConsultarNotasSimpleDto {
   @ApiPropertyOptional({
     description: 'ID del alumno',
     example: 1,
@@ -14,7 +18,7 @@ export class QueryNotaMensualDto {
 
   @ApiPropertyOptional({
     description: 'ID de la asignatura',
-    example: 1,
+    example: 2,
   })
   @IsOptional()
   @Type(() => Number)
@@ -22,8 +26,8 @@ export class QueryNotaMensualDto {
   id_asignatura?: number;
 
   @ApiPropertyOptional({
-    description: 'Mes (1-12)',
-    example: 3,
+    description: 'Mes numérico (1-12)',
+    example: 2,
     minimum: 1,
     maximum: 12,
   })
@@ -32,7 +36,20 @@ export class QueryNotaMensualDto {
   @IsInt({ message: 'El mes debe ser un número entero' })
   @Min(1, { message: 'El mes debe ser entre 1 y 12' })
   @Max(12, { message: 'El mes debe ser entre 1 y 12' })
-  mes?: number;
+  mes_numerico?: number;
+
+  @ApiPropertyOptional({
+    description: 'Número de trimestre o periodo (1-4)',
+    example: 1,
+    minimum: 1,
+    maximum: 4,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'El trimestre debe ser un número entero' })
+  @Min(1, { message: 'El trimestre debe ser entre 1 y 4' })
+  @Max(4, { message: 'El trimestre debe ser entre 1 y 4' })
+  trimestre?: number;
 
   @ApiPropertyOptional({
     description: 'Año académico',
