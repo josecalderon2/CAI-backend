@@ -23,7 +23,11 @@ export class AsignaturasService {
         metodoEvaluacion: true,
         tipoAsignatura: true,
         sistemaEvaluacion: true,
-        curso: true,
+        curso: {
+          include: {
+            gradoAcademico: true, // ✅ Incluir grado académico con nivel_educativo
+          },
+        },
       },
     });
     return asignatura as unknown as AsignaturaResponse;
@@ -38,7 +42,11 @@ export class AsignaturasService {
         metodoEvaluacion: true,
         tipoAsignatura: true,
         sistemaEvaluacion: true,
-        curso: true,
+        curso: {
+          include: {
+            gradoAcademico: true, // ✅ Incluir grado académico con nivel_educativo
+          },
+        },
       },
       orderBy: { nombre: 'asc' },
     }) as unknown as AsignaturaResponse[];
@@ -65,7 +73,11 @@ export class AsignaturasService {
         metodoEvaluacion: true,
         tipoAsignatura: true,
         sistemaEvaluacion: true,
-        curso: true,
+        curso: {
+          include: {
+            gradoAcademico: true, // ✅ Incluir grado académico con nivel_educativo
+          },
+        },
       },
       orderBy: { nombre: 'asc' },
     }) as unknown as AsignaturaResponse[];
@@ -78,7 +90,11 @@ export class AsignaturasService {
         metodoEvaluacion: true,
         tipoAsignatura: true,
         sistemaEvaluacion: true,
-        curso: true,
+        curso: {
+          include: {
+            gradoAcademico: true, // ✅ Incluir grado académico con nivel_educativo
+          },
+        },
       },
     });
 
@@ -155,7 +171,11 @@ export class AsignaturasService {
           metodoEvaluacion: true,
           tipoAsignatura: true,
           sistemaEvaluacion: true,
-          curso: true,
+          curso: {
+            include: {
+              gradoAcademico: true, // ✅ Incluir grado académico con nivel_educativo
+            },
+          },
         },
       });
 
