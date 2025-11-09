@@ -1058,10 +1058,18 @@ export class SistemaEvaluacionController {
   @Get('notas/simplificadas')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: '🆕 Consultar notas mensuales simplificadas (alias)',
+    summary:
+      '🆕 Consultar notas mensuales simplificadas con todos los cálculos (alias)',
     description:
       'Alias de notas-mensuales/simple. Obtiene notas mensuales usando filtros numéricos (mes: 1-12, año: 2025). ' +
-      'Devuelve las actividades individuales guardadas.',
+      'Devuelve las actividades individuales guardadas y TODOS los cálculos detallados.\n\n' +
+      '**📊 Incluye:**\n' +
+      '- promedio_puro_actividades (suma/cantidad)\n' +
+      '- promedio_70_actividades (puro × 70%)\n' +
+      '- promedio_30_examen (examen × 30%)\n' +
+      '- nota_mensual (70% + 30%)\n' +
+      '- porcentaje_aporte (28%, 27% o 45% según mes)\n' +
+      '- aporte_al_trimestre (nota × porcentaje)',
   })
   @ApiQuery({
     name: 'id_alumno',
@@ -1102,15 +1110,23 @@ export class SistemaEvaluacionController {
   @Get('notas-mensuales/simple')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: '🆕 Consultar notas mensuales con formato simplificado',
+    summary:
+      '🆕 Consultar notas mensuales con formato simplificado y cálculos detallados',
     description:
       'Obtiene notas mensuales usando filtros numéricos (mes: 1-12, año: 2025). ' +
-      'Devuelve las actividades individuales guardadas.\n\n' +
+      'Devuelve las actividades individuales guardadas y TODOS los cálculos intermedios.\n\n' +
       '**Ventajas:**\n' +
       '- Filtros con formato numérico\n' +
       '- Respuesta incluye mes_numerico Y mes_nombre\n' +
       '- Incluye todas las actividades individuales\n' +
-      '- Incluye información del alumno y asignatura',
+      '- Incluye información del alumno y asignatura\n\n' +
+      '**📊 Cálculos incluidos (BÁSICA):**\n' +
+      '- `promedio_puro_actividades`: Suma de actividades / cantidad\n' +
+      '- `promedio_70_actividades`: promedio_puro × 70%\n' +
+      '- `promedio_30_examen`: examen_mensual × 30%\n' +
+      '- `nota_mensual`: promedio_70_actividades + promedio_30_examen\n' +
+      '- `porcentaje_aporte`: % del mes al trimestre (Feb=28%, Mar=27%, Abr=45%)\n' +
+      '- `aporte_al_trimestre`: nota_mensual × porcentaje_aporte',
   })
   @ApiQuery({
     name: 'id_alumno',
@@ -1149,7 +1165,8 @@ export class SistemaEvaluacionController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Notas mensuales recuperadas exitosamente',
+    description:
+      'Notas mensuales recuperadas exitosamente con todos los cálculos',
     schema: {
       example: [
         {
@@ -1168,13 +1185,45 @@ export class SistemaEvaluacionController {
               id_tipo_actividad: 1,
               tipo_actividad_nombre: 'Tarea',
               numero_actividad: 1,
-              nota: 8.5,
+              nota: 8.0,
               nombre_completo: 'Tarea 1',
+            },
+            {
+              id_actividad_evaluacion: 2,
+              id_tipo_actividad: 2,
+              tipo_actividad_nombre: 'Revisión de libros y cuadernos',
+              numero_actividad: null,
+              nota: 9.0,
+              nombre_completo: 'Revisión de libros y cuadernos',
+            },
+            {
+              id_actividad_evaluacion: 3,
+              id_tipo_actividad: 1,
+              tipo_actividad_nombre: 'Tarea',
+              numero_actividad: 2,
+              nota: 7.5,
+              nombre_completo: 'Tarea 2',
+            },
+            {
+              id_actividad_evaluacion: 4,
+              id_tipo_actividad: 3,
+              tipo_actividad_nombre: 'Laboratorio escrito',
+              numero_actividad: null,
+              nota: 8.5,
+              nombre_completo: 'Laboratorio escrito',
             },
           ],
           examen_mensual: 9.0,
-          nota_mensual: 8.475,
+          examen_parcial: null,
+          // 📊 CÁLCULOS DETALLADOS PARA BÁSICA:
+          promedio_puro_actividades: 8.25, // (8.0 + 9.0 + 7.5 + 8.5) / 4
+          promedio_70_actividades: 5.775, // 8.25 × 0.70
+          promedio_30_examen: 2.7, // 9.0 × 0.30
+          nota_mensual: 8.475, // 5.775 + 2.7
+          porcentaje_aporte: 0.28, // 28% para Febrero (varía por mes)
+          aporte_al_trimestre: 2.37, // 8.475 × 0.28
           fecha_registro: '2025-11-08T10:30:00.000Z',
+          actualizado_en: '2025-11-08T10:30:00.000Z',
         },
       ],
     },
