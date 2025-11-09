@@ -1948,6 +1948,230 @@ export class SistemaEvaluacionService {
   }
 
   /**
+   * Obtiene el FORMATO/ESTRUCTURA de evaluación para una asignatura
+   * Este método indica al frontend EXACTAMENTE qué actividades mostrar y en qué orden
+   *
+   * Para BÁSICA devuelve el formato fijo:
+   * - Tarea 1
+   * - Revisión de libros y cuadernos
+   * - Tarea 2
+   * - Laboratorio escrito
+   *
+   * Para BACHILLERATO devuelve las categorías requeridas
+   */
+  async obtenerFormatoEvaluacionPorAsignatura(
+    id_asignatura: number,
+  ): Promise<any> {
+    // Obtener el nivel educativo de la asignatura
+    const nivelEducativo = await this.obtenerNivelEducativo(id_asignatura);
+
+    // Obtener la asignatura con su nombre
+    const asignatura = await this.prisma.asignatura.findUnique({
+      where: { id_asignatura },
+      select: {
+        nombre: true,
+        curso: {
+          select: {
+            nombre: true,
+            gradoAcademico: {
+              select: {
+                nombre: true,
+                nivel_educativo: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (nivelEducativo === 'BASICA') {
+      // ==========================================
+      // FORMATO FIJO PARA BÁSICA
+      // ==========================================
+      const tipoTarea = await this.prisma.tipoActividadEvaluacion.findFirst({
+        where: { nombre: 'Tarea', activo: true },
+      });
+
+      const tipoRevision = await this.prisma.tipoActividadEvaluacion.findFirst({
+        where: { nombre: 'Revisión de libros y cuadernos', activo: true },
+      });
+
+      const tipoLaboratorio =
+        await this.prisma.tipoActividadEvaluacion.findFirst({
+          where: { nombre: 'Laboratorio escrito', activo: true },
+        });
+
+      return {
+        nivel: 'BASICA',
+        asignatura: {
+          id: id_asignatura,
+          nombre: asignatura?.nombre || '',
+          curso: asignatura?.curso?.nombre || '',
+          grado: asignatura?.curso?.gradoAcademico?.nombre || '',
+        },
+        formato: 'FIJO', // Indica que es un formato predefinido
+        instrucciones:
+          'Ingrese las notas en el orden especificado. Las Tareas pueden tener números (1, 2, etc.)',
+        estructura_actividades: [
+          {
+            orden: 1,
+            id_tipo_actividad: tipoTarea?.id_tipo_actividad || null,
+            nombre: 'Tarea',
+            numero_actividad: 1,
+            etiqueta: 'Tarea 1',
+            requerido: true,
+            permite_multiples: true, // El frontend puede agregar más tareas si quiere
+          },
+          {
+            orden: 2,
+            id_tipo_actividad: tipoRevision?.id_tipo_actividad || null,
+            nombre: 'Revisión de libros y cuadernos',
+            numero_actividad: null,
+            etiqueta: 'Revisión de libros y cuadernos',
+            requerido: true,
+            permite_multiples: false,
+          },
+          {
+            orden: 3,
+            id_tipo_actividad: tipoTarea?.id_tipo_actividad || null,
+            nombre: 'Tarea',
+            numero_actividad: 2,
+            etiqueta: 'Tarea 2',
+            requerido: true,
+            permite_multiples: true,
+          },
+          {
+            orden: 4,
+            id_tipo_actividad: tipoLaboratorio?.id_tipo_actividad || null,
+            nombre: 'Laboratorio escrito',
+            numero_actividad: 1,
+            etiqueta: 'Laboratorio escrito 1',
+            requerido: true,
+            permite_multiples: true,
+          },
+        ],
+        examenes: [
+          {
+            nombre: 'Examen mensual',
+            campo: 'examen_mensual',
+            porcentaje: 30,
+            requerido: true,
+          },
+        ],
+        calculo: {
+          formula: '(Promedio Actividades × 70%) + (Examen Mensual × 30%)',
+          componentes: [
+            {
+              nombre: 'Actividades continuas',
+              porcentaje: 70,
+              descripcion: 'Promedio simple de todas las actividades',
+            },
+            {
+              nombre: 'Examen mensual',
+              porcentaje: 30,
+              descripcion: 'Examen del mes',
+            },
+          ],
+        },
+      };
+    } else {
+      // ==========================================
+      // FORMATO PARA BACHILLERATO
+      // ==========================================
+      const tiposActividad = await this.prisma.tipoActividadEvaluacion.findMany(
+        {
+          where: {
+            activo: true,
+            aplica_a_nivel: { has: 'BACHILLERATO' },
+          },
+          orderBy: { orden: 'asc' },
+        },
+      );
+
+      return {
+        nivel: 'BACHILLERATO',
+        asignatura: {
+          id: id_asignatura,
+          nombre: asignatura?.nombre || '',
+          curso: asignatura?.curso?.nombre || '',
+          grado: asignatura?.curso?.gradoAcademico?.nombre || '',
+        },
+        formato: 'CATEGORIZADO',
+        instrucciones:
+          'Debe ingresar al menos una actividad de cada categoría requerida',
+        categorias_requeridas: [
+          {
+            categoria: 'ACTIVIDAD_INTEGRADORA',
+            nombre: 'Actividades Integradoras',
+            porcentaje: 25,
+            tipo: tiposActividad.find(
+              (t) => t.categoria_bachillerato === 'ACTIVIDAD_INTEGRADORA',
+            ),
+            min_actividades: 1,
+            requerido: true,
+          },
+          {
+            categoria: 'TAREA',
+            nombre: 'Tareas',
+            porcentaje: 5,
+            tipo: tiposActividad.find(
+              (t) => t.categoria_bachillerato === 'TAREA',
+            ),
+            min_actividades: 1,
+            requerido: true,
+          },
+          {
+            categoria: 'COEVALUACION',
+            nombre: 'Coevaluaciones',
+            porcentaje: 5,
+            tipo: tiposActividad.find(
+              (t) => t.categoria_bachillerato === 'COEVALUACION',
+            ),
+            min_actividades: 1,
+            requerido: true,
+          },
+          {
+            categoria: 'LABORATORIO',
+            nombre: 'Laboratorios/Prácticos',
+            porcentaje: 10,
+            tipo: tiposActividad.find(
+              (t) => t.categoria_bachillerato === 'LABORATORIO',
+            ),
+            min_actividades: 1,
+            requerido: true,
+          },
+        ],
+        examenes: [
+          {
+            nombre: 'Examen Parcial',
+            campo: 'examen_parcial',
+            porcentaje: 25,
+            requerido: true,
+          },
+          {
+            nombre: 'Examen del Periodo',
+            campo: 'examen_mensual',
+            porcentaje: 30,
+            requerido: true,
+          },
+        ],
+        calculo: {
+          formula:
+            '(Act.Int × 25%) + (Tarea × 5%) + (Coev × 5%) + (Lab × 10%) + (Ex.Parcial × 25%) + (Ex.Periodo × 30%)',
+          componentes: [
+            { nombre: 'Actividades Integradoras', porcentaje: 25 },
+            { nombre: 'Tareas', porcentaje: 5 },
+            { nombre: 'Coevaluaciones', porcentaje: 5 },
+            { nombre: 'Laboratorios/Prácticos', porcentaje: 10 },
+            { nombre: 'Examen Parcial', porcentaje: 25 },
+            { nombre: 'Examen del Periodo', porcentaje: 30 },
+          ],
+        },
+      };
+    }
+  }
+
+  /**
    * ========================================================
    * ============= ENDPOINTS SIMPLIFICADOS ==================
    * ========================================================
