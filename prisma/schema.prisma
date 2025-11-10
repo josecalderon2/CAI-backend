@@ -170,6 +170,7 @@ model Grado_Academico {
   rcup               Boolean?
   jornada            Jornada? @relation(fields: [id_jornada], references: [id_jornada])
   curso              Curso[]
+  tipos_evaluacion   Tipo_evaluacion[]
 }
 
 model Curso {
@@ -267,16 +268,50 @@ model Notas {
   alumno         Alumno     @relation(fields: [id_alumno], references: [id_alumno])
 }
 
+// Enum unificado para tipos de evaluación
+enum TipoEvaluacion {
+  // Tipos para Básica (1° a 9°)
+  TAREA
+  REVISION_CUADERNO
+  LABORATORIO
+  ACTIVIDAD_INTEGRADORA
+  AUTOEVALUACION
+  EXAMEN_TRIMESTRAL
+  
+  // Tipos para Bachillerato
+  EXAMEN_PARCIAL
+  EXAMEN_PERIODO
+  COEVALUACION
+}
+
+model Tipo_evaluacion {
+  id_tipo_evaluacion  Int            @id @default(autoincrement())
+  nombre              String
+  id_grado_academico  Int            // Relación con el grado académico
+  porcentaje          Float          // El porcentaje que vale este tipo de evaluación
+  activo              Boolean        @default(true)
+  evaluaciones        Evaluacion[]
+  grado_academico     Grado_Academico @relation(fields: [id_grado_academico], references: [id_grado_academico])
+  
+  @@index([id_grado_academico])
+}
+
 model Evaluacion {
   id_evaluacion      Int            @id @default(autoincrement())
   nombre             String
-  puntaje_maximo     Float?
-  puntaje_minimo     Float?
+  puntaje_maximo     Float          @default(10) // Escala 0-10
+  puntaje_minimo     Float          @default(0)
+  calificacion       Float? // La nota obtenida
   id_tipo_evaluacion Int
   id_asignatura      Int
   id_orientador      Int
-  anio_academico     String?        @default("2024") // Año académico (ej: "2025", "2025-2026")
-  trimestre          String?        // Trimestre (ej: "1", "2", "3")
+  anio_academico     String         @default("2024")
+  
+  // Campos para control de períodos
+  mes                Int? // 1-12 (para básica)
+  trimestre          Int? // 1-3 (para básica)
+  periodo            Int? // 1-4 (para bachillerato)
+  
   createdAt          DateTime       @default(now())
   tipoEvaluacion     Tipo_evaluacion @relation(fields: [id_tipo_evaluacion], references: [id_tipo_evaluacion])
   asignatura         Asignatura     @relation(fields: [id_asignatura], references: [id_asignatura])
@@ -287,13 +322,8 @@ model Evaluacion {
   @@index([id_asignatura])
   @@index([anio_academico])
   @@index([trimestre])
-}
-
-model Tipo_evaluacion {
-  id_tipo_evaluacion Int          @id @default(autoincrement())
-  nombre             String
-  activo             Boolean      @default(true)
-  evaluaciones       Evaluacion[]
+  @@index([mes])
+  @@index([periodo])
 }
 
 model Administrativo {
