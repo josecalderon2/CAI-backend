@@ -4,37 +4,73 @@ export async function seedTiposActividadEvaluacion(prisma: PrismaClient) {
   console.log('🎯 Seeding Tipos de Actividad de Evaluación...');
 
   // ============================================
-  // TIPOS DE ACTIVIDAD PARA EDUCACIÓN BÁSICA
+  // TIPOS DE ACTIVIDAD PARA EDUCACIÓN BÁSICA 2025
   // ============================================
-  // Formato: Tarea 1, Revisión de libros y cuadernos, Tarea 2, Laboratorio escrito
-  // Promedio simple (70% actividades + 30% examen mensual)
+  // NUEVO SISTEMA BÁSICA 2025:
+  // Mensual (35%): Tareas 5% + Revisión 15% + Laboratorio 15%
+  // Trimestral (65%): Act.Integradora 25% + Autoevaluación 10% + Examen 30%
 
   const tiposActividadBasica = [
+    // ===== COMPONENTES MENSUALES =====
     {
-      nombre: 'Tarea',
+      nombre: 'Tareas (Mensual)',
       activo: true,
       orden: 1,
-      peso_basica: null, // Promedio simple, todas las actividades pesan igual
+      peso_basica: 0.05, // 5%
       peso_bachillerato: null,
       categoria_bachillerato: null,
+      categoria_basica: 'MENSUAL',
       aplica_a_nivel: ['BASICA'],
     },
     {
-      nombre: 'Revisión de libros y cuadernos',
+      nombre: 'Revisión de libros y cuadernos (Mensual)',
       activo: true,
       orden: 2,
-      peso_basica: null, // Promedio simple
+      peso_basica: 0.15, // 15%
       peso_bachillerato: null,
       categoria_bachillerato: null,
+      categoria_basica: 'MENSUAL',
       aplica_a_nivel: ['BASICA'],
     },
     {
-      nombre: 'Laboratorio escrito',
+      nombre: 'Laboratorio escrito (Mensual)',
       activo: true,
       orden: 3,
-      peso_basica: null, // Promedio simple
+      peso_basica: 0.15, // 15%
       peso_bachillerato: null,
       categoria_bachillerato: null,
+      categoria_basica: 'MENSUAL',
+      aplica_a_nivel: ['BASICA'],
+    },
+    // ===== COMPONENTES TRIMESTRALES =====
+    {
+      nombre: 'Actividad Integradora (Trimestral)',
+      activo: true,
+      orden: 4,
+      peso_basica: 0.25, // 25%
+      peso_bachillerato: null,
+      categoria_bachillerato: null,
+      categoria_basica: 'TRIMESTRAL',
+      aplica_a_nivel: ['BASICA'],
+    },
+    {
+      nombre: 'Autoevaluación (Trimestral)',
+      activo: true,
+      orden: 5,
+      peso_basica: 0.1, // 10%
+      peso_bachillerato: null,
+      categoria_bachillerato: null,
+      categoria_basica: 'TRIMESTRAL',
+      aplica_a_nivel: ['BASICA'],
+    },
+    {
+      nombre: 'Examen (Trimestral)',
+      activo: true,
+      orden: 6,
+      peso_basica: 0.3, // 30%
+      peso_bachillerato: null,
+      categoria_bachillerato: null,
+      categoria_basica: 'TRIMESTRAL',
       aplica_a_nivel: ['BASICA'],
     },
   ];
