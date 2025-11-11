@@ -3,125 +3,41 @@ import { PrismaClient } from '@prisma/client';
 export async function seedTiposActividadEvaluacion(prisma: PrismaClient) {
   console.log('🎯 Seeding Tipos de Actividad de Evaluación...');
 
-  // ============================================
-  // TIPOS DE ACTIVIDAD PARA EDUCACIÓN BÁSICA
-  // ============================================
-  // Formato: Tarea 1, Revisión de libros y cuadernos, Tarea 2, Laboratorio escrito
-  // Promedio simple (70% actividades + 30% examen mensual)
-
-  const tiposActividadBasica = [
+  const tiposActividad = [
     {
       nombre: 'Tarea',
       activo: true,
       orden: 1,
-      peso_basica: null, // Promedio simple, todas las actividades pesan igual
-      peso_bachillerato: null,
-      categoria_bachillerato: null,
-      aplica_a_nivel: ['BASICA'],
     },
     {
       nombre: 'Revisión de libros y cuadernos',
       activo: true,
       orden: 2,
-      peso_basica: null, // Promedio simple
-      peso_bachillerato: null,
-      categoria_bachillerato: null,
-      aplica_a_nivel: ['BASICA'],
     },
     {
       nombre: 'Laboratorio escrito',
       activo: true,
       orden: 3,
-      peso_basica: null, // Promedio simple
-      peso_bachillerato: null,
-      categoria_bachillerato: null,
-      aplica_a_nivel: ['BASICA'],
-    },
-  ];
-
-  // ============================================
-  // TIPOS DE ACTIVIDAD PARA BACHILLERATO
-  // ============================================
-  // Categorizados con ponderaciones específicas:
-  // - ACTIVIDAD_INTEGRADORA: 25%
-  // - TAREA: 5%
-  // - COEVALUACION: 5%
-  // - LABORATORIO: 10%
-  // + Examen Parcial: 25%
-  // + Examen del Periodo: 30%
-
-  const tiposActividadBachillerato = [
-    {
-      nombre: 'Actividad Integradora',
-      activo: true,
-      orden: 1,
-      peso_basica: null,
-      peso_bachillerato: 0.25,
-      categoria_bachillerato: 'ACTIVIDAD_INTEGRADORA',
-      aplica_a_nivel: ['BACHILLERATO'],
     },
     {
-      nombre: 'Tarea',
-      activo: true,
-      orden: 2,
-      peso_basica: null,
-      peso_bachillerato: 0.05,
-      categoria_bachillerato: 'TAREA',
-      aplica_a_nivel: ['BACHILLERATO'],
-    },
-    {
-      nombre: 'Coevaluación',
-      activo: true,
-      orden: 3,
-      peso_basica: null,
-      peso_bachillerato: 0.05,
-      categoria_bachillerato: 'COEVALUACION',
-      aplica_a_nivel: ['BACHILLERATO'],
-    },
-    {
-      nombre: 'Laboratorio',
+      nombre: 'Examen mensual',
       activo: true,
       orden: 4,
-      peso_basica: null,
-      peso_bachillerato: 0.1,
-      categoria_bachillerato: 'LABORATORIO',
-      aplica_a_nivel: ['BACHILLERATO'],
     },
   ];
 
-  // Combinar todos los tipos de actividad
-  const todosTiposActividad = [
-    ...tiposActividadBasica,
-    ...tiposActividadBachillerato,
-  ];
-
-  console.log(`📚 Creando ${tiposActividadBasica.length} tipos para BÁSICA`);
-  console.log(
-    `🎓 Creando ${tiposActividadBachillerato.length} tipos para BACHILLERATO`,
-  );
-
-  for (const tipo of todosTiposActividad) {
+  for (const tipo of tiposActividad) {
     await prisma.tipoActividadEvaluacion.upsert({
       where: { nombre: tipo.nombre },
       update: {
         activo: tipo.activo,
         orden: tipo.orden,
-        peso_basica: tipo.peso_basica,
-        peso_bachillerato: tipo.peso_bachillerato,
-        categoria_bachillerato: tipo.categoria_bachillerato,
-        aplica_a_nivel: tipo.aplica_a_nivel,
       },
       create: tipo,
     });
   }
 
-  console.log(`✅ ${todosTiposActividad.length} tipos de actividad creados`);
-  console.log(
-    '   └─ BÁSICA: Tarea, Revisión de libros y cuadernos, Laboratorio escrito',
-  );
-  console.log(
-    '   └─ BACHILLERATO: Actividad Integradora, Tarea, Coevaluación, Laboratorio',
-  );
+  console.log(`✅ ${tiposActividad.length} tipos de actividad creados`);
 
   // Crear datos de prueba de evaluaciones para algunos alumnos
   console.log('📝 Creando datos de prueba de evaluaciones...');
