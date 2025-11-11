@@ -7,6 +7,7 @@ export async function seedGradosAcademicos(prisma: PrismaClient) {
     { nombre: 'Primera Infancia', nota_minima: 7.0 },
     { nombre: 'Primaria', nota_minima: 7.0 },
     { nombre: 'Secundaria', nota_minima: 7.0 },
+    { nombre: 'Bachillerato', nota_minima: 7.0 },
   ];
 
   const jornada = await prisma.jornada.findFirst({

@@ -21,13 +21,17 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion.module';
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
+import { EvaluacionesModule } from './evaluaciones/evaluaciones.module';
 import { ImportModule } from './import/import.module';
 import { ConductaModule as ConductasInfraccionesModule } from './conducta/conducta.module';
 import { ResumenModule } from './asistencias/resumen/resumen.module';
 import { ConductaModule as ConductaAsistenciaModule } from './asistencias/conductaAsistencia/conductaAsistencia.module';
 import { AsistenciaModule } from './asistencias/asistencia.module';
-
 import { PromocionesModule } from './promociones/promociones.module';
+import { CalificacionesModule } from './calificaciones/calificaciones.module';
+import { PromediosModule } from './promedios/promedios.module';
+import { AdminConsultaNotasModule } from './admin-consulta-notas/admin-consulta-notas.module';
+import { BackupModule } from './backup/backup.module';
 @Module({
   imports: [
     AdministrativoModule,
@@ -48,12 +52,17 @@ import { PromocionesModule } from './promociones/promociones.module';
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
     SistemasEvaluacionModule,
+    EvaluacionesModule,
     ImportModule,
     ResumenModule,
     ConductasInfraccionesModule,
     ConductaAsistenciaModule,
     AsistenciaModule,
     PromocionesModule,
+    CalificacionesModule,
+    PromediosModule,
+    AdminConsultaNotasModule,
+    BackupModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

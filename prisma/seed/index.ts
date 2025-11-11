@@ -7,6 +7,7 @@ import { seedGradosAcademicos } from './seeds/04-grados-academicos.seed';
 import { seedParentescos } from './seeds/05-parentescos.seed';
 import { seedCatalogosEvaluacion } from './seeds/06-catalogos-evaluacion.seed';
 import { seedInfracciones } from './seeds/07-infracciones.seed';
+import { seedTiposEvaluacion } from './seeds/07-tipos-evaluacion.seed';
 import { seedCursosYAsignaturas } from './seeds/08-cursos-asignaturas.seed';
 import { seedAlumnosInscripciones } from './seeds/09-alumnos-inscripciones.seed';
 import { seedAsistenciasConductasTrimestre3 } from './seeds/10-asistencias-conductas-t3.seed';
@@ -25,6 +26,7 @@ const SEED_CONFIG = {
   parentescos: true,
   catalogosEvaluacion: true,
   infracciones: true,
+  tiposEvaluacion: true,
   cursosAsignaturas: true,
   alumnosInscripciones: true,
   asistenciasConductasT3: true, // Nuevo seed para datos de prueba trimestre 3
@@ -64,7 +66,12 @@ async function main() {
       await seedGradosAcademicos(prisma);
     }
 
-    // 5. Parentescos
+    // 5. Tipos de evaluación (requiere grados académicos)
+    if (SEED_CONFIG.tiposEvaluacion) {
+      await seedTiposEvaluacion(prisma);
+    }
+
+    // 6. Parentescos
     if (SEED_CONFIG.parentescos) {
       await seedParentescos(prisma);
     }

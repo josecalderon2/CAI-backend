@@ -12,12 +12,14 @@ import {
   AlumnoPromocionDto,
 } from './dto/promociones.dto';
 import { ActividadesRecientesService } from '../actividades-recientes/actividades-recientes.service';
+import { PromediosService } from '../promedios/promedios.service';
 
 @Injectable()
 export class PromocionesService {
   constructor(
     private prisma: PrismaService,
     private actividadesRecientesService: ActividadesRecientesService,
+    private promediosService: PromediosService,
   ) {}
 
   // Método auxiliar para validar datos de promoción
@@ -39,6 +41,43 @@ export class PromocionesService {
       observaciones,
       notaPromedio,
     } = dto;
+
+    // VALIDACIÓN IMPORTANTE: Verificar que el alumno puede ser promovido
+    const verificacion =
+      await this.promediosService.verificarAprobacionParaPromocion(
+        alumnoId,
+        anioActual,
+      );
+
+    if (!verificacion.puedePromover) {
+      throw new BadRequestException({
+        message: `No se puede promover al alumno: ${verificacion.motivo}`,
+        asignaturasReprobadas: verificacion.asignaturasReprobadas || [],
+      });
+    }
+
+    // Obtener inscripción y promedio antes de la transacción
+    const inscripcionActual = await this.prisma.alumnoCurso.findFirst({
+      where: {
+        alumnoId,
+        anioAcademico: anioActual,
+        estado: 'ACTIVO',
+      },
+    });
+
+    let promedioGeneralFinal = notaPromedio;
+    if (inscripcionActual) {
+      const promedioFinal = await this.prisma.promedioFinalAlumno.findUnique({
+        where: {
+          alumnoId_cursoId_anioAcademico: {
+            alumnoId,
+            cursoId: inscripcionActual.cursoId,
+            anioAcademico: anioActual,
+          },
+        },
+      });
+      promedioGeneralFinal = promedioFinal?.promedioGeneral || notaPromedio;
+    }
 
     // Vamos a usar un enfoque más robusto
     return this.prisma.$transaction(async (tx) => {
@@ -131,14 +170,25 @@ export class PromocionesService {
             },
           });
         } else {
-          // Crear nuevo historial
+          // Obtener el promedio general del alumno desde PromedioFinalAlumno
+          const promedioFinal = await tx.promedioFinalAlumno.findUnique({
+            where: {
+              alumnoId_cursoId_anioAcademico: {
+                alumnoId,
+                cursoId: inscripcion.cursoId,
+                anioAcademico: anioActual,
+              },
+            },
+          });
+
+          // Crear nuevo historial con el promedio desde PromedioFinalAlumno
           await tx.historialAcademico.create({
             data: {
               alumnoId,
               cursoId: inscripcion.cursoId,
               anioAcademico: anioActual,
               estadoFinal: estado,
-              notaPromedio,
+              notaPromedio: promedioFinal?.promedioGeneral || notaPromedio, // Tomar de PromedioFinalAlumno
               observaciones,
               fechaInicio: new Date(parseInt(anioActual), 0, 1),
               fechaFin: new Date(),
