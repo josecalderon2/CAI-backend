@@ -27,6 +27,7 @@ import { ConductaModule as ConductaAsistenciaModule } from './asistencias/conduc
 import { AsistenciaModule } from './asistencias/asistencia.module';
 import { SistemaEvaluacionModule } from './sistema-evaluacion/sistema-evaluacion.module';
 import { PromocionesModule } from './promociones/promociones.module';
+import { NotasMensualesModule } from './notas-mensuales/notas-mensuales.module';
 
 @Module({
   imports: [
@@ -52,7 +53,8 @@ import { PromocionesModule } from './promociones/promociones.module';
     ConductasInfraccionesModule,
     ConductaAsistenciaModule,
     AsistenciaModule,
-    SistemaEvaluacionModule, // ✅ Módulo unificado (incluye catálogo + operaciones + endpoints simplificados)
+    SistemaEvaluacionModule, // ✅ Módulo unificado (incluye catálogo + operaciones)
+    NotasMensualesModule, // ✅ Módulo simplificado para ingreso de notas mensuales
     PromocionesModule,
     ScheduleModule.forRoot(),
   ],
