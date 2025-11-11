@@ -82,11 +82,7 @@ export class AdminConsultaNotasService {
             },
           },
         },
-        orderBy: [
-          { periodo: 'asc' },
-          { trimestre: 'asc' },
-          { mes: 'asc' },
-        ],
+        orderBy: [{ periodo: 'asc' }, { trimestre: 'asc' }, { mes: 'asc' }],
       });
 
       const evaluacionesConNotas = evaluaciones.map((evaluacion) => {
@@ -326,17 +322,15 @@ export class AdminConsultaNotasService {
     const resultado: any[] = [];
 
     for (const ac of alumnosCurso) {
-      const promedioGeneral = await this.prisma.promedioFinalAlumno.findUnique(
-        {
-          where: {
-            alumnoId_cursoId_anioAcademico: {
-              alumnoId: ac.alumno.id_alumno,
-              cursoId: cursoId,
-              anioAcademico: anioAcademico,
-            },
+      const promedioGeneral = await this.prisma.promedioFinalAlumno.findUnique({
+        where: {
+          alumnoId_cursoId_anioAcademico: {
+            alumnoId: ac.alumno.id_alumno,
+            cursoId: cursoId,
+            anioAcademico: anioAcademico,
           },
         },
-      );
+      });
 
       const promediosAsignaturas =
         await this.prisma.promedioFinalAsignatura.findMany({
