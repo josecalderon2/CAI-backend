@@ -42,6 +42,16 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Google Drive credentials y tokens (NO SUBIR A GITHUB)
+google-credentials.json
+oauth-credentials.json
+google-token.json
+client_secret_*.json
+
+# Backups de base de datos (NO SUBIR A GITHUB)
+backups/
+*.sql
+
 # temp directory
 .temp
 .tmp

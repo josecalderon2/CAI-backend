@@ -1,0 +1,35 @@
+### Variables globales
+@baseUrl = http://localhost:3000
+
+### 1. Login como Admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@colegio.edu",
+    "password": "Admin123*"
+}
+
+### Guardar token
+@adminToken = {{loginAdmin.response.body.access_token}}
+
+### 2. Ejecutar Backup Manual
+# @name ejecutarBackup
+POST {{baseUrl}}/backup/ejecutar
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 3. Obtener URL de autorización de Google Drive
+# @name autorizarGoogle
+GET {{baseUrl}}/backup/autorizar-google
+Authorization: Bearer {{adminToken}}
+
+### 4. Guardar token de Google (REEMPLAZA EL_CODIGO_AQUI con el código que obtienes de Google)
+POST {{baseUrl}}/backup/guardar-token?code=4/0Ab32j93CwtFqHKrrWHYJrJ2pYW92NO7W6E9JWytigYKCjNMxeVv168dfq-d7uK2_Z6OasQ
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### 5. Listar Backups Locales
+GET {{baseUrl}}/backup/listar
+Authorization: Bearer {{adminToken}}
