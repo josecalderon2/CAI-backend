@@ -1780,31 +1780,20 @@ export class SistemaEvaluacionService {
 
     if (nivelEducativo === 'BASICA') {
       // ==========================================
-      // FORMATO BÁSICA 2025 - NUEVO SISTEMA
+      // FORMATO FIJO PARA BÁSICA
       // ==========================================
-      // Mensual (35%): Tareas 5% + Revisión 15% + Laboratorio 15%
-      // Trimestral (65%): Act.Integradora 25% + Autoevaluación 10% + Examen 30%
-
-      // Obtener los tipos de actividad de la base de datos con sus IDs
-      const tiposActividad = await this.prisma.tipoActividadEvaluacion.findMany(
-        {
-          where: {
-            aplica_a_nivel: {
-              has: 'BASICA',
-            },
-            activo: true,
-          },
-          orderBy: {
-            orden: 'asc',
-          },
-        },
-      );
-
-      // Mapear nombres a IDs
-      const tiposPorNombre: { [key: string]: number } = {};
-      tiposActividad.forEach((tipo) => {
-        tiposPorNombre[tipo.nombre] = tipo.id_tipo_actividad;
+      const tipoTarea = await this.prisma.tipoActividadEvaluacion.findFirst({
+        where: { nombre: 'Tarea', activo: true },
       });
+
+      const tipoRevision = await this.prisma.tipoActividadEvaluacion.findFirst({
+        where: { nombre: 'Revisión de libros y cuadernos', activo: true },
+      });
+
+      const tipoLaboratorio =
+        await this.prisma.tipoActividadEvaluacion.findFirst({
+          where: { nombre: 'Laboratorio escrito', activo: true },
+        });
 
       return {
         nivel: 'BASICA',
@@ -1814,110 +1803,69 @@ export class SistemaEvaluacionService {
           curso: asignatura?.curso?.nombre || '',
           grado: asignatura?.curso?.gradoAcademico?.nombre || '',
         },
-        // ⚠️ Campo requerido por el frontend BÁSICA 2025
-        componentes: [
-          // ========== COMPONENTES MENSUALES (35%) ==========
+        formato: 'FIJO', // Indica que es un formato predefinido
+        instrucciones:
+          'Ingrese las notas en el orden especificado. Las Tareas pueden tener números (1, 2, etc.)',
+        estructura_actividades: [
           {
-            id_tipo_actividad:
-              tiposPorNombre['Tareas (Mensual)'] ||
-              tiposPorNombre['Tarea'] ||
-              1,
-            nombre: 'Tareas (Mensual)',
-            porcentaje: 5,
-            tipo: 'ACTIVIDAD',
-            periodo: 'MENSUAL',
+            orden: 1,
+            id_tipo_actividad: tipoTarea?.id_tipo_actividad || null,
+            nombre: 'Tarea',
+            numero_actividad: 1,
+            etiqueta: 'Tarea 1',
+            requerido: true,
+            permite_multiples: true, // El frontend puede agregar más tareas si quiere
+          },
+          {
+            orden: 2,
+            id_tipo_actividad: tipoRevision?.id_tipo_actividad || null,
+            nombre: 'Revisión de libros y cuadernos',
+            numero_actividad: null,
+            etiqueta: 'Revisión de libros y cuadernos',
+            requerido: true,
+            permite_multiples: false,
+          },
+          {
+            orden: 3,
+            id_tipo_actividad: tipoTarea?.id_tipo_actividad || null,
+            nombre: 'Tarea',
+            numero_actividad: 2,
+            etiqueta: 'Tarea 2',
+            requerido: true,
             permite_multiples: true,
-            descripcion:
-              'Puede registrar múltiples tareas (1, 2, 3...). Se calcula el promedio de todas.',
           },
           {
-            id_tipo_actividad:
-              tiposPorNombre['Revisión de libros y cuadernos (Mensual)'] ||
-              tiposPorNombre['Revisión de libros y cuadernos'] ||
-              2,
-            nombre: 'Revisión de libros y cuadernos (Mensual)',
-            porcentaje: 15,
-            tipo: 'ACTIVIDAD',
-            periodo: 'MENSUAL',
-            permite_multiples: false,
-            descripcion: 'Una revisión por mes.',
-          },
-          {
-            id_tipo_actividad:
-              tiposPorNombre['Laboratorio escrito (Mensual)'] ||
-              tiposPorNombre['Laboratorio escrito'] ||
-              3,
-            nombre: 'Laboratorio escrito (Mensual)',
-            porcentaje: 15,
-            tipo: 'ACTIVIDAD',
-            periodo: 'MENSUAL',
+            orden: 4,
+            id_tipo_actividad: tipoLaboratorio?.id_tipo_actividad || null,
+            nombre: 'Laboratorio escrito',
+            numero_actividad: 1,
+            etiqueta: 'Laboratorio escrito 1',
+            requerido: true,
             permite_multiples: true,
-            descripcion: 'Puede registrar múltiples laboratorios.',
           },
-          // ========== COMPONENTES TRIMESTRALES (65%) ==========
+        ],
+        examenes: [
           {
-            id_tipo_actividad:
-              tiposPorNombre['Actividad Integradora (Trimestral)'] ||
-              tiposPorNombre['Actividad Integradora'] ||
-              4,
-            nombre: 'Actividad Integradora (Trimestral)',
-            porcentaje: 25,
-            tipo: 'ACTIVIDAD',
-            periodo: 'TRIMESTRAL',
-            permite_multiples: false,
-            descripcion: 'Una actividad integradora por trimestre.',
-          },
-          {
-            id_tipo_actividad:
-              tiposPorNombre['Autoevaluación (Trimestral)'] || 5,
-            nombre: 'Autoevaluación (Trimestral)',
-            porcentaje: 10,
-            tipo: 'ACTIVIDAD',
-            periodo: 'TRIMESTRAL',
-            permite_multiples: false,
-            descripcion: 'Una autoevaluación por trimestre.',
-          },
-          {
-            id_tipo_actividad: tiposPorNombre['Examen (Trimestral)'] || 6,
-            nombre: 'Examen (Trimestral)',
+            nombre: 'Examen mensual',
+            campo: 'examen_mensual',
             porcentaje: 30,
-            tipo: 'EXAMEN',
-            periodo: 'TRIMESTRAL',
-            permite_multiples: false,
-            descripcion: 'Un examen por trimestre.',
+            requerido: true,
           },
         ],
         calculo: {
-          formula:
-            'MENSUAL (35%): Tareas 5% + Revisión 15% + Lab 15% | TRIMESTRAL (65%): Act.Int 25% + Autoeval 10% + Examen 30%',
-          subtotales: [
+          formula: '(Promedio Actividades × 70%) + (Examen Mensual × 30%)',
+          componentes: [
             {
-              nombre: 'Subtotal Mensual',
-              porcentaje: 35,
-              descripcion: 'Suma de componentes mensuales',
-              componentes: [
-                'Tareas',
-                'Revisión de libros y cuadernos',
-                'Laboratorio escrito',
-              ],
+              nombre: 'Actividades continuas',
+              porcentaje: 70,
+              descripcion: 'Promedio simple de todas las actividades',
             },
             {
-              nombre: 'Subtotal Trimestral',
-              porcentaje: 65,
-              descripcion: 'Suma de componentes trimestrales',
-              componentes: [
-                'Actividad Integradora',
-                'Autoevaluación',
-                'Examen',
-              ],
+              nombre: 'Examen mensual',
+              porcentaje: 30,
+              descripcion: 'Examen del mes',
             },
           ],
-        },
-        instrucciones: {
-          mensuales:
-            'Ingrese las notas mensuales (Tareas, Revisión, Laboratorio). Las tareas pueden ser múltiples y se promediarán automáticamente.',
-          trimestrales:
-            'Ingrese las notas trimestrales al final del trimestre (Actividad Integradora, Autoevaluación, Examen).',
         },
       };
     } else {
@@ -2089,20 +2037,12 @@ export class SistemaEvaluacionService {
    * Internamente convierte a formato string y usa el método estándar calcularNotaMensual
    */
   async crearNotaSimplificada(dto: any): Promise<any> {
-    // ✅ Normalizar nombres de campos (aceptar ambos formatos)
-    const alumnoId = dto.id_alumno || dto.alumno_id;
-    const asignaturaId = dto.id_asignatura || dto.asignatura_id;
-    const tipoActividad = dto.tipo_actividad;
-    const nota = dto.nota;
-
     // Validar campos requeridos
-    if (!alumnoId) {
-      throw new BadRequestException('id_alumno o alumno_id es requerido');
+    if (!dto.id_alumno) {
+      throw new BadRequestException('id_alumno es requerido');
     }
-    if (!asignaturaId) {
-      throw new BadRequestException(
-        'id_asignatura o asignatura_id es requerido',
-      );
+    if (!dto.id_asignatura) {
+      throw new BadRequestException('id_asignatura es requerido');
     }
     if (!dto.mes_numerico && !dto.mes) {
       throw new BadRequestException('mes_numerico o mes es requerido');
@@ -2110,43 +2050,14 @@ export class SistemaEvaluacionService {
     if (!dto.anio) {
       throw new BadRequestException('anio es requerido');
     }
-
-    // ✅ BÁSICA 2025: Si viene tipo_actividad y nota individual, crear array de actividades
-    let actividades = dto.actividades;
-    if (!actividades && tipoActividad && nota !== undefined) {
-      // Obtener el id_tipo_actividad por nombre
-      const tipoActividadBD =
-        await this.prisma.tipoActividadEvaluacion.findFirst({
-          where: { nombre: tipoActividad },
-        });
-
-      if (!tipoActividadBD) {
-        throw new BadRequestException(
-          `Tipo de actividad "${tipoActividad}" no encontrado`,
-        );
-      }
-
-      actividades = [
-        {
-          id_tipo_actividad: tipoActividadBD.id_tipo_actividad,
-          numero_actividad: null,
-          nota: parseFloat(nota),
-        },
-      ];
-    }
-
-    if (!actividades || !Array.isArray(actividades)) {
+    if (!dto.actividades || !Array.isArray(dto.actividades)) {
       throw new BadRequestException(
-        'actividades es requerido y debe ser un array, o debe proveer tipo_actividad y nota',
+        'actividades es requerido y debe ser un array',
       );
     }
-
-    // ✅ BÁSICA 2025: El examen_mensual es opcional
-    // Solo es requerido si se está guardando el examen del trimestre
-    // Para actividades mensuales (tareas, revisión, laboratorio), el examen puede ser 0 o null
-    // if (dto.examen_mensual === undefined || dto.examen_mensual === null) {
-    //   throw new BadRequestException('examen_mensual es requerido');
-    // }
+    if (dto.examen_mensual === undefined || dto.examen_mensual === null) {
+      throw new BadRequestException('examen_mensual es requerido');
+    }
 
     // Normalizar mes_numerico (puede venir como 'mes')
     const mesNumerico = dto.mes_numerico || dto.mes;
@@ -2158,32 +2069,24 @@ export class SistemaEvaluacionService {
     const mesNombre = this.convertirMesNumericoANombre(parseInt(mesNumerico));
 
     // Calcular trimestre automáticamente si no viene
-    // ✅ Aceptar tanto 'trimestre' como 'periodo'
     const trimestre =
-      dto.trimestre ||
-      dto.periodo ||
-      this.calcularTrimestrePorMes(parseInt(mesNumerico));
+      dto.trimestre || this.calcularTrimestrePorMes(parseInt(mesNumerico));
 
     // Construir DTO en formato estándar
     const dtoEstandar = {
-      id_alumno: parseInt(alumnoId),
-      id_asignatura: parseInt(asignaturaId),
+      id_alumno: parseInt(dto.id_alumno),
+      id_asignatura: parseInt(dto.id_asignatura),
       mes: mesNombre,
       trimestre: parseInt(trimestre),
       anio_academico: dto.anio.toString(),
-      actividades: actividades.map((act: any) => ({
+      actividades: dto.actividades.map((act: any) => ({
         id_tipo_actividad: parseInt(act.id_tipo_actividad),
         numero_actividad: act.numero_actividad
           ? parseInt(act.numero_actividad)
-          : undefined,
+          : null,
         nota: parseFloat(act.nota),
       })),
-      // ✅ BÁSICA 2025: Si no viene examen_mensual, usar 0
-      // Esto permite guardar actividades sin necesidad de enviar el examen
-      examen_mensual:
-        dto.examen_mensual !== undefined && dto.examen_mensual !== null
-          ? parseFloat(dto.examen_mensual)
-          : 0,
+      examen_mensual: parseFloat(dto.examen_mensual),
       examen_parcial: dto.examen_parcial
         ? parseFloat(dto.examen_parcial)
         : undefined,

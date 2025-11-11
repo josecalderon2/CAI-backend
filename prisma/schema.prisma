@@ -294,9 +294,8 @@ model TipoActividadEvaluacion {
   orden             Int?     // Para ordenar en reportes
   
   // ✅ NUEVO: Ponderaciones y categorización por nivel educativo
-  peso_basica             Float?   // NULL = promedio simple | 0.05, 0.15, 0.25, 0.30 (BÁSICA 2025)
+  peso_basica             Float?   // NULL = promedio simple (comportamiento actual de Básica)
   peso_bachillerato       Float?   // 0.25, 0.05, 0.10, etc. según el componente
-  categoria_basica        String?  // "MENSUAL", "TRIMESTRAL" (BÁSICA 2025)
   categoria_bachillerato  String?  // "ACTIVIDAD_INTEGRADORA", "TAREA", "COEVALUACION", "LABORATORIO"
   aplica_a_nivel          String[] @default(["BASICA", "BACHILLERATO"]) // A qué niveles aplica
   
