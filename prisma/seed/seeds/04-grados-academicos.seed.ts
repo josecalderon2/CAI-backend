@@ -4,14 +4,9 @@ export async function seedGradosAcademicos(prisma: PrismaClient) {
   console.log('🔹 Seeding: Grados Académicos...');
 
   const grados = [
-    { nombre: 'Primera Infancia', nota_minima: 7.0, nivel_educativo: 'BASICA' },
-    { nombre: 'Primaria', nota_minima: 7.0, nivel_educativo: 'BASICA' },
-    { nombre: 'Secundaria', nota_minima: 7.0, nivel_educativo: 'BASICA' },
-    {
-      nombre: 'Bachillerato',
-      nota_minima: 7.0,
-      nivel_educativo: 'BACHILLERATO',
-    },
+    { nombre: 'Primera Infancia', nota_minima: 7.0 },
+    { nombre: 'Primaria', nota_minima: 7.0 },
+    { nombre: 'Secundaria', nota_minima: 7.0 },
   ];
 
   const jornada = await prisma.jornada.findFirst({
@@ -35,15 +30,6 @@ export async function seedGradosAcademicos(prisma: PrismaClient) {
           nombre: grado.nombre,
           nota_minima: grado.nota_minima,
           id_jornada: jornada.id_jornada,
-          nivel_educativo: grado.nivel_educativo as any,
-        },
-      });
-    } else {
-      // Actualizar el nivel_educativo si ya existe
-      await prisma.grado_Academico.update({
-        where: { id_grado_academico: exists.id_grado_academico },
-        data: {
-          nivel_educativo: grado.nivel_educativo as any,
         },
       });
     }
@@ -51,6 +37,6 @@ export async function seedGradosAcademicos(prisma: PrismaClient) {
 
   console.log(
     '✅ Grados Académicos OK:',
-    grados.map((g) => `${g.nombre} (${g.nivel_educativo})`).join(', '),
+    grados.map((g) => g.nombre).join(', '),
   );
 }

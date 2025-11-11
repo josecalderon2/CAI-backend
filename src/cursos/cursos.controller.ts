@@ -149,38 +149,6 @@ export class CursosController {
     return this.service.getAlumnosPorCurso(id);
   }
 
-  /**
-   * Obtener nivel educativo de un curso específico
-   * Retorna el nivel educativo (BASICA o BACHILLERATO) basado en el grado académico del curso
-   */
-  @Get(':id/nivel-educativo')
-  @Roles('Orientador', 'Admin', 'P.A')
-  @ApiOperation({
-    summary: 'Obtener nivel educativo de un curso',
-    description:
-      'Retorna el nivel educativo (BASICA o BACHILLERATO) del curso basado en su grado académico',
-  })
-  @ApiOkResponse({
-    description: 'Nivel educativo del curso',
-    schema: {
-      type: 'object',
-      properties: {
-        id_curso: { type: 'number', example: 1 },
-        nombre_curso: { type: 'string', example: '1º Grado A' },
-        id_grado_academico: { type: 'number', example: 1 },
-        nombre_grado: { type: 'string', example: '1º Grado' },
-        nivel_educativo: {
-          type: 'string',
-          enum: ['BASICA', 'BACHILLERATO'],
-          example: 'BASICA',
-        },
-      },
-    },
-  })
-  async getNivelEducativoCurso(@Param('id', ParseIntPipe) id: number) {
-    return this.service.getNivelEducativoCurso(id);
-  }
-
   @Roles('Admin', 'P.A')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

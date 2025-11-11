@@ -504,44 +504,6 @@ export class SistemaEvaluacionService {
   }
 
   /**
-   * Actualiza una nota mensual existente por su ID
-   */
-  async actualizarNotaMensual(
-    id_nota_mensual: number,
-    dto: CalcularNotaMensualDto,
-  ): Promise<NotaMensualResponseDto> {
-    // Verificar que la nota mensual existe
-    const notaExistente = await this.prisma.notaMensual.findUnique({
-      where: { id_nota_mensual },
-      include: {
-        actividades: true,
-        alumno: true,
-        asignatura: true,
-      },
-    });
-
-    if (!notaExistente) {
-      throw new NotFoundException(
-        `La nota mensual con ID ${id_nota_mensual} no existe`,
-      );
-    }
-
-    // Validar que los datos del DTO coinciden con la nota existente
-    if (
-      notaExistente.id_alumno !== dto.id_alumno ||
-      notaExistente.id_asignatura !== dto.id_asignatura
-    ) {
-      throw new BadRequestException(
-        'Los datos del alumno o asignatura no coinciden con la nota existente',
-      );
-    }
-
-    // Reutilizar la lógica de cálculo existente
-    // Como calcularNotaMensual ya maneja upsert, simplemente lo llamamos
-    return this.calcularNotaMensual(dto);
-  }
-
-  /**
    * Calcula la nota trimestral a partir de las notas mensuales almacenadas
    * Fórmula:
    * Nota trimestral = (Nota mes1 × %mes1) + (Nota mes2 × %mes2) + (Nota mes3 × %mes3)
@@ -1866,69 +1828,5 @@ export class SistemaEvaluacionService {
     }
 
     return strategy.obtenerConfiguracion();
-  }
-
-  /**
-   * Obtiene el catálogo de sistemas de evaluación disponibles
-   * Este catálogo define los tipos de sistemas configurados y su número de etapas
-   */
-  async obtenerCatalogoSistemas(): Promise<any[]> {
-    return await this.prisma.sistema_Evaluacion.findMany({
-      select: {
-        id_sistema_evaluacion: true,
-        nombre: true,
-        etapas: true,
-      },
-      orderBy: {
-        etapas: 'desc',
-      },
-    });
-  }
-
-  /**
-   * Obtiene los tipos de actividad disponibles según el nivel educativo
-   * BÁSICA: Actividades generales sin categorización (promedio simple)
-   * BACHILLERATO: Actividades categorizadas con ponderaciones específicas
-   */
-  async obtenerTiposActividadPorNivel(
-    nivel_educativo: 'BASICA' | 'BACHILLERATO',
-  ): Promise<any[]> {
-    const tiposActividad = await this.prisma.tipoActividadEvaluacion.findMany({
-      where: {
-        activo: true,
-        aplica_a_nivel: {
-          has: nivel_educativo,
-        },
-      },
-      orderBy: [{ orden: 'asc' }, { nombre: 'asc' }],
-    });
-
-    // Definir cuáles tipos permiten múltiples instancias (pueden repetirse con número)
-    const tiposConMultiplesInstancias = [
-      'Tarea',
-      'Laboratorio escrito',
-      'Exposición',
-      'Proyecto',
-      'Investigación',
-      'Práctica',
-    ];
-
-    // Formatear respuesta según el nivel educativo
-    return tiposActividad.map((tipo) => ({
-      id_tipo_actividad: tipo.id_tipo_actividad,
-      nombre: tipo.nombre,
-      categoria:
-        nivel_educativo === 'BACHILLERATO' ? tipo.categoria_bachillerato : null,
-      peso:
-        nivel_educativo === 'BACHILLERATO'
-          ? tipo.peso_bachillerato
-          : tipo.peso_basica,
-      activo: tipo.activo,
-      orden: tipo.orden,
-      nivel_educativo: nivel_educativo, // Agregar el nivel educativo solicitado
-      permite_multiples_instancias: tiposConMultiplesInstancias.includes(
-        tipo.nombre,
-      ), // Indica si se puede agregar múltiples veces (ej: Tarea 1, Tarea 2)
-    }));
   }
 }
