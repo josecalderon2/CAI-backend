@@ -1628,65 +1628,6 @@ export class SistemaEvaluacionService {
   async obtenerTiposActividadPorNivel(
     nivel_educativo: 'BASICA' | 'BACHILLERATO',
   ): Promise<any[]> {
-    // Para BÁSICA, devolver el formato específico en orden fijo
-    if (nivel_educativo === 'BASICA') {
-      // Orden específico para BÁSICA:
-      // 1. Tarea (permite múltiples: Tarea 1, Tarea 2)
-      // 2. Revisión de libros y cuadernos (única instancia)
-      // 3. Laboratorio escrito (única instancia en el orden base)
-      const nombresOrdenBasica = [
-        'Tarea',
-        'Revisión de libros y cuadernos',
-        'Laboratorio escrito',
-      ];
-
-      const tiposActividad = await this.prisma.tipoActividadEvaluacion.findMany(
-        {
-          where: {
-            activo: true,
-            aplica_a_nivel: {
-              has: 'BASICA',
-            },
-            nombre: {
-              in: nombresOrdenBasica,
-            },
-          },
-        },
-      );
-
-      // Crear mapa para búsqueda rápida
-      const tiposMap = new Map(
-        tiposActividad.map((tipo) => [tipo.nombre, tipo]),
-      );
-
-      // Retornar en el orden específico
-      const resultado: any[] = [];
-      let ordenActual = 1;
-
-      for (const nombre of nombresOrdenBasica) {
-        const tipo = tiposMap.get(nombre);
-        if (tipo) {
-          resultado.push({
-            id_tipo_actividad: tipo.id_tipo_actividad,
-            nombre: tipo.nombre,
-            categoria: null, // BÁSICA no usa categorías
-            peso: null, // BÁSICA usa promedio simple (70% dividido equitativamente)
-            activo: tipo.activo,
-            orden: ordenActual++,
-            nivel_educativo: 'BASICA',
-            permite_multiples_instancias: nombre === 'Tarea', // Solo "Tarea" permite múltiples
-            descripcion:
-              nombre === 'Tarea'
-                ? 'Se pueden agregar múltiples tareas (Tarea 1, Tarea 2, etc.)'
-                : 'Actividad única',
-          });
-        }
-      }
-
-      return resultado;
-    }
-
-    // Para BACHILLERATO, mantener lógica original con categorías y pesos
     const tiposActividad = await this.prisma.tipoActividadEvaluacion.findMany({
       where: {
         activo: true,
@@ -2037,59 +1978,23 @@ export class SistemaEvaluacionService {
    * Internamente convierte a formato string y usa el método estándar calcularNotaMensual
    */
   async crearNotaSimplificada(dto: any): Promise<any> {
-    // Validar campos requeridos
-    if (!dto.id_alumno) {
-      throw new BadRequestException('id_alumno es requerido');
-    }
-    if (!dto.id_asignatura) {
-      throw new BadRequestException('id_asignatura es requerido');
-    }
-    if (!dto.mes_numerico && !dto.mes) {
-      throw new BadRequestException('mes_numerico o mes es requerido');
-    }
-    if (!dto.anio) {
-      throw new BadRequestException('anio es requerido');
-    }
-    if (!dto.actividades || !Array.isArray(dto.actividades)) {
-      throw new BadRequestException(
-        'actividades es requerido y debe ser un array',
-      );
-    }
-    if (dto.examen_mensual === undefined || dto.examen_mensual === null) {
-      throw new BadRequestException('examen_mensual es requerido');
-    }
-
-    // Normalizar mes_numerico (puede venir como 'mes')
-    const mesNumerico = dto.mes_numerico || dto.mes;
-    if (!mesNumerico) {
-      throw new BadRequestException('mes_numerico es requerido');
-    }
-
     // Convertir mes numérico a nombre
-    const mesNombre = this.convertirMesNumericoANombre(parseInt(mesNumerico));
+    const mesNombre = this.convertirMesNumericoANombre(dto.mes_numerico);
 
     // Calcular trimestre automáticamente si no viene
     const trimestre =
-      dto.trimestre || this.calcularTrimestrePorMes(parseInt(mesNumerico));
+      dto.trimestre || this.calcularTrimestrePorMes(dto.mes_numerico);
 
     // Construir DTO en formato estándar
     const dtoEstandar = {
-      id_alumno: parseInt(dto.id_alumno),
-      id_asignatura: parseInt(dto.id_asignatura),
+      id_alumno: dto.id_alumno,
+      id_asignatura: dto.id_asignatura,
       mes: mesNombre,
-      trimestre: parseInt(trimestre),
+      trimestre: trimestre,
       anio_academico: dto.anio.toString(),
-      actividades: dto.actividades.map((act: any) => ({
-        id_tipo_actividad: parseInt(act.id_tipo_actividad),
-        numero_actividad: act.numero_actividad
-          ? parseInt(act.numero_actividad)
-          : null,
-        nota: parseFloat(act.nota),
-      })),
-      examen_mensual: parseFloat(dto.examen_mensual),
-      examen_parcial: dto.examen_parcial
-        ? parseFloat(dto.examen_parcial)
-        : undefined,
+      actividades: dto.actividades,
+      examen_mensual: dto.examen_mensual,
+      examen_parcial: dto.examen_parcial,
     };
 
     // Usar el método existente
@@ -2098,8 +2003,8 @@ export class SistemaEvaluacionService {
     // Convertir respuesta a formato simplificado
     return {
       ...resultado,
-      mes_numerico: parseInt(mesNumerico),
-      anio: parseInt(dto.anio),
+      mes_numerico: dto.mes_numerico,
+      anio: dto.anio,
     };
   }
 
