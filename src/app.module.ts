@@ -30,6 +30,7 @@ import { AsistenciaModule } from './asistencias/asistencia.module';
 import { PromocionesModule } from './promociones/promociones.module';
 import { CalificacionesModule } from './calificaciones/calificaciones.module';
 import { PromediosModule } from './promedios/promedios.module';
+import { AdminConsultaNotasModule } from './admin-consulta-notas/admin-consulta-notas.module';
 @Module({
   imports: [
     AdministrativoModule,
@@ -59,6 +60,7 @@ import { PromediosModule } from './promedios/promedios.module';
     PromocionesModule,
     CalificacionesModule,
     PromediosModule,
+    AdminConsultaNotasModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
