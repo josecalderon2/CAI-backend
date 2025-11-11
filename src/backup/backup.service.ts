@@ -48,11 +48,11 @@ export class BackupService {
 
       // Buscar pg_dump en varias ubicaciones posibles
       const pgDumpPath = await this.findPgDump();
-      
+
       if (!pgDumpPath) {
         throw new Error(
           'No se encontró pg_dump.exe. Por favor verifica que PostgreSQL esté instalado. ' +
-          'Ubicaciones verificadas: C:\\Program Files\\PostgreSQL\\[versión]\\bin\\pg_dump.exe'
+            'Ubicaciones verificadas: C:\\Program Files\\PostgreSQL\\[versión]\\bin\\pg_dump.exe',
         );
       }
 
@@ -265,19 +265,22 @@ export class BackupService {
   private async findPgDump(): Promise<string | null> {
     const possiblePaths = [
       // Buscar en Program Files para versiones 12-20
-      ...Array.from({ length: 9 }, (_, i) => 
-        `C:\\Program Files\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`
+      ...Array.from(
+        { length: 9 },
+        (_, i) => `C:\\Program Files\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`,
       ),
       // Buscar en Program Files (x86)
-      ...Array.from({ length: 9 }, (_, i) => 
-        `C:\\Program Files (x86)\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`
+      ...Array.from(
+        { length: 9 },
+        (_, i) =>
+          `C:\\Program Files (x86)\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`,
       ),
     ];
 
     // Buscar en PATH
     try {
-      const { stdout } = await execAsync('where pg_dump', { 
-        windowsHide: true 
+      const { stdout } = await execAsync('where pg_dump', {
+        windowsHide: true,
       });
       if (stdout.trim()) {
         const pathFromWhere = stdout.trim().split('\n')[0].trim();
