@@ -25,6 +25,12 @@ export class BackupService {
    */
   async generarBackup(): Promise<string> {
     try {
+      // Crear carpeta backups si no existe
+      if (!fs.existsSync(this.backupDir)) {
+        fs.mkdirSync(this.backupDir, { recursive: true });
+        this.logger.log(`Carpeta de backups creada: ${this.backupDir}`);
+      }
+
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const filename = `backup-${timestamp}.sql`;
       const filepath = path.join(this.backupDir, filename);
@@ -40,8 +46,17 @@ export class BackupService {
 
       this.logger.log('Iniciando backup de la base de datos...');
 
-      // Comando pg_dump para PostgreSQL (Windows)
-      const pgDumpPath = 'C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe';
+      // Buscar pg_dump en varias ubicaciones posibles
+      const pgDumpPath = await this.findPgDump();
+      
+      if (!pgDumpPath) {
+        throw new Error(
+          'No se encontró pg_dump.exe. Por favor verifica que PostgreSQL esté instalado. ' +
+          'Ubicaciones verificadas: C:\\Program Files\\PostgreSQL\\[versión]\\bin\\pg_dump.exe'
+        );
+      }
+
+      this.logger.log(`Usando pg_dump de: ${pgDumpPath}`);
 
       // Crear archivo .pgpass temporal para autenticación
       const pgpassPath = path.join(this.backupDir, '.pgpass');
@@ -242,6 +257,48 @@ export class BackupService {
       this.logger.error('Error al listar backups locales:', error);
       throw error;
     }
+  }
+
+  /**
+   * Busca pg_dump en las instalaciones de PostgreSQL disponibles
+   */
+  private async findPgDump(): Promise<string | null> {
+    const possiblePaths = [
+      // Buscar en Program Files para versiones 12-20
+      ...Array.from({ length: 9 }, (_, i) => 
+        `C:\\Program Files\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`
+      ),
+      // Buscar en Program Files (x86)
+      ...Array.from({ length: 9 }, (_, i) => 
+        `C:\\Program Files (x86)\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`
+      ),
+    ];
+
+    // Buscar en PATH
+    try {
+      const { stdout } = await execAsync('where pg_dump', { 
+        windowsHide: true 
+      });
+      if (stdout.trim()) {
+        const pathFromWhere = stdout.trim().split('\n')[0].trim();
+        if (fs.existsSync(pathFromWhere)) {
+          this.logger.log(`pg_dump encontrado en PATH: ${pathFromWhere}`);
+          return pathFromWhere;
+        }
+      }
+    } catch (error) {
+      // No está en PATH, continuar con otras ubicaciones
+    }
+
+    // Buscar en ubicaciones comunes
+    for (const pgPath of possiblePaths) {
+      if (fs.existsSync(pgPath)) {
+        this.logger.log(`pg_dump encontrado: ${pgPath}`);
+        return pgPath;
+      }
+    }
+
+    return null;
   }
 
   /**
