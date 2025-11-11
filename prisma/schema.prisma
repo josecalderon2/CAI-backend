@@ -68,8 +68,6 @@ model Alumno {
   inscripciones     AlumnoCurso[]      // Relación explícita a través de tabla pivote
   asistencias  Asistencia[]
   Notas             Notas[]
-  notasMensuales    NotaMensual[]
-  notasTrimestrales NotaTrimestral[]
   historialAcademico HistorialAcademico[]
   conductas Conducta[] // <== Relación a Conducta (sin cambios)
 }
@@ -162,12 +160,6 @@ model Jornada {
   gradoAcademico Grado_Academico[]
 }
 
-// ✅ ENUM: Identificar el sistema de evaluación según el nivel educativo
-enum NivelEducativo {
-  BASICA         // Educación Básica (1º-9º grado) - 3 trimestres, 70% actividades + 30% examen
-  BACHILLERATO   // Bachillerato (1º-2º año) - 4 periodos, 6 componentes de evaluación
-}
-
 model Grado_Academico {
   id_grado_academico Int      @id @default(autoincrement())
   nombre             String
@@ -176,14 +168,8 @@ model Grado_Academico {
   nota_minima        Float?
   id_jornada         Int?
   rcup               Boolean?
-  
-  // ✅ NUEVO: Identificador del sistema de evaluación
-  nivel_educativo    NivelEducativo @default(BASICA)
-  
   jornada            Jornada? @relation(fields: [id_jornada], references: [id_jornada])
   curso              Curso[]
-  
-  @@index([nivel_educativo])
 }
 
 model Curso {
@@ -242,8 +228,6 @@ model Asignatura {
   curso                 Curso?               @relation(fields: [id_curso], references: [id_curso])
   
   notas                 Notas[]
-  notasMensuales        NotaMensual[]
-  notasTrimestrales     NotaTrimestral[]
   orientadores          AsignaturaOrientador[]
   asistencias           Asistencia[]
   conductas             Conducta[]
@@ -280,126 +264,6 @@ model Notas {
   asignatura     Asignatura @relation(fields: [id_asignatura], references: [id_asignatura])
   actividad      Actividad? @relation(fields: [id_actividad], references: [id_actividad])
   alumno         Alumno     @relation(fields: [id_alumno], references: [id_alumno])
-}
-
-// ======================================================
-// ========= SISTEMA DE EVALUACIÓN MENSUAL ==============
-// ======================================================
-
-// Catálogo de tipos de actividades de evaluación
-model TipoActividadEvaluacion {
-  id_tipo_actividad Int      @id @default(autoincrement())
-  nombre            String   @unique // "Tarea", "Laboratorio", "Revisión de cuadernos", etc.
-  activo            Boolean  @default(true) // Para desactivar tipos obsoletos
-  orden             Int?     // Para ordenar en reportes
-  
-  // ✅ NUEVO: Ponderaciones y categorización por nivel educativo
-  peso_basica             Float?   // NULL = promedio simple (comportamiento actual de Básica)
-  peso_bachillerato       Float?   // 0.25, 0.05, 0.10, etc. según el componente
-  categoria_bachillerato  String?  // "ACTIVIDAD_INTEGRADORA", "TAREA", "COEVALUACION", "LABORATORIO"
-  aplica_a_nivel          String[] @default(["BASICA", "BACHILLERATO"]) // A qué niveles aplica
-  
-  // Relación inversa
-  actividades       ActividadEvaluacion[]
-  
-  @@map("tipos_actividad_evaluacion")
-}
-
-// Actividades individuales de evaluación (70%)
-model ActividadEvaluacion {
-  id_actividad_evaluacion Int      @id @default(autoincrement())
-  id_nota_mensual         Int
-  id_tipo_actividad       Int      // FK al catálogo de tipos
-  numero_actividad        Int?     // Número secuencial (ej: Tarea 1, Tarea 2)
-  nota                    Float    // Nota obtenida (0-10)
-  peso                    Float?   // Peso específico de esta actividad (opcional para ponderaciones especiales)
-  fecha_evaluacion        DateTime? // Fecha en que se realizó/entregó
-  observaciones           String?  @db.Text
-  
-  // Relaciones
-  notaMensual             NotaMensual @relation(fields: [id_nota_mensual], references: [id_nota_mensual], onDelete: Cascade)
-  tipoActividad           TipoActividadEvaluacion @relation(fields: [id_tipo_actividad], references: [id_tipo_actividad])
-  
-  @@index([id_nota_mensual])
-  @@index([id_tipo_actividad])
-  @@map("actividades_evaluacion")
-}
-
-model NotaMensual {
-  id_nota_mensual            Int      @id @default(autoincrement())
-  id_alumno                  Int
-  id_asignatura              Int
-  mes                        String   // Febrero, Marzo, Abril, etc. (Básica) | Periodo 1, 2, 3, 4 (Bachillerato)
-  trimestre                  Int      // 1, 2, 3 (Básica) | 1, 2, 3, 4 (Bachillerato = periodo)
-  anio_academico             String
-  
-  // Actividades de aprendizaje continuo
-  // BÁSICA: 70% del total (promedio simple de todas las actividades)
-  // BACHILLERATO: 45% del total (categorizadas: Act.Int 25%, Tarea 5%, Coev 5%, Lab 10%)
-  actividades                ActividadEvaluacion[]
-  
-  // ✅ NUEVO: Examen parcial para Bachillerato (25%)
-  examen_parcial             Float?   // NULL para Básica, valor para Bachillerato
-  fecha_examen_parcial       DateTime?
-  
-  // Examen principal
-  // BÁSICA: Examen mensual (30%)
-  // BACHILLERATO: Examen del periodo (30%)
-  examen_mensual             Float
-  fecha_examen               DateTime? // Fecha del examen
-  observaciones_examen       String?   @db.Text
-  
-  // Cálculos automáticos (los nombres se mantienen para compatibilidad)
-  promedio_puro_actividades  Float    // Promedio de actividades
-  promedio_70_actividades    Float    // Aporte de actividades al total
-  promedio_30_examen         Float    // Aporte del examen principal al total
-  nota_mensual               Float    // Nota final del periodo/mes
-  porcentaje_aporte          Int      // 28%, 27%, 45% (Básica) | 25% (Bachillerato)
-  aporte_al_trimestre        Float    // Aporte a la nota anual
-  
-  fecha_registro             DateTime @default(now())
-  actualizado_en             DateTime @updatedAt
-  
-  // Relaciones
-  alumno                     Alumno     @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
-  asignatura                 Asignatura @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
-  
-  @@unique([id_alumno, id_asignatura, mes, trimestre, anio_academico])
-  @@index([id_alumno])
-  @@index([id_asignatura])
-  @@index([trimestre])
-  @@index([anio_academico])
-  @@index([mes])
-  @@index([id_asignatura, anio_academico])
-  @@map("notas_mensuales")
-}
-
-model NotaTrimestral {
-  id_nota_trimestral Int      @id @default(autoincrement())
-  id_alumno          Int
-  id_asignatura      Int
-  trimestre          Int      // 1, 2, 3
-  anio_academico     String
-  
-  // Detalle de notas mensuales (guardado como JSON)
-  notas_mensuales    Json     // [{mes: string, nota_mensual: number, porcentaje: number, aporte: number}]
-  
-  // Nota final del trimestre
-  nota_trimestral    Float
-  
-  fecha_calculo      DateTime @default(now())
-  actualizado_en     DateTime @updatedAt
-  
-  // Relaciones
-  alumno             Alumno     @relation(fields: [id_alumno], references: [id_alumno], onDelete: Cascade)
-  asignatura         Asignatura @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
-  
-  @@unique([id_alumno, id_asignatura, trimestre, anio_academico])
-  @@index([id_alumno])
-  @@index([id_asignatura])
-  @@index([trimestre])
-  @@index([anio_academico])
-  @@map("notas_trimestrales")
 }
 
 model Actividad {
