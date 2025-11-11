@@ -54,23 +54,5 @@ export async function seedCatalogosEvaluacion(prisma: PrismaClient) {
     }
   }
 
-  // Tipos de Actividad
-  const tiposActividad = [
-    'Examen parcial',
-    'Examen final',
-    'Laboratorio',
-    'Tarea',
-    'Proyecto',
-    'Participación',
-  ];
-  for (const nombre of tiposActividad) {
-    const existente = await prisma.tipo_actividad.findFirst({
-      where: { nombre },
-    });
-    if (!existente) {
-      await prisma.tipo_actividad.create({ data: { nombre } });
-    }
-  }
-
-  console.log('✅ Catálogos de Evaluación OK');
+  console.log('Catálogos de Evaluación OK');
 }

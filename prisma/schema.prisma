@@ -70,6 +70,11 @@ model Alumno {
   Notas             Notas[]
   historialAcademico HistorialAcademico[]
   conductas Conducta[] // <== Relación a Conducta (sin cambios)
+  promediosMensuales PromedioMensual[]
+  promediosTrimestrales PromedioTrimestral[]
+  promediosPeriodos PromedioPeriodo[]
+  promediosFinalesAsignaturas PromedioFinalAsignatura[]
+  promediosFinalesAlumno PromedioFinalAlumno[]
 }
 
 model Alumno_Detalle {
@@ -170,6 +175,7 @@ model Grado_Academico {
   rcup               Boolean?
   jornada            Jornada? @relation(fields: [id_jornada], references: [id_jornada])
   curso              Curso[]
+  tipos_evaluacion   Tipo_evaluacion[]
 }
 
 model Curso {
@@ -192,6 +198,7 @@ model Curso {
   activo         Boolean?                     @default(true)
   historialCurso Historial_curso_orientador[]
   historialAcademico HistorialAcademico[]
+  promediosFinalesAlumno PromedioFinalAlumno[]
 }
 
 model Historial_curso_orientador {
@@ -232,6 +239,11 @@ model Asignatura {
   asistencias           Asistencia[]
   conductas             Conducta[]
   historialDocente      Historial_curso_orientador[] @relation("AsignaturaHistorial")
+  evaluaciones          Evaluacion[]
+  promediosMensuales    PromedioMensual[]
+  promediosTrimestrales PromedioTrimestral[]
+  promediosPeriodos     PromedioPeriodo[]
+  promediosFinalesAsignaturas PromedioFinalAsignatura[]
 }
 
 model Metodo_evaluacion {
@@ -257,29 +269,70 @@ model Notas {
   id_nota        Int        @id @default(autoincrement())
   id_asignatura  Int
   trimestre      String?
-  id_actividad   Int?
+  id_evaluacion  Int?
   calificacion   Float?
   fecha_registro DateTime?
   id_alumno      Int
   asignatura     Asignatura @relation(fields: [id_asignatura], references: [id_asignatura])
-  actividad      Actividad? @relation(fields: [id_actividad], references: [id_actividad])
+  evaluacion     Evaluacion? @relation(fields: [id_evaluacion], references: [id_evaluacion])
   alumno         Alumno     @relation(fields: [id_alumno], references: [id_alumno])
 }
 
-model Actividad {
-  id_actividad      Int            @id @default(autoincrement())
-  nombre            String
-  puntaje_maximo    Float?
-  puntaje_minimo    Float?
-  id_tipo_actividad Int
-  tipoActividad     Tipo_actividad @relation(fields: [id_tipo_actividad], references: [id_tipo_actividad])
-  notas             Notas[]
+// Enum unificado para tipos de evaluación
+enum TipoEvaluacion {
+  // Tipos para Básica (1° a 9°)
+  TAREA
+  REVISION_CUADERNO
+  LABORATORIO
+  ACTIVIDAD_INTEGRADORA
+  AUTOEVALUACION
+  EXAMEN_TRIMESTRAL
+  
+  // Tipos para Bachillerato
+  EXAMEN_PARCIAL
+  EXAMEN_PERIODO
+  COEVALUACION
 }
 
-model Tipo_actividad {
-  id_tipo_actividad Int         @id @default(autoincrement())
-  nombre            String
-  actividades       Actividad[]
+model Tipo_evaluacion {
+  id_tipo_evaluacion  Int            @id @default(autoincrement())
+  nombre              String
+  id_grado_academico  Int            // Relación con el grado académico
+  porcentaje          Float          // El porcentaje que vale este tipo de evaluación
+  activo              Boolean        @default(true)
+  evaluaciones        Evaluacion[]
+  grado_academico     Grado_Academico @relation(fields: [id_grado_academico], references: [id_grado_academico])
+  
+  @@index([id_grado_academico])
+}
+
+model Evaluacion {
+  id_evaluacion      Int            @id @default(autoincrement())
+  nombre             String
+  puntaje_maximo     Float          @default(10) // Escala 0-10
+  puntaje_minimo     Float          @default(0)
+  id_tipo_evaluacion Int
+  id_asignatura      Int
+  id_orientador      Int
+  anio_academico     String         @default("2024")
+  
+  // Campos para control de períodos
+  mes                Int? // 1-12 (para básica)
+  trimestre          Int? // 1-3 (para básica)
+  periodo            Int? // 1-4 (para bachillerato)
+  
+  createdAt          DateTime       @default(now())
+  tipoEvaluacion     Tipo_evaluacion @relation(fields: [id_tipo_evaluacion], references: [id_tipo_evaluacion])
+  asignatura         Asignatura     @relation(fields: [id_asignatura], references: [id_asignatura])
+  orientador         Orientador     @relation(fields: [id_orientador], references: [id_orientador])
+  notas              Notas[]
+  
+  @@index([id_orientador])
+  @@index([id_asignatura])
+  @@index([anio_academico])
+  @@index([trimestre])
+  @@index([mes])
+  @@index([periodo])
 }
 
 model Administrativo {
@@ -329,6 +382,7 @@ model Orientador {
   asistencias             Asistencia[]
 
   conductas Conducta[] // <== Relación a Conducta (sin cambios)
+  evaluaciones Evaluacion[]
 
   @@map("orientadores")
 }
@@ -525,14 +579,195 @@ model AlumnoCurso {
   @@index([estado])
 }
 
-// Historial académico del alumno
+// ======================================================
+// ========= SISTEMA DE PROMEDIOS Y CALIFICACIONES ======
+// ======================================================
+
+// Promedios mensuales por asignatura (BÁSICA)
+model PromedioMensual {
+  id              Int      @id @default(autoincrement())
+  alumnoId        Int
+  asignaturaId    Int
+  anioAcademico   String   // Ej: "2025"
+  mes             Int      // 1-12
+  trimestre       Int      // 1-3
+  
+  // Promedios de rubros del mes
+  promedioTareas          Float?   // Promedio de tareas del mes
+  promedioRevisiones      Float?   // Promedio de revisiones del mes
+  promedioLaboratorios    Float?   // Promedio de laboratorios del mes
+  
+  // Promedio mensual final (normalizado a 100)
+  promedioMensual         Float    // Calculado con fórmula
+  
+  actualizadoEn   DateTime @updatedAt
+  
+  // Relaciones
+  alumno          Alumno     @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  asignatura      Asignatura @relation(fields: [asignaturaId], references: [id_asignatura], onDelete: Cascade)
+
+  @@unique([alumnoId, asignaturaId, anioAcademico, mes])
+  @@index([alumnoId, asignaturaId])
+  @@index([anioAcademico, trimestre])
+  @@map("promedios_mensuales")
+}
+
+// Promedios trimestrales por asignatura (BÁSICA)
+model PromedioTrimestral {
+  id              Int      @id @default(autoincrement())
+  alumnoId        Int
+  asignaturaId    Int
+  anioAcademico   String   // Ej: "2025"
+  trimestre       Int      // 1-3
+  
+  // Promedios de los 3 meses ponderados (35% del trimestre)
+  promedioMeses           Float?   // Calculado con ponderación 28%-27%-45%
+  
+  // Actividades (35% del trimestre)
+  actividadIntegradora    Float?   // 25%
+  autoevaluacion          Float?   // 10%
+  promedioActividades     Float?   // Calculado: 0.25·ActInteg + 0.10·Autoeval
+  
+  // Examen (30% del trimestre)
+  examenTrimestral        Float?
+  
+  // Promedio trimestral final
+  promedioTrimestral      Float    // 0.35·Meses + 0.35·Actividades + 0.30·Examen
+  
+  aprobado                Boolean  @default(false) // true si >= nota_minima
+  
+  actualizadoEn   DateTime @updatedAt
+  
+  // Relaciones
+  alumno          Alumno     @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  asignatura      Asignatura @relation(fields: [asignaturaId], references: [id_asignatura], onDelete: Cascade)
+
+  @@unique([alumnoId, asignaturaId, anioAcademico, trimestre])
+  @@index([alumnoId, asignaturaId])
+  @@index([anioAcademico, trimestre])
+  @@index([aprobado])
+  @@map("promedios_trimestrales")
+}
+
+// Promedios por periodo (BACHILLERATO)
+model PromedioPeriodo {
+  id              Int      @id @default(autoincrement())
+  alumnoId        Int
+  asignaturaId    Int
+  anioAcademico   String   // Ej: "2025"
+  periodo         Int      // 1-4
+  
+  // Rubros del periodo
+  actividadIntegradora    Float?   // 25%
+  promedioTareas          Float?   // 5%
+  coevaluacion            Float?   // 5%
+  promedioLaboratorios    Float?   // 10%
+  examenParcial           Float?   // 25%
+  examenPeriodo           Float?   // 30%
+  
+  // Promedio del periodo final
+  promedioPeriodo         Float    // Suma ponderada de los rubros
+  
+  aprobado                Boolean  @default(false) // true si >= nota_minima
+  
+  actualizadoEn   DateTime @updatedAt
+  
+  // Relaciones
+  alumno          Alumno     @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  asignatura      Asignatura @relation(fields: [asignaturaId], references: [id_asignatura], onDelete: Cascade)
+
+  @@unique([alumnoId, asignaturaId, anioAcademico, periodo])
+  @@index([alumnoId, asignaturaId])
+  @@index([anioAcademico, periodo])
+  @@index([aprobado])
+  @@map("promedios_periodos")
+}
+
+// Promedios finales por asignatura (año completo)
+model PromedioFinalAsignatura {
+  id              Int      @id @default(autoincrement())
+  alumnoId        Int
+  asignaturaId    Int
+  anioAcademico   String   // Ej: "2025"
+  
+  // Para BÁSICA: promedio de 3 trimestres
+  promedioTrimestre1      Float?
+  promedioTrimestre2      Float?
+  promedioTrimestre3      Float?
+  
+  // Para BACHILLERATO: promedio de 4 periodos
+  promedioPeriodo1        Float?
+  promedioPeriodo2        Float?
+  promedioPeriodo3        Float?
+  promedioPeriodo4        Float?
+  
+  // Promedio final anual de la asignatura
+  promedioFinal           Float
+  
+  // Estado de aprobación
+  aprobado                Boolean  @default(false) // true si >= nota_minima del grado
+  requiereRecuperacion    Boolean  @default(false) // true si reprobó
+  
+  // Recuperación (para implementación futura)
+  notaRecuperacion        Float?
+  aproboRecuperacion      Boolean?
+  
+  actualizadoEn   DateTime @updatedAt
+  
+  // Relaciones
+  alumno          Alumno     @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  asignatura      Asignatura @relation(fields: [asignaturaId], references: [id_asignatura], onDelete: Cascade)
+
+  @@unique([alumnoId, asignaturaId, anioAcademico])
+  @@index([alumnoId, anioAcademico])
+  @@index([asignaturaId, anioAcademico])
+  @@index([aprobado])
+  @@index([requiereRecuperacion])
+  @@map("promedios_finales_asignaturas")
+}
+
+// Promedio final del alumno (todas las asignaturas)
+model PromedioFinalAlumno {
+  id              Int      @id @default(autoincrement())
+  alumnoId        Int
+  cursoId         Int
+  anioAcademico   String   // Ej: "2025"
+  
+  // Promedio general de todas las asignaturas
+  promedioGeneral         Float
+  
+  // Estado general
+  aprobadoTodasAsignaturas Boolean @default(false) // true si aprobó todas
+  asignaturasReprobadas    Int     @default(0)     // Cantidad de asignaturas reprobadas
+  
+  // Estado final del año (se actualiza al promover)
+  estadoFinal             String?  // "APROBADO", "REPROBADO", "EN_RECUPERACION"
+  
+  // Control de finalización
+  calificacionesCerradas  Boolean  @default(false) // true cuando el orientador finaliza el año
+  fechaCierre             DateTime?
+  
+  actualizadoEn   DateTime @updatedAt
+  
+  // Relaciones
+  alumno          Alumno   @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  curso           Curso    @relation(fields: [cursoId], references: [id_curso], onDelete: Restrict)
+
+  @@unique([alumnoId, cursoId, anioAcademico])
+  @@index([alumnoId, anioAcademico])
+  @@index([aprobadoTodasAsignaturas])
+  @@index([calificacionesCerradas])
+  @@map("promedios_finales_alumnos")
+}
+
+// Historial académico del alumno (registro histórico de solo lectura)
 model HistorialAcademico {
   id                Int      @id @default(autoincrement())
   alumnoId          Int
   cursoId           Int
   anioAcademico     String   // Ej: "2025"
   estadoFinal       String?  // "APROBADO", "REPROBADO", "FINALIZADO", etc.
-  notaPromedio      Float?   // Nota promedio final
+  notaPromedio      Float?   // Campo de solo lectura - se llena automáticamente desde PromedioFinalAlumno
   observaciones     String?  @db.Text
   fechaInicio       DateTime @default(now())
   fechaFin          DateTime?
@@ -545,4 +780,5 @@ model HistorialAcademico {
   @@index([alumnoId])
   @@index([cursoId])
   @@index([anioAcademico])
+  @@map("historial_academico")
 }

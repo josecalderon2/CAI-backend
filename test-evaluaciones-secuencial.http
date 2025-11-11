@@ -1,0 +1,67 @@
+### Variables globales
+@baseUrl = http://localhost:3000
+
+### 1. Login como Admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@colegio.edu",
+    "password": "Admin123*"
+}
+
+### 2. Login como Orientador
+# @name loginOrientador
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "orientador@colegio.edu",
+    "password": "Ori12345*"
+}
+
+### 2.1 Ver respuesta del login orientador
+GET {{baseUrl}}/auth/login
+Authorization: Bearer {{loginOrientador.response.body.token}}
+
+### Guardar tokens de las respuestas anteriores
+@adminToken = {{loginAdmin.response.body.token}}
+@orientadorToken = {{loginOrientador.response.body.token}}
+
+### 3. PRUEBA 1: Crear una evaluación (como orientador)
+# @name crearEvaluacion
+POST {{baseUrl}}/evaluaciones
+Authorization: Bearer {{orientadorToken}}
+Content-Type: application/json
+
+{
+    "nombre": "Examen Parcial - Matemáticas",
+    "puntaje_maximo": 10,
+    "puntaje_minimo": 0,
+    "id_tipo_evaluacion": 1,
+    "id_asignatura": 1,
+    "trimestre": 1,
+    "mes": 3
+}
+
+### 4. Ver todas las evaluaciones (como admin)
+GET {{baseUrl}}/evaluaciones
+Authorization: Bearer {{adminToken}}
+
+### 5. Ver mis evaluaciones (como orientador)
+GET {{baseUrl}}/evaluaciones
+Authorization: Bearer {{orientadorToken}}
+
+### 6. Actualizar la evaluación creada
+PATCH {{baseUrl}}/evaluaciones/{{crearEvaluacion.response.body.id_evaluacion}}
+Authorization: Bearer {{orientadorToken}}
+Content-Type: application/json
+
+{
+    "nombre": "Examen Parcial - Matemáticas (Actualizado)"
+}
+
+### 7. Eliminar la evaluación
+DELETE {{baseUrl}}/evaluaciones/{{crearEvaluacion.response.body.id_evaluacion}}
+Authorization: Bearer {{orientadorToken}}
