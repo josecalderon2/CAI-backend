@@ -1933,21 +1933,6 @@ export class SistemaEvaluacionService {
   }
 
   /**
-   * Obtiene los tipos de actividad de evaluación según la asignatura
-   * Determina automáticamente el nivel educativo (BASICA o BACHILLERATO)
-   * basándose en el grado académico del curso de la asignatura
-   */
-  async obtenerTiposActividadPorAsignatura(
-    id_asignatura: number,
-  ): Promise<any[]> {
-    // Obtener el nivel educativo de la asignatura
-    const nivelEducativo = await this.obtenerNivelEducativo(id_asignatura);
-
-    // Reutilizar el método existente
-    return this.obtenerTiposActividadPorNivel(nivelEducativo);
-  }
-
-  /**
    * ========================================================
    * ============= ENDPOINTS SIMPLIFICADOS ==================
    * ========================================================
