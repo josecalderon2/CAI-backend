@@ -40,6 +40,14 @@ export class EvaluacionesController {
     return this.evaluacionesService.findAll(req.user.id);
   }
 
+  @Get('mis-asignaturas/evaluaciones')
+  @ApiOperation({
+    summary: 'Obtener evaluaciones de las asignaturas asignadas al orientador',
+  })
+  findByMisAsignaturas(@Req() req: any) {
+    return this.evaluacionesService.findByOrientadorAsignaturas(req.user.id);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Obtener una evaluación por ID',

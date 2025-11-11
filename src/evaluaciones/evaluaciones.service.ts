@@ -18,7 +18,6 @@ export class EvaluacionesService {
     nombre: true,
     puntaje_maximo: true,
     puntaje_minimo: true,
-    calificacion: true,
     anio_academico: true,
     mes: true,
     trimestre: true,
@@ -110,6 +109,53 @@ export class EvaluacionesService {
 
     const evaluaciones = await this.prisma.evaluacion.findMany({
       where,
+      select: this.evaluacionSelect,
+      orderBy: [
+        { anio_academico: 'desc' },
+        { trimestre: 'desc' },
+        { mes: 'desc' },
+        { periodo: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    return evaluaciones as unknown as EvaluacionResponse[];
+  }
+
+  async findByOrientadorAsignaturas(id_orientador: number) {
+    // Verificar que el orientador existe
+    const orientador = await this.prisma.orientador.findUnique({
+      where: { id_orientador },
+    });
+
+    if (!orientador) {
+      throw new ForbiddenException('No tienes permisos de orientador');
+    }
+
+    // Obtener las asignaturas asignadas al orientador
+    const asignaturasOrientador =
+      await this.prisma.asignaturaOrientador.findMany({
+        where: {
+          id_orientador: orientador.id_orientador,
+          activo: true,
+        },
+        select: {
+          id_asignatura: true,
+        },
+      });
+
+    // Extraer los IDs de las asignaturas
+    const asignaturasIds = asignaturasOrientador.map(
+      (ao) => ao.id_asignatura,
+    );
+
+    // Obtener todas las evaluaciones de esas asignaturas
+    const evaluaciones = await this.prisma.evaluacion.findMany({
+      where: {
+        id_asignatura: {
+          in: asignaturasIds,
+        },
+      },
       select: this.evaluacionSelect,
       orderBy: [
         { anio_academico: 'desc' },

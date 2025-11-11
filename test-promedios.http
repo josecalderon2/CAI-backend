@@ -2,7 +2,7 @@
 ### Asegúrate de que el servidor esté corriendo: npm run start:dev
 
 @baseUrl = http://localhost:3000
-@alumnoId = 11
+@alumnoId = 4
 @anioAcademico = 2025
 
 ### ===============================================
