@@ -83,10 +83,14 @@ export class EvaluacionesService {
       );
     }
 
+    // Obtener el año académico actual
+    const anioActual = new Date().getFullYear().toString();
+
     const evaluacion = await this.prisma.evaluacion.create({
       data: {
         ...createEvaluacionDto,
         id_orientador: orientador.id_orientador,
+        anio_academico: anioActual,
       },
       select: this.evaluacionSelect,
     });
@@ -145,9 +149,7 @@ export class EvaluacionesService {
       });
 
     // Extraer los IDs de las asignaturas
-    const asignaturasIds = asignaturasOrientador.map(
-      (ao) => ao.id_asignatura,
-    );
+    const asignaturasIds = asignaturasOrientador.map((ao) => ao.id_asignatura);
 
     // Obtener todas las evaluaciones de esas asignaturas
     const evaluaciones = await this.prisma.evaluacion.findMany({
