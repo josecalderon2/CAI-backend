@@ -5,8 +5,6 @@ import {
   Body,
   Param,
   Query,
-  Patch,
-  ParseIntPipe,
   HttpCode,
   HttpStatus,
   BadRequestException,
@@ -35,11 +33,11 @@ export class SistemaEvaluacionController {
   ) {}
 
   @Post('nota-mensual')
-  @HttpCode(HttpStatus.CREATED)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Crear y calcular nota mensual/periodo de un alumno',
+    summary: 'Calcular nota mensual/periodo de un alumno',
     description:
-      'Crea un nuevo registro de nota mensual y calcula la nota del periodo según el nivel educativo:\n' +
+      'Calcula la nota del periodo según el nivel educativo:\n' +
       '- BÁSICA (1º-9º): 70% actividades + 30% examen mensual, 3 trimestres\n' +
       '- BACHILLERATO (1º-2º año): 6 componentes ponderados (Act.Int 25%, Tarea 5%, Coev 5%, Lab 10%, Examen Parcial 25%, Examen Periodo 30%), 4 periodos',
   })
@@ -100,43 +98,6 @@ export class SistemaEvaluacionController {
     @Body() calcularNotaMensualDto: CalcularNotaMensualDto,
   ): Promise<NotaMensualResponseDto> {
     return this.sistemaEvaluacionService.calcularNotaMensual(
-      calcularNotaMensualDto,
-    );
-  }
-
-  @Patch('nota-mensual/:id_nota_mensual')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Actualizar nota mensual existente',
-    description:
-      'Actualiza una nota mensual existente recalculando todos los valores según el nivel educativo.',
-  })
-  @ApiParam({
-    name: 'id_nota_mensual',
-    description: 'ID de la nota mensual a actualizar',
-    type: 'number',
-    example: 1,
-  })
-  @ApiBody({
-    type: CalcularNotaMensualDto,
-    description:
-      'Datos actualizados de la nota mensual (actividades, exámenes, etc.)',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Nota mensual actualizada exitosamente',
-    type: NotaMensualResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Nota mensual no encontrada',
-  })
-  async actualizarNotaMensual(
-    @Param('id_nota_mensual', ParseIntPipe) id_nota_mensual: number,
-    @Body() calcularNotaMensualDto: CalcularNotaMensualDto,
-  ): Promise<NotaMensualResponseDto> {
-    return this.sistemaEvaluacionService.actualizarNotaMensual(
-      id_nota_mensual,
       calcularNotaMensualDto,
     );
   }
@@ -871,163 +832,6 @@ export class SistemaEvaluacionController {
       +id_asignatura,
       +trimestre,
       anio_academico,
-    );
-  }
-
-  // ========================================
-  // CATÁLOGOS Y CONFIGURACIÓN
-  // ========================================
-
-  @Get('catalogo/sistemas')
-  @ApiOperation({
-    summary: 'Obtener catálogo de sistemas de evaluación disponibles',
-    description:
-      'Lista todos los tipos de sistemas de evaluación configurados (Básica, Bachillerato, etc.) con su número de etapas',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de sistemas de evaluación',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id_sistema_evaluacion: { type: 'number', example: 1 },
-          nombre: { type: 'string', example: 'Educacion Basica - 3 etapas' },
-          etapas: { type: 'number', example: 3 },
-        },
-      },
-    },
-  })
-  async obtenerCatalogoSistemas() {
-    return this.sistemaEvaluacionService.obtenerCatalogoSistemas();
-  }
-
-  @Get('catalogo/tipos-actividad/:nivel_educativo')
-  @ApiOperation({
-    summary: 'Obtener tipos de actividad según nivel educativo',
-    description:
-      'Lista todos los tipos de actividad de evaluación disponibles para un nivel educativo específico (BASICA o BACHILLERATO).\n\n' +
-      '**BÁSICA (1º-9º grado):**\n' +
-      '- Actividades generales sin categorización\n' +
-      '- Promedio simple (todas tienen el mismo peso)\n' +
-      '- Ejemplos: Tareas, Laboratorios, Exposiciones, etc.\n\n' +
-      '**BACHILLERATO (1º-2º año):**\n' +
-      '- Actividades categorizadas con ponderaciones específicas:\n' +
-      '  - ACTIVIDAD_INTEGRADORA: 25%\n' +
-      '  - TAREA: 5%\n' +
-      '  - COEVALUACION: 5%\n' +
-      '  - LABORATORIO: 10%',
-  })
-  @ApiParam({
-    name: 'nivel_educativo',
-    enum: ['BASICA', 'BACHILLERATO'],
-    description: 'Nivel educativo del grado académico',
-    example: 'BASICA',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de tipos de actividad disponibles para el nivel',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          id_tipo_actividad: { type: 'number', example: 1 },
-          nombre: { type: 'string', example: 'Tarea' },
-          categoria: { type: 'string', example: 'TAREA', nullable: true },
-          peso: { type: 'number', example: 0.05, nullable: true },
-          activo: { type: 'boolean', example: true },
-          orden: { type: 'number', example: 1, nullable: true },
-          nivel_educativo: { type: 'string', example: 'BASICA' },
-          permite_multiples_instancias: {
-            type: 'boolean',
-            example: true,
-            description:
-              'Indica si se puede agregar múltiples veces (ej: Tarea 1, Tarea 2, Tarea 3)',
-          },
-        },
-      },
-    },
-    examples: {
-      BASICA: {
-        summary: 'Tipos de actividad para Básica',
-        value: [
-          {
-            id_tipo_actividad: 1,
-            nombre: 'Tarea',
-            categoria: null,
-            peso: null,
-            activo: true,
-            orden: 1,
-            nivel_educativo: 'BASICA',
-            permite_multiples_instancias: true,
-          },
-          {
-            id_tipo_actividad: 2,
-            nombre: 'Revisión de libros y cuadernos',
-            categoria: null,
-            peso: null,
-            activo: true,
-            orden: 2,
-            nivel_educativo: 'BASICA',
-            permite_multiples_instancias: false,
-          },
-          {
-            id_tipo_actividad: 3,
-            nombre: 'Laboratorio escrito',
-            categoria: null,
-            peso: null,
-            activo: true,
-            orden: 3,
-            nivel_educativo: 'BASICA',
-            permite_multiples_instancias: true,
-          },
-        ],
-      },
-      BACHILLERATO: {
-        summary: 'Tipos de actividad para Bachillerato',
-        value: [
-          {
-            id_tipo_actividad: 5,
-            nombre: 'Actividad Integradora',
-            categoria: 'ACTIVIDAD_INTEGRADORA',
-            peso: 0.25,
-            activo: true,
-            orden: 1,
-            nivel_educativo: 'BACHILLERATO',
-            permite_multiples_instancias: false,
-          },
-          {
-            id_tipo_actividad: 7,
-            nombre: 'Tarea',
-            categoria: 'TAREA',
-            peso: 0.05,
-            activo: true,
-            orden: 2,
-            nivel_educativo: 'BACHILLERATO',
-            permite_multiples_instancias: true,
-          },
-        ],
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Nivel educativo inválido',
-  })
-  async obtenerTiposActividadPorNivel(
-    @Param('nivel_educativo') nivel_educativo: string,
-  ) {
-    // Validar nivel educativo
-    if (!['BASICA', 'BACHILLERATO'].includes(nivel_educativo)) {
-      throw new BadRequestException(
-        'Nivel educativo debe ser BASICA o BACHILLERATO',
-      );
-    }
-
-    return this.sistemaEvaluacionService.obtenerTiposActividadPorNivel(
-      nivel_educativo as 'BASICA' | 'BACHILLERATO',
     );
   }
 }
