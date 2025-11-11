@@ -29,6 +29,7 @@ import { ConductaModule as ConductaAsistenciaModule } from './asistencias/conduc
 import { AsistenciaModule } from './asistencias/asistencia.module';
 import { PromocionesModule } from './promociones/promociones.module';
 import { CalificacionesModule } from './calificaciones/calificaciones.module';
+import { PromediosModule } from './promedios/promedios.module';
 @Module({
   imports: [
     AdministrativoModule,
@@ -57,6 +58,7 @@ import { CalificacionesModule } from './calificaciones/calificaciones.module';
     AsistenciaModule,
     PromocionesModule,
     CalificacionesModule,
+    PromediosModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

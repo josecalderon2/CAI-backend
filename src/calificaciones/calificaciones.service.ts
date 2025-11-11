@@ -4,13 +4,17 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PromediosService } from '../promedios/promedios.service';
 import { CreateCalificacionDto } from './dto/create-calificacion.dto';
 import { UpdateCalificacionDto } from './dto/update-calificacion.dto';
 import { CalificacionResponse } from './dto/calificacion.response';
 
 @Injectable()
 export class CalificacionesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private promediosService: PromediosService,
+  ) {}
 
   private calificacionSelect = {
     id_nota: true,
@@ -107,11 +111,16 @@ export class CalificacionesService {
       select: this.calificacionSelect,
     });
 
-    // Actualizar el promedio en el historial académico
-    await this.actualizarPromedio(
-      createCalificacionDto.id_alumno,
-      evaluacion.anio_academico,
-    );
+    // Recalcular todos los promedios del alumno automáticamente
+    try {
+      await this.promediosService.recalcularTodosLosPromedios(
+        createCalificacionDto.id_alumno,
+        evaluacion.anio_academico,
+      );
+    } catch (error) {
+      console.error('Error al recalcular promedios:', error);
+      // No lanzar error para no bloquear el registro de la calificación
+    }
 
     return calificacion as unknown as CalificacionResponse;
   }
@@ -195,11 +204,15 @@ export class CalificacionesService {
       select: this.calificacionSelect,
     });
 
-    // Actualizar el promedio en el historial académico
-    await this.actualizarPromedio(
-      calificacion.id_alumno,
-      calificacion.evaluacion.anio_academico,
-    );
+    // Recalcular todos los promedios del alumno automáticamente
+    try {
+      await this.promediosService.recalcularTodosLosPromedios(
+        calificacion.id_alumno,
+        calificacion.evaluacion.anio_academico,
+      );
+    } catch (error) {
+      console.error('Error al recalcular promedios:', error);
+    }
 
     return updated as unknown as CalificacionResponse;
   }
@@ -241,44 +254,16 @@ export class CalificacionesService {
       },
     });
 
-    // Actualizar el promedio en el historial académico
-    await this.actualizarPromedio(alumnoId, anioAcademico);
+    // Recalcular todos los promedios del alumno automáticamente
+    try {
+      await this.promediosService.recalcularTodosLosPromedios(
+        alumnoId,
+        anioAcademico,
+      );
+    } catch (error) {
+      console.error('Error al recalcular promedios:', error);
+    }
 
     return { message: 'Calificación eliminada correctamente' };
-  }
-
-  private async actualizarPromedio(id_alumno: number, anio_academico: string) {
-    // Obtener todas las calificaciones del alumno en el año académico actual
-    const calificaciones = await this.prisma.notas.findMany({
-      where: {
-        id_alumno,
-        evaluacion: {
-          anio_academico,
-        },
-      },
-      select: {
-        calificacion: true,
-      },
-    });
-
-    // Calcular el promedio
-    const promedio =
-      calificaciones.length > 0
-        ? calificaciones.reduce(
-            (acc, nota) => acc + (nota.calificacion || 0),
-            0,
-          ) / calificaciones.length
-        : 0;
-
-    // Actualizar el historial académico
-    await this.prisma.historialAcademico.updateMany({
-      where: {
-        alumnoId: id_alumno,
-        anioAcademico: anio_academico,
-      },
-      data: {
-        notaPromedio: promedio,
-      },
-    });
   }
 }
