@@ -604,14 +604,15 @@ export class SistemaEvaluacionService {
       const notaMensualDB = notasMensualesDB.find((n) => n.mes === mes);
 
       if (notaMensualDB) {
-        // IMPORTANTE: porcentaje ya viene como decimal (0.28 = 28%), NO dividir por 100
-        const aporte = this.redondear(notaMensualDB.nota_mensual * porcentaje);
+        const aporte = this.redondear(
+          notaMensualDB.nota_mensual * (porcentaje / 100),
+        );
         notaTrimestralTotal += aporte;
 
         notasMensuales.push({
           mes,
           nota_mensual: notaMensualDB.nota_mensual,
-          porcentaje: porcentaje * 100, // Convertir a porcentaje para la respuesta (28, 27, 45)
+          porcentaje,
           aporte,
         });
       } else {
@@ -619,7 +620,7 @@ export class SistemaEvaluacionService {
         notasMensuales.push({
           mes,
           nota_mensual: 0,
-          porcentaje: porcentaje * 100, // Convertir a porcentaje para la respuesta
+          porcentaje,
           aporte: 0,
         });
       }
@@ -662,6 +663,270 @@ export class SistemaEvaluacionService {
     };
 
     return response;
+  }
+
+  /**
+   * Obtiene el historial de notas mensuales de un alumno para una asignatura
+   */
+  async obtenerNotasMensuales(
+    id_alumno: number,
+    id_asignatura: number,
+    trimestre: number,
+    anio_academico: string,
+  ): Promise<any[]> {
+    const notas = await this.prisma.notaMensual.findMany({
+      where: {
+        id_alumno,
+        id_asignatura,
+        trimestre,
+        anio_academico,
+      },
+      include: {
+        asignatura: {
+          select: {
+            nombre: true,
+          },
+        },
+        alumno: {
+          select: {
+            nombre: true,
+            apellido: true,
+          },
+        },
+        actividades: {
+          include: {
+            tipoActividad: true,
+          },
+          orderBy: {
+            id_actividad_evaluacion: 'asc',
+          },
+        },
+      },
+      orderBy: {
+        fecha_registro: 'asc',
+      },
+    });
+
+    return notas;
+  }
+
+  /**
+   * Obtiene el detalle completo de evaluación de un alumno
+   */
+  async obtenerDetalleEvaluacion(
+    id_alumno: number,
+    id_asignatura: number,
+    anio_academico: string,
+  ): Promise<any> {
+    const alumno = await this.prisma.alumno.findUnique({
+      where: { id_alumno },
+      select: {
+        nombre: true,
+        apellido: true,
+      },
+    });
+
+    if (!alumno) {
+      throw new NotFoundException(`El alumno con ID ${id_alumno} no existe`);
+    }
+
+    const asignatura = await this.prisma.asignatura.findUnique({
+      where: { id_asignatura },
+      select: {
+        nombre: true,
+      },
+    });
+
+    if (!asignatura) {
+      throw new NotFoundException(
+        `La asignatura con ID ${id_asignatura} no existe`,
+      );
+    }
+
+    // Obtener notas de los tres trimestres
+    const trimestres: NotaTrimestralResponseDto[] = [];
+    for (let i = 1; i <= 3; i++) {
+      const notaTrimestral = await this.calcularNotaTrimestral({
+        id_alumno,
+        id_asignatura,
+        trimestre: i,
+        anio_academico,
+      });
+      trimestres.push(notaTrimestral);
+    }
+
+    // Calcular nota anual (promedio de trimestres)
+    const notasTrimestrales = trimestres.map((t) => t.nota_trimestral);
+    const notaAnual = this.redondear(
+      notasTrimestrales.reduce((sum, nota) => sum + nota, 0) /
+        notasTrimestrales.length,
+    );
+
+    return {
+      alumno: {
+        id: id_alumno,
+        nombre: alumno.nombre,
+        apellido: alumno.apellido,
+      },
+      asignatura: {
+        id: id_asignatura,
+        nombre: asignatura.nombre,
+      },
+      anio_academico,
+      trimestres,
+      nota_anual: notaAnual,
+    };
+  }
+
+  /**
+   * Obtiene todas las actividades de evaluación de un alumno para una asignatura en un mes específico
+   */
+  async obtenerActividadesMensual(
+    id_alumno: number,
+    id_asignatura: number,
+    mes: string,
+    trimestre: number,
+    anio_academico: string,
+  ): Promise<any> {
+    const notaMensual = await this.prisma.notaMensual.findUnique({
+      where: {
+        id_alumno_id_asignatura_mes_trimestre_anio_academico: {
+          id_alumno,
+          id_asignatura,
+          mes,
+          trimestre,
+          anio_academico,
+        },
+      },
+      include: {
+        actividades: {
+          orderBy: {
+            id_actividad_evaluacion: 'asc',
+          },
+        },
+        alumno: {
+          select: {
+            nombre: true,
+            apellido: true,
+          },
+        },
+        asignatura: {
+          select: {
+            nombre: true,
+          },
+        },
+      },
+    });
+
+    if (!notaMensual) {
+      throw new NotFoundException(
+        `No se encontró nota mensual para el alumno ${id_alumno}, asignatura ${id_asignatura}, mes ${mes}`,
+      );
+    }
+
+    return {
+      alumno: notaMensual.alumno,
+      asignatura: notaMensual.asignatura,
+      mes: notaMensual.mes,
+      trimestre: notaMensual.trimestre,
+      anio_academico: notaMensual.anio_academico,
+      actividades: notaMensual.actividades,
+      examen_mensual: notaMensual.examen_mensual,
+      nota_mensual: notaMensual.nota_mensual,
+      fecha_registro: notaMensual.fecha_registro,
+    };
+  }
+
+  /**
+   * Obtiene un reporte completo de todas las actividades de un alumno en una asignatura
+   * durante un trimestre específico
+   */
+  async obtenerReporteActividadesTrimestre(
+    id_alumno: number,
+    id_asignatura: number,
+    trimestre: number,
+    anio_academico: string,
+  ): Promise<any> {
+    const alumno = await this.prisma.alumno.findUnique({
+      where: { id_alumno },
+      select: {
+        nombre: true,
+        apellido: true,
+      },
+    });
+
+    if (!alumno) {
+      throw new NotFoundException(`El alumno con ID ${id_alumno} no existe`);
+    }
+
+    const asignatura = await this.prisma.asignatura.findUnique({
+      where: { id_asignatura },
+      select: {
+        nombre: true,
+      },
+    });
+
+    if (!asignatura) {
+      throw new NotFoundException(
+        `La asignatura con ID ${id_asignatura} no existe`,
+      );
+    }
+
+    // Obtener todas las notas mensuales del trimestre
+    const notasMensuales = await this.prisma.notaMensual.findMany({
+      where: {
+        id_alumno,
+        id_asignatura,
+        trimestre,
+        anio_academico,
+      },
+      include: {
+        actividades: {
+          orderBy: {
+            fecha_evaluacion: 'asc',
+          },
+        },
+      },
+      orderBy: {
+        fecha_registro: 'asc',
+      },
+    });
+
+    // Obtener nota trimestral
+    const notaTrimestral = await this.prisma.notaTrimestral.findUnique({
+      where: {
+        id_alumno_id_asignatura_trimestre_anio_academico: {
+          id_alumno,
+          id_asignatura,
+          trimestre,
+          anio_academico,
+        },
+      },
+    });
+
+    return {
+      alumno: {
+        id: id_alumno,
+        nombre: alumno.nombre,
+        apellido: alumno.apellido,
+      },
+      asignatura: {
+        id: id_asignatura,
+        nombre: asignatura.nombre,
+      },
+      trimestre,
+      anio_academico,
+      notas_mensuales: notasMensuales.map((nm) => ({
+        mes: nm.mes,
+        actividades: nm.actividades,
+        examen_mensual: nm.examen_mensual,
+        promedio_actividades: nm.promedio_puro_actividades,
+        nota_mensual: nm.nota_mensual,
+        aporte_al_trimestre: nm.aporte_al_trimestre,
+        fecha_registro: nm.fecha_registro,
+      })),
+      nota_trimestral: notaTrimestral?.nota_trimestral || 0,
+    };
   }
 
   /**
@@ -2016,28 +2281,22 @@ export class SistemaEvaluacionService {
     const where: any = {};
 
     if (filtros.id_alumno) {
-      // Convertir a número si viene como string
-      where.id_alumno = parseInt(filtros.id_alumno);
+      where.id_alumno = filtros.id_alumno;
     }
 
     if (filtros.id_asignatura) {
-      // Convertir a número si viene como string
-      where.id_asignatura = parseInt(filtros.id_asignatura);
+      where.id_asignatura = filtros.id_asignatura;
     }
 
     if (filtros.mes_numerico) {
-      // Convertir mes numérico a nombre de mes para la consulta
-      const mesNumerico = parseInt(filtros.mes_numerico);
-      where.mes = this.convertirMesNumericoANombre(mesNumerico);
+      where.mes = this.convertirMesNumericoANombre(filtros.mes_numerico);
     }
 
     if (filtros.trimestre) {
-      // Convertir a número si viene como string
-      where.trimestre = parseInt(filtros.trimestre);
+      where.trimestre = filtros.trimestre;
     }
 
     if (filtros.anio) {
-      // Convertir a string para anio_academico
       where.anio_academico = filtros.anio.toString();
     }
 

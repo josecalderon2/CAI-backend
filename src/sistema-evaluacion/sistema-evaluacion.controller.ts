@@ -208,6 +208,131 @@ export class SistemaEvaluacionController {
     );
   }
 
+  @Get('notas-mensuales/:id_alumno/:id_asignatura')
+  @ApiOperation({
+    summary: 'Obtener historial de notas mensuales',
+    description:
+      'Recupera todas las notas mensuales de un alumno para una asignatura específica',
+  })
+  @ApiParam({
+    name: 'id_alumno',
+    description: 'ID del alumno',
+    type: 'number',
+    example: 2,
+    examples: {
+      'Alumno 2': { value: 2, description: 'Alumno2 Prueba2' },
+      'Alumno 3': { value: 3, description: 'Alumno3 Prueba3' },
+      'Alumno 10': { value: 10, description: 'Alumno10 Prueba10' },
+    },
+  })
+  @ApiParam({
+    name: 'id_asignatura',
+    description: 'ID de la asignatura',
+    type: 'number',
+    example: 1,
+    examples: {
+      'Matemática I': { value: 1, description: 'Matemática I' },
+      'Lenguaje y Literatura': {
+        value: 2,
+        description: 'Lenguaje y Literatura',
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Número de trimestre (1, 2 o 3)',
+    type: 'number',
+    required: true,
+    example: 1,
+    examples: {
+      'Trimestre 1': { value: 1, description: 'Febrero, Marzo, Abril' },
+      'Trimestre 2': { value: 2, description: 'Mayo, Junio, Julio' },
+      'Trimestre 3': { value: 3, description: 'Agosto, Septiembre, Octubre' },
+    },
+  })
+  @ApiQuery({
+    name: 'anio_academico',
+    description: 'Año académico',
+    type: 'string',
+    required: true,
+    example: '2025',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Historial de notas mensuales recuperado exitosamente',
+  })
+  async obtenerNotasMensuales(
+    @Param('id_alumno') id_alumno: string,
+    @Param('id_asignatura') id_asignatura: string,
+    @Query('trimestre') trimestre: string,
+    @Query('anio_academico') anio_academico: string,
+  ): Promise<any[]> {
+    return this.sistemaEvaluacionService.obtenerNotasMensuales(
+      +id_alumno,
+      +id_asignatura,
+      +trimestre,
+      anio_academico,
+    );
+  }
+
+  @Get('detalle-evaluacion/:id_alumno/:id_asignatura')
+  @ApiOperation({
+    summary: 'Obtener detalle completo de evaluación',
+    description:
+      'Recupera el detalle completo de evaluación de un alumno, ' +
+      'incluyendo notas mensuales, trimestrales y nota anual',
+  })
+  @ApiParam({
+    name: 'id_alumno',
+    description: 'ID del alumno',
+    type: 'number',
+    example: 2,
+    examples: {
+      'Alumno 2': { value: 2, description: 'Alumno2 Prueba2' },
+      'Alumno 3': { value: 3, description: 'Alumno3 Prueba3' },
+      'Alumno 10': { value: 10, description: 'Alumno10 Prueba10' },
+    },
+  })
+  @ApiParam({
+    name: 'id_asignatura',
+    description: 'ID de la asignatura',
+    type: 'number',
+    example: 1,
+    examples: {
+      'Matemática I': { value: 1, description: 'Matemática I' },
+      'Lenguaje y Literatura': {
+        value: 2,
+        description: 'Lenguaje y Literatura',
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'anio_academico',
+    description: 'Año académico',
+    type: 'string',
+    required: true,
+    example: '2025',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Detalle de evaluación recuperado exitosamente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Alumno o asignatura no encontrado',
+  })
+  async obtenerDetalleEvaluacion(
+    @Param('id_alumno') id_alumno: string,
+    @Param('id_asignatura') id_asignatura: string,
+    @Query('anio_academico') anio_academico: string,
+  ): Promise<any> {
+    return this.sistemaEvaluacionService.obtenerDetalleEvaluacion(
+      +id_alumno,
+      +id_asignatura,
+      anio_academico,
+    );
+  }
+
   @Get('porcentajes-trimestre/:trimestre')
   @ApiOperation({
     summary: '[BÁSICA ONLY] Obtener porcentajes de los meses de un trimestre',
@@ -303,6 +428,168 @@ export class SistemaEvaluacionController {
   ): Promise<any> {
     return this.sistemaEvaluacionService.obtenerConfiguracionEvaluacion(
       +id_asignatura,
+    );
+  }
+
+  @Get('actividades-mes/:id_alumno/:id_asignatura')
+  @ApiOperation({
+    summary: 'Obtener actividades de un mes específico',
+    description:
+      'Recupera todas las actividades de evaluación de un alumno para una asignatura en un mes específico',
+  })
+  @ApiParam({
+    name: 'id_alumno',
+    description: 'ID del alumno',
+    type: 'number',
+    example: 2,
+    examples: {
+      'Alumno 2': { value: 2, description: 'Alumno2 Prueba2' },
+      'Alumno 3': { value: 3, description: 'Alumno3 Prueba3' },
+      'Alumno 10': { value: 10, description: 'Alumno10 Prueba10' },
+    },
+  })
+  @ApiParam({
+    name: 'id_asignatura',
+    description: 'ID de la asignatura',
+    type: 'number',
+    example: 1,
+    examples: {
+      'Matemática I': { value: 1, description: 'Matemática I' },
+      'Lenguaje y Literatura': {
+        value: 2,
+        description: 'Lenguaje y Literatura',
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'mes',
+    description: 'Nombre del mes',
+    type: 'string',
+    required: true,
+    example: 'Febrero',
+    examples: {
+      Febrero: { value: 'Febrero', description: 'Trimestre 1 - 28%' },
+      Marzo: { value: 'Marzo', description: 'Trimestre 1 - 27%' },
+      Abril: { value: 'Abril', description: 'Trimestre 1 - 45%' },
+      Mayo: { value: 'Mayo', description: 'Trimestre 2 - 28%' },
+      Junio: { value: 'Junio', description: 'Trimestre 2 - 27%' },
+      Julio: { value: 'Julio', description: 'Trimestre 2 - 45%' },
+      Agosto: { value: 'Agosto', description: 'Trimestre 3 - 28%' },
+      Septiembre: { value: 'Septiembre', description: 'Trimestre 3 - 27%' },
+      Octubre: { value: 'Octubre', description: 'Trimestre 3 - 45%' },
+    },
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Número de trimestre (1, 2 o 3)',
+    type: 'number',
+    required: true,
+    example: 1,
+    examples: {
+      'Trimestre 1': { value: 1, description: 'Febrero, Marzo, Abril' },
+      'Trimestre 2': { value: 2, description: 'Mayo, Junio, Julio' },
+      'Trimestre 3': { value: 3, description: 'Agosto, Septiembre, Octubre' },
+    },
+  })
+  @ApiQuery({
+    name: 'anio_academico',
+    description: 'Año académico',
+    type: 'string',
+    required: true,
+    example: '2025',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Actividades del mes recuperadas exitosamente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No se encontró nota mensual',
+  })
+  async obtenerActividadesMensual(
+    @Param('id_alumno') id_alumno: string,
+    @Param('id_asignatura') id_asignatura: string,
+    @Query('mes') mes: string,
+    @Query('trimestre') trimestre: string,
+    @Query('anio_academico') anio_academico: string,
+  ): Promise<any> {
+    return this.sistemaEvaluacionService.obtenerActividadesMensual(
+      +id_alumno,
+      +id_asignatura,
+      mes,
+      +trimestre,
+      anio_academico,
+    );
+  }
+
+  @Get('reporte-trimestre/:id_alumno/:id_asignatura')
+  @ApiOperation({
+    summary: 'Obtener reporte completo de actividades del trimestre',
+    description:
+      'Genera un reporte completo con todas las actividades, notas mensuales y nota trimestral',
+  })
+  @ApiParam({
+    name: 'id_alumno',
+    description: 'ID del alumno',
+    type: 'number',
+    example: 2,
+    examples: {
+      'Alumno 2': { value: 2, description: 'Alumno2 Prueba2' },
+      'Alumno 3': { value: 3, description: 'Alumno3 Prueba3' },
+      'Alumno 10': { value: 10, description: 'Alumno10 Prueba10' },
+    },
+  })
+  @ApiParam({
+    name: 'id_asignatura',
+    description: 'ID de la asignatura',
+    type: 'number',
+    example: 1,
+    examples: {
+      'Matemática I': { value: 1, description: 'Matemática I' },
+      'Lenguaje y Literatura': {
+        value: 2,
+        description: 'Lenguaje y Literatura',
+      },
+    },
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Número de trimestre (1, 2 o 3)',
+    type: 'number',
+    required: true,
+    example: 1,
+    examples: {
+      'Trimestre 1': { value: 1, description: 'Febrero, Marzo, Abril' },
+      'Trimestre 2': { value: 2, description: 'Mayo, Junio, Julio' },
+      'Trimestre 3': { value: 3, description: 'Agosto, Septiembre, Octubre' },
+    },
+  })
+  @ApiQuery({
+    name: 'anio_academico',
+    description: 'Año académico',
+    type: 'string',
+    required: true,
+    example: '2025',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reporte del trimestre generado exitosamente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Alumno o asignatura no encontrado',
+  })
+  async obtenerReporteActividadesTrimestre(
+    @Param('id_alumno') id_alumno: string,
+    @Param('id_asignatura') id_asignatura: string,
+    @Query('trimestre') trimestre: string,
+    @Query('anio_academico') anio_academico: string,
+  ): Promise<any> {
+    return this.sistemaEvaluacionService.obtenerReporteActividadesTrimestre(
+      +id_alumno,
+      +id_asignatura,
+      +trimestre,
+      anio_academico,
     );
   }
 
@@ -614,49 +901,6 @@ export class SistemaEvaluacionController {
   })
   async obtenerCatalogoSistemas() {
     return this.sistemaEvaluacionService.obtenerCatalogoSistemas();
-  }
-
-  @Get('catalogo/tipos-actividad')
-  @ApiOperation({
-    summary: '🎯 Obtener tipos de actividad por asignatura (query parameter)',
-    description:
-      'Obtiene automáticamente los tipos de actividad correctos para una asignatura específica usando query parameter.\n\n' +
-      'Detecta automáticamente el nivel educativo (BASICA o BACHILLERATO) según el grado del curso.',
-  })
-  @ApiQuery({
-    name: 'id_asignatura',
-    description: 'ID de la asignatura',
-    required: true,
-    type: 'number',
-    example: 1,
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Lista de tipos de actividad disponibles para la asignatura',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'id_asignatura es requerido',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Asignatura no encontrada',
-  })
-  async obtenerTiposActividadPorAsignaturaQuery(
-    @Query('id_asignatura') id_asignatura?: string,
-  ) {
-    if (!id_asignatura) {
-      throw new BadRequestException('id_asignatura es requerido');
-    }
-
-    const idAsignaturaNum = parseInt(id_asignatura);
-    if (isNaN(idAsignaturaNum)) {
-      throw new BadRequestException('id_asignatura debe ser un número válido');
-    }
-
-    return this.sistemaEvaluacionService.obtenerTiposActividadPorAsignatura(
-      idAsignaturaNum,
-    );
   }
 
   @Get('catalogo/tipos-actividad/:nivel_educativo')
@@ -1036,51 +1280,6 @@ export class SistemaEvaluacionController {
   })
   async crearNotaSimplificada(@Body() dto: any) {
     return this.sistemaEvaluacionService.crearNotaSimplificada(dto);
-  }
-
-  // Ruta alternativa para compatibilidad con el frontend
-  @Get('notas/simplificadas')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: '🆕 Consultar notas mensuales simplificadas (alias)',
-    description:
-      'Alias de notas-mensuales/simple. Obtiene notas mensuales usando filtros numéricos (mes: 1-12, año: 2025). ' +
-      'Devuelve las actividades individuales guardadas.',
-  })
-  @ApiQuery({
-    name: 'id_alumno',
-    description: 'ID del alumno',
-    required: false,
-    type: 'number',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'id_asignatura',
-    description: 'ID de la asignatura',
-    required: false,
-    type: 'number',
-    example: 2,
-  })
-  @ApiQuery({
-    name: 'mes',
-    description: 'Mes numérico (1-12) - acepta "mes" o "mes_numerico"',
-    required: false,
-    type: 'number',
-    example: 11,
-  })
-  @ApiQuery({
-    name: 'anio',
-    description: 'Año académico',
-    required: false,
-    type: 'number',
-    example: 2025,
-  })
-  async consultarNotasSimplificadasAlias(@Query() filtros: any) {
-    // Normalizar el parámetro 'mes' a 'mes_numerico' si viene como 'mes'
-    if (filtros.mes && !filtros.mes_numerico) {
-      filtros.mes_numerico = filtros.mes;
-    }
-    return this.sistemaEvaluacionService.consultarNotasSimplificadas(filtros);
   }
 
   @Get('notas-mensuales/simple')
