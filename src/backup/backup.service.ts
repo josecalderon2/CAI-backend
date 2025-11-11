@@ -50,9 +50,19 @@ export class BackupService {
       const pgDumpPath = await this.findPgDump();
 
       if (!pgDumpPath) {
+        const platform = process.platform;
+        let ubicaciones = '';
+        
+        if (platform === 'win32') {
+          ubicaciones = 'C:\\Program Files\\PostgreSQL\\[versión]\\bin\\pg_dump.exe o en PATH';
+        } else if (platform === 'darwin') {
+          ubicaciones = '/usr/local/bin/pg_dump (Homebrew Intel), /opt/homebrew/bin/pg_dump (Homebrew M1/M2), /Applications/Postgres.app/Contents/Versions/latest/bin/pg_dump, o en PATH';
+        } else {
+          ubicaciones = '/usr/bin/pg_dump, /usr/local/bin/pg_dump, o en PATH';
+        }
+        
         throw new Error(
-          'No se encontró pg_dump.exe. Por favor verifica que PostgreSQL esté instalado. ' +
-            'Ubicaciones verificadas: C:\\Program Files\\PostgreSQL\\[versión]\\bin\\pg_dump.exe',
+          `No se encontró pg_dump. Por favor verifica que PostgreSQL esté instalado. Ubicaciones verificadas: ${ubicaciones}`,
         );
       }
 
@@ -263,23 +273,78 @@ export class BackupService {
    * Busca pg_dump en las instalaciones de PostgreSQL disponibles
    */
   private async findPgDump(): Promise<string | null> {
-    const possiblePaths = [
-      // Buscar en Program Files para versiones 12-20
-      ...Array.from(
-        { length: 9 },
-        (_, i) => `C:\\Program Files\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`,
-      ),
-      // Buscar en Program Files (x86)
-      ...Array.from(
-        { length: 9 },
-        (_, i) =>
-          `C:\\Program Files (x86)\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`,
-      ),
-    ];
+    const isWindows = process.platform === 'win32';
+    const isMac = process.platform === 'darwin';
+    
+    let possiblePaths: string[] = [];
+
+    if (isWindows) {
+      // Rutas de Windows
+      possiblePaths = [
+        // Buscar en Program Files para versiones 12-20
+        ...Array.from(
+          { length: 9 },
+          (_, i) => `C:\\Program Files\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`,
+        ),
+        // Buscar en Program Files (x86)
+        ...Array.from(
+          { length: 9 },
+          (_, i) =>
+            `C:\\Program Files (x86)\\PostgreSQL\\${20 - i}\\bin\\pg_dump.exe`,
+        ),
+      ];
+    } else if (isMac) {
+      // Rutas comunes de Mac
+      possiblePaths = [
+        // Homebrew (Apple Silicon M1/M2) - versiones específicas
+        '/opt/homebrew/opt/postgresql@17/bin/pg_dump',
+        '/opt/homebrew/opt/postgresql@16/bin/pg_dump',
+        '/opt/homebrew/opt/postgresql@15/bin/pg_dump',
+        '/opt/homebrew/opt/postgresql@14/bin/pg_dump',
+        '/opt/homebrew/opt/postgresql@13/bin/pg_dump',
+        '/opt/homebrew/opt/postgresql@12/bin/pg_dump',
+        // Homebrew (Apple Silicon M1/M2) - genérico
+        '/opt/homebrew/bin/pg_dump',
+        // Homebrew (Intel) - versiones específicas
+        '/usr/local/opt/postgresql@17/bin/pg_dump',
+        '/usr/local/opt/postgresql@16/bin/pg_dump',
+        '/usr/local/opt/postgresql@15/bin/pg_dump',
+        '/usr/local/opt/postgresql@14/bin/pg_dump',
+        '/usr/local/opt/postgresql@13/bin/pg_dump',
+        '/usr/local/opt/postgresql@12/bin/pg_dump',
+        // Homebrew (Intel) - genérico
+        '/usr/local/bin/pg_dump',
+        // Postgres.app
+        '/Applications/Postgres.app/Contents/Versions/latest/bin/pg_dump',
+        // Versiones específicas de Postgres.app
+        ...Array.from(
+          { length: 9 },
+          (_, i) => `/Applications/Postgres.app/Contents/Versions/${20 - i}/bin/pg_dump`,
+        ),
+        // MacPorts
+        '/opt/local/lib/postgresql16/bin/pg_dump',
+        '/opt/local/lib/postgresql15/bin/pg_dump',
+        '/opt/local/lib/postgresql14/bin/pg_dump',
+        '/opt/local/lib/postgresql13/bin/pg_dump',
+        '/opt/local/lib/postgresql12/bin/pg_dump',
+      ];
+    } else {
+      // Linux u otros sistemas Unix
+      possiblePaths = [
+        '/usr/bin/pg_dump',
+        '/usr/local/bin/pg_dump',
+        '/usr/lib/postgresql/16/bin/pg_dump',
+        '/usr/lib/postgresql/15/bin/pg_dump',
+        '/usr/lib/postgresql/14/bin/pg_dump',
+        '/usr/lib/postgresql/13/bin/pg_dump',
+        '/usr/lib/postgresql/12/bin/pg_dump',
+      ];
+    }
 
     // Buscar en PATH
     try {
-      const { stdout } = await execAsync('where pg_dump', {
+      const command = isWindows ? 'where pg_dump' : 'which pg_dump';
+      const { stdout } = await execAsync(command, {
         windowsHide: true,
       });
       if (stdout.trim()) {
