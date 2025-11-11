@@ -7,7 +7,10 @@ import {
   Param,
   Delete,
   Query,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AsignaturasService } from './asignaturas.service';
 import { CreateAsignaturaDto, UpdateAsignaturaDto } from './dto';
 import {
@@ -17,6 +20,7 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AsignaturaResponse } from './dto/asignatura.response';
 
@@ -60,6 +64,23 @@ export class AsignaturasController {
     @Query('idCurso') idCurso?: string,
   ): Promise<AsignaturaResponse[]> {
     return this.asignaturasService.findAll(idCurso ? +idCurso : undefined);
+  }
+
+  @Get('mis-asignaturas')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Obtener asignaturas asignadas al orientador autenticado' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de asignaturas asignadas al orientador.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'No autorizado.',
+  })
+  async findMisAsignaturas(@Req() req: any): Promise<AsignaturaResponse[]> {
+    const id_orientador = req.user.id;
+    return this.asignaturasService.findByOrientador(id_orientador);
   }
 
   @Get('curso/:idCurso')

@@ -20,6 +20,7 @@ import { AsignacionesModule } from './asignaciones/asignaciones.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MetodosEvaluacionModule } from './metodos-evaluacion/metodos-evaluacion.module';
 import { TiposAsignaturaModule } from './tipos-asignatura/tipos-asignatura.module';
+import { TiposEvaluacionModule } from './tipos-evaluacion/tipos-evaluacion.module';
 import { SistemasEvaluacionModule } from './sistemas-evaluacion/sistemas-evaluacion.module';
 import { EvaluacionesModule } from './evaluaciones/evaluaciones.module';
 import { ImportModule } from './import/import.module';
@@ -51,6 +52,7 @@ import { BackupModule } from './backup/backup.module';
     AsignacionesModule,
     MetodosEvaluacionModule,
     TiposAsignaturaModule,
+    TiposEvaluacionModule,
     SistemasEvaluacionModule,
     EvaluacionesModule,
     ImportModule,

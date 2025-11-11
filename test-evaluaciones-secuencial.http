@@ -53,6 +53,10 @@ Authorization: Bearer {{adminToken}}
 GET {{baseUrl}}/evaluaciones
 Authorization: Bearer {{orientadorToken}}
 
+### 5.1 Ver evaluaciones de mis asignaturas asignadas (como orientador)
+GET {{baseUrl}}/evaluaciones/mis-asignaturas/evaluaciones
+Authorization: Bearer {{orientadorToken}}
+
 ### 6. Actualizar la evaluación creada
 PATCH {{baseUrl}}/evaluaciones/{{crearEvaluacion.response.body.id_evaluacion}}
 Authorization: Bearer {{orientadorToken}}

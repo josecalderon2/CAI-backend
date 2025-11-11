@@ -45,6 +45,53 @@ export class AsignaturasService {
   }
 
   /**
+   * Busca asignaturas asignadas al orientador
+   * @param id_orientador ID del orientador autenticado
+   * @returns Lista de asignaturas asignadas al orientador
+   */
+  async findByOrientador(id_orientador: number): Promise<AsignaturaResponse[]> {
+    // Verificar que el orientador existe
+    const orientador = await this.prisma.orientador.findUnique({
+      where: { id_orientador },
+    });
+
+    if (!orientador) {
+      throw new NotFoundException(
+        `El orientador con ID ${id_orientador} no existe.`,
+      );
+    }
+
+    // Obtener las asignaturas asignadas al orientador
+    const asignaturasOrientador =
+      await this.prisma.asignaturaOrientador.findMany({
+        where: {
+          id_orientador,
+          activo: true,
+        },
+        include: {
+          asignatura: {
+            include: {
+              metodoEvaluacion: true,
+              tipoAsignatura: true,
+              sistemaEvaluacion: true,
+              curso: true,
+            },
+          },
+        },
+        orderBy: {
+          asignatura: {
+            nombre: 'asc',
+          },
+        },
+      });
+
+    // Extraer solo las asignaturas del resultado
+    const asignaturas = asignaturasOrientador.map((ao) => ao.asignatura);
+
+    return asignaturas as unknown as AsignaturaResponse[];
+  }
+
+  /**
    * Busca asignaturas por el ID del curso
    * @param idCurso ID del curso para filtrar asignaturas
    * @returns Lista de asignaturas asociadas al curso

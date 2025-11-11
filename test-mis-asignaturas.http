@@ -1,0 +1,23 @@
+### Variables globales
+@baseUrl = http://localhost:3000
+
+### 1. Login como Orientador
+# @name loginOrientador
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+    "email": "orientador@colegio.edu",
+    "password": "Ori12345*"
+}
+
+### Guardar token del orientador
+@orientadorToken = {{loginOrientador.response.body.token}}
+
+### 2. Obtener mis asignaturas asignadas (como orientador autenticado)
+GET {{baseUrl}}/asignaturas/mis-asignaturas
+Authorization: Bearer {{orientadorToken}}
+
+### 3. Comparación: Ver todas las asignaturas (sin filtro de orientador)
+GET {{baseUrl}}/asignaturas
+Authorization: Bearer {{orientadorToken}}
