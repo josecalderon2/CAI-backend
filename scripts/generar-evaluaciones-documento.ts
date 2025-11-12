@@ -3,11 +3,15 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log(' Generando evaluaciones según documento oficial\n');
+  console.log(
+    '=== GENERANDO EVALUACIONES PARA BÁSICA (Primaria/Secundaria) ===\n',
+  );
   console.log('Sistema: BÁSICA (3 trimestres)');
   console.log('Estructura: 1 evaluación por tipo por mes\n');
 
-  const anioAcademico = '2025';
+  // Obtener el año académico actual
+  const anioAcademico = new Date().getFullYear().toString();
+  console.log(`📅 Año académico: ${anioAcademico}\n`);
   const asignaturas = await prisma.asignatura.findMany({
     where: { id_curso: 1 },
   });

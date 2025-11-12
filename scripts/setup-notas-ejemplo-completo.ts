@@ -106,7 +106,8 @@ async function main() {
         id_asignatura: evaluacion.id_asignatura,
         id_evaluacion: evaluacion.id_evaluacion,
         calificacion: calificacion,
-        trimestre: evaluacion.trimestre?.toString() || '1',
+        trimestre: evaluacion.trimestre?.toString() || null,
+        fecha_registro: new Date(),
       },
     });
 

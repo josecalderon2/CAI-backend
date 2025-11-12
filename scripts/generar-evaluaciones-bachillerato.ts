@@ -109,7 +109,9 @@ async function generarEvaluacionesBachillerato() {
       return;
     }
 
-    const anioAcademico = '2025';
+    // Obtener el año académico actual
+    const anioAcademico = new Date().getFullYear().toString();
+    console.log(`📅 Año académico: ${anioAcademico}\n`);
 
     // 6. Generar evaluaciones para cada asignatura
     for (const asignatura of asignaturas) {

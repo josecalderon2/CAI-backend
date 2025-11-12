@@ -194,11 +194,6 @@ export class PromediosService {
     const notaActividadIntegradora = actividadIntegradora?.calificacion || 0;
     const notaAutoevaluacion = autoevaluacion?.calificacion || 0;
 
-    // Calcular promedio de actividades (normalizado): (0.25·ActInteg + 0.10·Autoeval) / 0.35
-    // Esto normaliza 25% + 10% = 35% a escala de 10
-    const promedioActividades =
-      (0.25 * notaActividadIntegradora + 0.1 * notaAutoevaluacion) / 0.35;
-
     // 4. Obtener Examen Trimestral
     const examen = await this.prisma.notas.findFirst({
       where: {
@@ -217,8 +212,14 @@ export class PromediosService {
     const notaExamen = examen?.calificacion || 0;
 
     // 5. Calcular promedio trimestral final
+    // Fórmula del documento oficial:
+    // Trimestre = 0.35·Meses + 0.25·ActInteg + 0.10·Autoeval + 0.30·Examen
+    // Calculamos también el promedio de actividades para guardarlo (sin normalizar)
+    const contribucionActividades =
+      0.25 * notaActividadIntegradora + 0.1 * notaAutoevaluacion;
+
     const promedioTrimestral =
-      0.35 * promedioMeses + 0.35 * promedioActividades + 0.3 * notaExamen;
+      0.35 * promedioMeses + contribucionActividades + 0.3 * notaExamen;
 
     // 6. Verificar aprobación (obtener nota mínima del grado)
     const asignatura = await this.prisma.asignatura.findUnique({
@@ -249,7 +250,7 @@ export class PromediosService {
         promedioMeses: Math.round(promedioMeses * 100) / 100,
         actividadIntegradora: notaActividadIntegradora,
         autoevaluacion: notaAutoevaluacion,
-        promedioActividades: Math.round(promedioActividades * 100) / 100,
+        promedioActividades: Math.round(contribucionActividades * 100) / 100,
         examenTrimestral: notaExamen,
         promedioTrimestral: Math.round(promedioTrimestral * 100) / 100,
         aprobado,
@@ -262,7 +263,7 @@ export class PromediosService {
         promedioMeses: Math.round(promedioMeses * 100) / 100,
         actividadIntegradora: notaActividadIntegradora,
         autoevaluacion: notaAutoevaluacion,
-        promedioActividades: Math.round(promedioActividades * 100) / 100,
+        promedioActividades: Math.round(contribucionActividades * 100) / 100,
         examenTrimestral: notaExamen,
         promedioTrimestral: Math.round(promedioTrimestral * 100) / 100,
         aprobado,
@@ -814,6 +815,524 @@ export class PromediosService {
       puedePromover: true,
       promedioGeneral: promedioFinal.promedioGeneral,
       estadoFinal: promedioFinal.estadoFinal,
+    };
+  }
+
+  /**
+   * Obtener promedios mensuales con desglose completo
+   * Para que el frontend NO tenga que calcular nada
+   */
+  async obtenerPromediosMensualesConDesglose(
+    alumnoId: number,
+    asignaturaId: number,
+    anioAcademico: string,
+    trimestre?: number,
+  ) {
+    // Determinar qué meses consultar
+    const mesesPorTrimestre: { [key: number]: number[] } = {
+      1: [2, 3, 4], // Feb, Mar, Abr
+      2: [5, 6, 7], // May, Jun, Jul
+      3: [8, 9, 10], // Ago, Sep, Oct
+    };
+
+    let mesesAConsultar: number[] = [];
+    if (trimestre) {
+      mesesAConsultar = mesesPorTrimestre[trimestre] || [];
+    } else {
+      // Todos los meses
+      mesesAConsultar = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+    }
+
+    // Obtener promedios mensuales de la BD
+    const promediosMensuales = await this.prisma.promedioMensual.findMany({
+      where: {
+        alumnoId,
+        asignaturaId,
+        anioAcademico,
+        mes: { in: mesesAConsultar },
+      },
+      orderBy: { mes: 'asc' },
+    });
+
+    // Obtener las notas individuales para cada mes
+    const desgloseCompleto = await Promise.all(
+      promediosMensuales.map(async (pm) => {
+        const notas = await this.prisma.notas.findMany({
+          where: {
+            id_alumno: alumnoId,
+            id_asignatura: asignaturaId,
+            evaluacion: {
+              anio_academico: anioAcademico,
+              mes: pm.mes,
+            },
+          },
+          include: {
+            evaluacion: {
+              include: {
+                tipoEvaluacion: true,
+              },
+            },
+          },
+        });
+
+        // Agrupar por tipo
+        const tareas = notas.filter(
+          (n) => n.evaluacion?.tipoEvaluacion?.nombre === 'Tarea',
+        );
+        const revisiones = notas.filter(
+          (n) =>
+            n.evaluacion?.tipoEvaluacion?.nombre === 'Revisión de Cuaderno',
+        );
+        const laboratorios = notas.filter(
+          (n) => n.evaluacion?.tipoEvaluacion?.nombre === 'Laboratorio',
+        );
+
+        return {
+          mes: pm.mes,
+          trimestre: pm.trimestre,
+          desglose: {
+            tareas: {
+              notas: tareas.map((n) => ({
+                id_nota: n.id_nota,
+                calificacion: n.calificacion,
+                nombre_evaluacion: n.evaluacion?.nombre,
+              })),
+              promedio: pm.promedioTareas,
+              peso: 0.05,
+              pesoNormalizado: 14.29, // 5/35 * 100
+              contribucion: pm.promedioTareas
+                ? (0.05 * pm.promedioTareas) / 0.35
+                : 0,
+            },
+            revisiones: {
+              notas: revisiones.map((n) => ({
+                id_nota: n.id_nota,
+                calificacion: n.calificacion,
+                nombre_evaluacion: n.evaluacion?.nombre,
+              })),
+              promedio: pm.promedioRevisiones,
+              peso: 0.15,
+              pesoNormalizado: 42.86, // 15/35 * 100
+              contribucion: pm.promedioRevisiones
+                ? (0.15 * pm.promedioRevisiones) / 0.35
+                : 0,
+            },
+            laboratorios: {
+              notas: laboratorios.map((n) => ({
+                id_nota: n.id_nota,
+                calificacion: n.calificacion,
+                nombre_evaluacion: n.evaluacion?.nombre,
+              })),
+              promedio: pm.promedioLaboratorios,
+              peso: 0.15,
+              pesoNormalizado: 42.86, // 15/35 * 100
+              contribucion: pm.promedioLaboratorios
+                ? (0.15 * pm.promedioLaboratorios) / 0.35
+                : 0,
+            },
+          },
+          promedioMensual: pm.promedioMensual,
+          formula: 'PromMes = (0.05·Tareas + 0.15·Revisión + 0.15·Lab) / 0.35',
+          nota: 'El promedio mensual está normalizado a escala de 10. Puede mostrarse como 100% en el frontend.',
+        };
+      }),
+    );
+
+    return {
+      alumnoId,
+      asignaturaId,
+      anioAcademico,
+      trimestre,
+      meses: desgloseCompleto,
+      resumen: {
+        totalMeses: desgloseCompleto.length,
+        promedioGeneral:
+          desgloseCompleto.length > 0
+            ? desgloseCompleto.reduce((sum, m) => sum + m.promedioMensual, 0) /
+              desgloseCompleto.length
+            : 0,
+      },
+    };
+  }
+
+  /**
+   * Obtener promedios trimestrales con desglose completo
+   */
+  async obtenerPromediosTrimestralesConDesglose(
+    alumnoId: number,
+    asignaturaId: number,
+    anioAcademico: string,
+    trimestre?: number,
+  ) {
+    const trimestresAConsultar = trimestre ? [trimestre] : [1, 2, 3];
+
+    const desgloseCompleto = await Promise.all(
+      trimestresAConsultar.map(async (t) => {
+        // Obtener promedio trimestral
+        const promedioTrimestral =
+          await this.prisma.promedioTrimestral.findUnique({
+            where: {
+              alumnoId_asignaturaId_anioAcademico_trimestre: {
+                alumnoId,
+                asignaturaId,
+                anioAcademico,
+                trimestre: t,
+              },
+            },
+          });
+
+        if (!promedioTrimestral) {
+          return null;
+        }
+
+        // Obtener promedios mensuales del trimestre
+        const mesesPorTrimestre: { [key: number]: number[] } = {
+          1: [2, 3, 4],
+          2: [5, 6, 7],
+          3: [8, 9, 10],
+        };
+        const meses = mesesPorTrimestre[t];
+        const pesosMensuales = [0.28, 0.27, 0.45];
+
+        const promediosMensuales = await this.prisma.promedioMensual.findMany({
+          where: {
+            alumnoId,
+            asignaturaId,
+            anioAcademico,
+            mes: { in: meses },
+          },
+          orderBy: { mes: 'asc' },
+        });
+
+        const bloqueMensual = {
+          pesoDelTrimestre: 35,
+          meses: promediosMensuales.map((pm, index) => ({
+            mes: pm.mes,
+            promedio: pm.promedioMensual,
+            pesoEnElBloque: pesosMensuales[index] * 100,
+            contribucionAlBloque: pm.promedioMensual * pesosMensuales[index],
+          })),
+          promedioBloque: promedioTrimestral.promedioMeses,
+          contribucionAlTrimestre:
+            0.35 * (promedioTrimestral.promedioMeses || 0),
+        };
+
+        const bloqueActividades = {
+          pesoDelTrimestre: 35,
+          actividades: [
+            {
+              nombre: 'Actividad Integradora',
+              calificacion: promedioTrimestral.actividadIntegradora,
+              peso: 25,
+              contribucionAlTrimestre:
+                0.25 * (promedioTrimestral.actividadIntegradora || 0),
+            },
+            {
+              nombre: 'Autoevaluación',
+              calificacion: promedioTrimestral.autoevaluacion,
+              peso: 10,
+              contribucionAlTrimestre:
+                0.1 * (promedioTrimestral.autoevaluacion || 0),
+            },
+          ],
+          contribucionTotal:
+            0.25 * (promedioTrimestral.actividadIntegradora || 0) +
+            0.1 * (promedioTrimestral.autoevaluacion || 0),
+        };
+
+        const bloqueExamen = {
+          pesoDelTrimestre: 30,
+          examen: {
+            nombre: 'Examen Trimestral',
+            calificacion: promedioTrimestral.examenTrimestral,
+            peso: 30,
+            contribucionAlTrimestre:
+              0.3 * (promedioTrimestral.examenTrimestral || 0),
+          },
+        };
+
+        return {
+          trimestre: t,
+          bloques: {
+            mensual: bloqueMensual,
+            actividades: bloqueActividades,
+            examen: bloqueExamen,
+          },
+          promedioTrimestral: promedioTrimestral.promedioTrimestral,
+          aprobado: promedioTrimestral.aprobado,
+          formula:
+            'Trimestre = 0.35·Meses + 0.25·ActInteg + 0.10·Autoeval + 0.30·Examen',
+          verificacion: {
+            sumaPorcentajes: '35% + 25% + 10% + 30% = 100%',
+            sumaContribuciones:
+              bloqueMensual.contribucionAlTrimestre +
+              bloqueActividades.contribucionTotal +
+              bloqueExamen.examen.contribucionAlTrimestre,
+          },
+        };
+      }),
+    );
+
+    return {
+      alumnoId,
+      asignaturaId,
+      anioAcademico,
+      trimestres: desgloseCompleto.filter((t) => t !== null),
+      promedioAnual:
+        desgloseCompleto.filter((t) => t !== null).length > 0
+          ? desgloseCompleto
+              .filter((t) => t !== null)
+              .reduce((sum, t) => sum + t!.promedioTrimestral, 0) /
+            desgloseCompleto.filter((t) => t !== null).length
+          : 0,
+    };
+  }
+
+  /**
+   * Obtener promedios por periodo (BACHILLERATO) con desglose
+   */
+  async obtenerPromediosPeriodoConDesglose(
+    alumnoId: number,
+    asignaturaId: number,
+    anioAcademico: string,
+    periodo?: number,
+  ) {
+    const periodosAConsultar = periodo ? [periodo] : [1, 2, 3, 4];
+
+    const desgloseCompleto = await Promise.all(
+      periodosAConsultar.map(async (p) => {
+        const promedioPeriodo =
+          await this.prisma.promedioFinalAsignatura.findFirst({
+            where: {
+              alumnoId,
+              asignaturaId,
+              anioAcademico,
+              // Nota: Asumiendo que tienes un campo 'periodo' en PromedioFinalAsignatura
+              // Si no existe, necesitarás ajustar el modelo
+            },
+          });
+
+        // Obtener notas del periodo
+        const notas = await this.prisma.notas.findMany({
+          where: {
+            id_alumno: alumnoId,
+            id_asignatura: asignaturaId,
+            evaluacion: {
+              anio_academico: anioAcademico,
+              periodo: p,
+            },
+          },
+          include: {
+            evaluacion: {
+              include: {
+                tipoEvaluacion: true,
+              },
+            },
+          },
+        });
+
+        // Agrupar por tipo
+        const actividadIntegradora = notas.find(
+          (n) =>
+            n.evaluacion?.tipoEvaluacion?.nombre === 'Actividad Integradora',
+        );
+        const tareas = notas.filter(
+          (n) => n.evaluacion?.tipoEvaluacion?.nombre === 'Tarea',
+        );
+        const coevaluacion = notas.find(
+          (n) => n.evaluacion?.tipoEvaluacion?.nombre === 'Coevaluación',
+        );
+        const laboratorio = notas.find(
+          (n) => n.evaluacion?.tipoEvaluacion?.nombre === 'Laboratorio',
+        );
+        const examenParcial = notas.find(
+          (n) => n.evaluacion?.tipoEvaluacion?.nombre === 'Examen Parcial',
+        );
+        const examenPeriodo = notas.find(
+          (n) => n.evaluacion?.tipoEvaluacion?.nombre === 'Examen del Periodo',
+        );
+
+        // Calcular promedio de tareas
+        const promedioTareas =
+          tareas.length > 0
+            ? tareas.reduce((sum, n) => sum + (n.calificacion || 0), 0) /
+              tareas.length
+            : 0;
+
+        const rubros = [
+          {
+            nombre: 'Actividad Integradora',
+            calificacion: actividadIntegradora?.calificacion || 0,
+            peso: 25,
+            contribucion: 0.25 * (actividadIntegradora?.calificacion || 0),
+          },
+          {
+            nombre: 'Tareas',
+            calificacion: promedioTareas,
+            peso: 5,
+            contribucion: 0.05 * promedioTareas,
+            notas: tareas.map((n) => ({
+              id_nota: n.id_nota,
+              calificacion: n.calificacion,
+              nombre: n.evaluacion?.nombre,
+            })),
+          },
+          {
+            nombre: 'Coevaluación',
+            calificacion: coevaluacion?.calificacion || 0,
+            peso: 5,
+            contribucion: 0.05 * (coevaluacion?.calificacion || 0),
+          },
+          {
+            nombre: 'Laboratorio',
+            calificacion: laboratorio?.calificacion || 0,
+            peso: 10,
+            contribucion: 0.1 * (laboratorio?.calificacion || 0),
+          },
+          {
+            nombre: 'Examen Parcial',
+            calificacion: examenParcial?.calificacion || 0,
+            peso: 25,
+            contribucion: 0.25 * (examenParcial?.calificacion || 0),
+          },
+          {
+            nombre: 'Examen del Periodo',
+            calificacion: examenPeriodo?.calificacion || 0,
+            peso: 30,
+            contribucion: 0.3 * (examenPeriodo?.calificacion || 0),
+          },
+        ];
+
+        const promedioPeriodoCalculado = rubros.reduce(
+          (sum, r) => sum + r.contribucion,
+          0,
+        );
+
+        return {
+          periodo: p,
+          rubros,
+          promedioPeriodo: promedioPeriodoCalculado,
+          formula:
+            'Periodo = 0.25·ActInteg + 0.05·Tareas + 0.05·Coev + 0.10·Lab + 0.25·ExParc + 0.30·ExPer',
+          verificacion: {
+            sumaPorcentajes: '25% + 5% + 5% + 10% + 25% + 30% = 100%',
+            sumaContribuciones: promedioPeriodoCalculado,
+          },
+        };
+      }),
+    );
+
+    return {
+      alumnoId,
+      asignaturaId,
+      anioAcademico,
+      periodos: desgloseCompleto,
+      promedioAnual:
+        desgloseCompleto.length > 0
+          ? desgloseCompleto.reduce((sum, p) => sum + p.promedioPeriodo, 0) /
+            desgloseCompleto.length
+          : 0,
+    };
+  }
+
+  /**
+   * Obtener desglose completo de todas las asignaturas de un alumno
+   */
+  async obtenerDesgloseCompletoAlumno(alumnoId: number, anioAcademico: string) {
+    // Obtener inscripción del alumno (AlumnoCurso)
+    const inscripcion = await this.prisma.alumnoCurso.findFirst({
+      where: {
+        alumnoId,
+        anioAcademico,
+      },
+      include: {
+        curso: {
+          include: {
+            gradoAcademico: true,
+          },
+        },
+      },
+    });
+
+    if (!inscripcion) {
+      throw new NotFoundException('Alumno no inscrito en el año académico');
+    }
+
+    // Obtener todas las asignaturas del curso
+    const asignaturas = await this.prisma.asignatura.findMany({
+      where: {
+        id_curso: inscripcion.cursoId,
+      },
+    });
+
+    // Determinar si es BÁSICA o BACHILLERATO
+    const gradoAcademico = inscripcion.curso?.gradoAcademico;
+    if (!gradoAcademico) {
+      throw new NotFoundException('Grado académico no encontrado');
+    }
+
+    const esBasica =
+      gradoAcademico.nombre === 'Primaria' ||
+      gradoAcademico.nombre === 'Secundaria';
+
+    // Obtener desglose para cada asignatura
+    const desgloseAsignaturas = await Promise.all(
+      asignaturas.map(async (asig) => {
+        if (esBasica) {
+          // BÁSICA: obtener trimestres
+          const trimestres = await this.obtenerPromediosTrimestralesConDesglose(
+            alumnoId,
+            asig.id_asignatura,
+            anioAcademico,
+          );
+
+          return {
+            asignatura: {
+              id: asig.id_asignatura,
+              nombre: asig.nombre,
+            },
+            sistema: 'BASICA',
+            trimestres: trimestres.trimestres,
+            promedioAnual: trimestres.promedioAnual,
+          };
+        } else {
+          // BACHILLERATO: obtener periodos
+          const periodos = await this.obtenerPromediosPeriodoConDesglose(
+            alumnoId,
+            asig.id_asignatura,
+            anioAcademico,
+          );
+
+          return {
+            asignatura: {
+              id: asig.id_asignatura,
+              nombre: asig.nombre,
+            },
+            sistema: 'BACHILLERATO',
+            periodos: periodos.periodos,
+            promedioAnual: periodos.promedioAnual,
+          };
+        }
+      }),
+    );
+
+    return {
+      alumno: {
+        id: alumnoId,
+      },
+      anioAcademico,
+      curso: {
+        id: inscripcion.curso.id_curso,
+        nombre: inscripcion.curso.nombre,
+        gradoAcademico: gradoAcademico.nombre,
+      },
+      sistema: esBasica ? 'BASICA' : 'BACHILLERATO',
+      asignaturas: desgloseAsignaturas,
+      promedioGeneral:
+        desgloseAsignaturas.length > 0
+          ? desgloseAsignaturas.reduce((sum, a) => sum + a.promedioAnual, 0) /
+            desgloseAsignaturas.length
+          : 0,
     };
   }
 }
