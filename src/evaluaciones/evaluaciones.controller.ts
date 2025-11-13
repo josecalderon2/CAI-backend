@@ -109,4 +109,22 @@ export class EvaluacionesController {
   remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.evaluacionesService.remove(id, req.user.id);
   }
+
+  @Get(':id/alumnos-con-calificaciones')
+  @ApiOperation({
+    summary: 'Obtener alumnos de una evaluación con sus calificaciones',
+    description:
+      'Retorna todos los alumnos del curso asociado a la evaluación, ' +
+      'incluyendo quiénes ya tienen calificación y quiénes no. ' +
+      'Útil para el formulario de ingreso de notas.',
+  })
+  getAlumnosConCalificaciones(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    return this.evaluacionesService.getAlumnosConCalificaciones(
+      id,
+      req.user.id,
+    );
+  }
 }

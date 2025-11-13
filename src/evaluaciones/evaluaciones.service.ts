@@ -544,4 +544,139 @@ export class EvaluacionesService {
       totalPorcentaje: resultado.reduce((sum, g) => sum + g.porcentajeBase, 0),
     };
   }
+
+  /**
+   * Obtiene todos los alumnos de una evaluación con sus calificaciones
+   * Incluye alumnos que ya tienen calificación y los que aún no
+   */
+  async getAlumnosConCalificaciones(
+    id_evaluacion: number,
+    id_orientador: number,
+  ) {
+    // Verificar que el orientador existe
+    const orientador = await this.prisma.orientador.findUnique({
+      where: { id_orientador },
+    });
+
+    if (!orientador) {
+      throw new ForbiddenException('No tienes permisos de orientador');
+    }
+
+    // Obtener la evaluación con toda la información relacionada
+    const evaluacion = await this.prisma.evaluacion.findFirst({
+      where: {
+        id_evaluacion,
+        id_orientador: orientador.id_orientador,
+      },
+      include: {
+        asignatura: {
+          include: {
+            curso: {
+              select: {
+                id_curso: true,
+                nombre: true,
+                seccion: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!evaluacion) {
+      throw new NotFoundException(
+        'Evaluación no encontrada o no tienes permiso para verla',
+      );
+    }
+
+    if (!evaluacion.asignatura?.curso) {
+      throw new NotFoundException(
+        'No se pudo determinar el curso de la evaluación',
+      );
+    }
+
+    const cursoId = evaluacion.asignatura.curso.id_curso;
+
+    // Obtener todos los alumnos activos del curso
+    const alumnosCurso = await this.prisma.alumnoCurso.findMany({
+      where: {
+        cursoId,
+        estado: 'ACTIVO',
+        anioAcademico: evaluacion.anio_academico,
+      },
+      include: {
+        alumno: {
+          select: {
+            id_alumno: true,
+            nombre: true,
+            apellido: true,
+            genero: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          alumno: {
+            apellido: 'asc',
+          },
+        },
+        {
+          alumno: {
+            nombre: 'asc',
+          },
+        },
+      ],
+    });
+
+    // Obtener todas las calificaciones de esta evaluación
+    const calificaciones = await this.prisma.notas.findMany({
+      where: {
+        id_evaluacion,
+      },
+      select: {
+        id_nota: true,
+        id_alumno: true,
+        calificacion: true,
+      },
+    });
+
+    // Crear un mapa de calificaciones por alumno para acceso rápido
+    const calificacionesPorAlumno = new Map(
+      calificaciones.map((cal) => [cal.id_alumno, cal]),
+    );
+
+    // Combinar alumnos con sus calificaciones
+    const alumnosConCalificaciones = alumnosCurso.map((ac) => {
+      const calificacion = calificacionesPorAlumno.get(ac.alumno.id_alumno);
+
+      return {
+        id_alumno: ac.alumno.id_alumno,
+        nombre: ac.alumno.nombre,
+        apellido: ac.alumno.apellido,
+        genero: ac.alumno.genero,
+        calificacion: calificacion?.calificacion ?? null,
+        id_nota: calificacion?.id_nota ?? null,
+        tiene_calificacion: !!calificacion,
+      };
+    });
+
+    // Calcular estadísticas
+    const totalAlumnos = alumnosConCalificaciones.length;
+    const alumnosCalificados = alumnosConCalificaciones.filter(
+      (a) => a.tiene_calificacion,
+    ).length;
+
+    return {
+      id_evaluacion: evaluacion.id_evaluacion,
+      nombre_evaluacion: evaluacion.nombre,
+      asignatura: {
+        id_asignatura: evaluacion.asignatura.id_asignatura,
+        nombre: evaluacion.asignatura.nombre,
+      },
+      curso: evaluacion.asignatura.curso,
+      total_alumnos: totalAlumnos,
+      alumnos_calificados: alumnosCalificados,
+      alumnos: alumnosConCalificaciones,
+    };
+  }
 }
