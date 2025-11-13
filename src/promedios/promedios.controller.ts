@@ -6,6 +6,7 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -13,11 +14,13 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PromediosService } from './promedios.service';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { VerificacionCierreResponseDto } from './dto/verificacion-cierre.dto';
 
 @ApiTags('Promedios')
 @ApiBearerAuth('JWT-auth')
@@ -215,6 +218,161 @@ export class PromediosController {
   }
 
   @Roles('Admin', 'P.A', 'Orientador')
+  @Get('verificar-cierre')
+  @ApiOperation({
+    summary:
+      'Verificar el estado de las calificaciones antes de cerrar (advertencias y estadísticas)',
+  })
+  @ApiQuery({
+    name: 'cursoId',
+    description: 'ID del curso',
+    required: true,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'anioAcademico',
+    description: 'Año académico',
+    required: true,
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Trimestre (1, 2 o 3) - Solo para básica',
+    required: false,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'periodo',
+    description: 'Periodo (1, 2, 3 o 4) - Solo para bachillerato',
+    required: false,
+    type: 'number',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Estado de verificación obtenido exitosamente',
+    type: VerificacionCierreResponseDto,
+  })
+  async verificarEstadoParaCierre(
+    @Query('cursoId', ParseIntPipe) cursoId: number,
+    @Query('anioAcademico') anioAcademico: string,
+    @Query('trimestre') trimestre?: number,
+    @Query('periodo') periodo?: number,
+  ) {
+    return this.promediosService.verificarEstadoParaCierre(
+      cursoId,
+      anioAcademico,
+      trimestre ? Number(trimestre) : undefined,
+      periodo ? Number(periodo) : undefined,
+    );
+  }
+
+  @Roles('Orientador')
+  @Get('verificar-cierre-asignatura')
+  @ApiOperation({
+    summary:
+      'Verificar el estado de las calificaciones de UNA ASIGNATURA antes de cerrar',
+  })
+  @ApiQuery({
+    name: 'asignaturaId',
+    description: 'ID de la asignatura',
+    required: true,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'anioAcademico',
+    description: 'Año académico',
+    required: true,
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Trimestre (1, 2 o 3) - Solo para básica',
+    required: false,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'periodo',
+    description: 'Periodo (1, 2, 3 o 4) - Solo para bachillerato',
+    required: false,
+    type: 'number',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Estado de verificación de la asignatura obtenido exitosamente',
+    type: VerificacionCierreResponseDto,
+  })
+  async verificarEstadoParaCierreAsignatura(
+    @Query('asignaturaId', ParseIntPipe) asignaturaId: number,
+    @Query('anioAcademico') anioAcademico: string,
+    @Req() req: any,
+    @Query('trimestre') trimestre?: number,
+    @Query('periodo') periodo?: number,
+  ) {
+    const orientadorId = req.user.id_orientador;
+    return this.promediosService.verificarEstadoParaCierreAsignatura(
+      asignaturaId,
+      anioAcademico,
+      orientadorId,
+      trimestre ? Number(trimestre) : undefined,
+      periodo ? Number(periodo) : undefined,
+    );
+  }
+
+  @Roles('Orientador')
+  @Post('cerrar-asignatura')
+  @ApiOperation({
+    summary:
+      'Cerrar calificaciones de UNA ASIGNATURA específica (solo las que imparte el orientador)',
+  })
+  @ApiQuery({
+    name: 'asignaturaId',
+    description: 'ID de la asignatura',
+    required: true,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'anioAcademico',
+    description: 'Año académico',
+    required: true,
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Trimestre (1, 2 o 3) - Solo para básica',
+    required: false,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'periodo',
+    description: 'Periodo (1, 2, 3 o 4) - Solo para bachillerato',
+    required: false,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'forzar',
+    description:
+      'Forzar cierre aunque haya advertencias (alumnos sin calificar, etc.)',
+    required: false,
+    type: 'boolean',
+  })
+  async cerrarCalificacionesAsignatura(
+    @Query('asignaturaId', ParseIntPipe) asignaturaId: number,
+    @Query('anioAcademico') anioAcademico: string,
+    @Req() req: any,
+    @Query('trimestre') trimestre?: number,
+    @Query('periodo') periodo?: number,
+    @Query('forzar') forzar?: string,
+  ) {
+    const orientadorId = req.user.id_orientador;
+    return this.promediosService.cerrarCalificacionesAsignatura(
+      asignaturaId,
+      anioAcademico,
+      orientadorId,
+      trimestre ? Number(trimestre) : undefined,
+      periodo ? Number(periodo) : undefined,
+      forzar === 'true',
+    );
+  }
+
+  @Roles('Admin', 'P.A', 'Orientador')
   @Post('cerrar/:alumnoId')
   @ApiOperation({
     summary: 'Cerrar calificaciones de un alumno (marcar como finalizado)',
@@ -231,15 +389,75 @@ export class PromediosController {
     description: 'Año académico',
     required: true,
   })
+  @ApiQuery({
+    name: 'forzar',
+    description: 'Forzar cierre aunque haya advertencias',
+    required: false,
+    type: 'boolean',
+  })
   async cerrarCalificaciones(
     @Param('alumnoId', ParseIntPipe) alumnoId: number,
     @Query('cursoId', ParseIntPipe) cursoId: number,
     @Query('anioAcademico') anioAcademico: string,
+    @Query('forzar') forzar?: string,
   ) {
     return this.promediosService.cerrarCalificaciones(
       alumnoId,
       cursoId,
       anioAcademico,
+      forzar === 'true',
+    );
+  }
+
+  @Roles('Admin', 'P.A', 'Orientador')
+  @Post('cerrar-curso')
+  @ApiOperation({
+    summary:
+      'Cerrar calificaciones de TODO un curso (todos los alumnos activos)',
+  })
+  @ApiQuery({
+    name: 'cursoId',
+    description: 'ID del curso',
+    required: true,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'anioAcademico',
+    description: 'Año académico',
+    required: true,
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    description: 'Trimestre (1, 2 o 3) - Solo para básica',
+    required: false,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'periodo',
+    description: 'Periodo (1, 2, 3 o 4) - Solo para bachillerato',
+    required: false,
+    type: 'number',
+  })
+  @ApiQuery({
+    name: 'forzar',
+    description:
+      'Forzar cierre aunque haya advertencias (alumnos sin calificar, etc.)',
+    required: false,
+    type: 'boolean',
+  })
+  async cerrarCalificacionesCurso(
+    @Query('cursoId', ParseIntPipe) cursoId: number,
+    @Query('anioAcademico') anioAcademico: string,
+    @Query('trimestre') trimestre?: number,
+    @Query('periodo') periodo?: number,
+    @Query('forzar') forzar?: string,
+  ) {
+    return this.promediosService.cerrarCalificacionesCurso(
+      cursoId,
+      anioAcademico,
+      trimestre ? Number(trimestre) : undefined,
+      periodo ? Number(periodo) : undefined,
+      forzar === 'true',
     );
   }
 }

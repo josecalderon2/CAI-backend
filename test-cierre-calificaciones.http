@@ -1,0 +1,96 @@
+### ========================================
+### PRUEBAS: Sistema de Cierre de Calificaciones
+### ========================================
+
+@baseUrl = http://localhost:3000
+@token = YOUR_JWT_TOKEN_HERE
+
+### 1. Verificar estado antes de cerrar - Básica (Trimestre 1)
+GET {{baseUrl}}/promedios/verificar-cierre?cursoId=1&anioAcademico=2025&trimestre=1
+Authorization: Bearer {{token}}
+
+###
+
+### 2. Verificar estado antes de cerrar - Bachillerato (Periodo 2)
+GET {{baseUrl}}/promedios/verificar-cierre?cursoId=5&anioAcademico=2025&periodo=2
+Authorization: Bearer {{token}}
+
+###
+
+### 3. Verificar estado antes de cerrar - Todo el año
+GET {{baseUrl}}/promedios/verificar-cierre?cursoId=3&anioAcademico=2025
+Authorization: Bearer {{token}}
+
+###
+
+### ========================================
+### CERRAR CALIFICACIONES - ALUMNO INDIVIDUAL
+### ========================================
+
+### 4. Cerrar calificaciones de un alumno (sin forzar)
+POST {{baseUrl}}/promedios/cerrar/1?cursoId=1&anioAcademico=2025
+Authorization: Bearer {{token}}
+
+###
+
+### 5. Cerrar calificaciones de un alumno (forzar)
+POST {{baseUrl}}/promedios/cerrar/2?cursoId=1&anioAcademico=2025&forzar=true
+Authorization: Bearer {{token}}
+
+###
+
+### ========================================
+### CERRAR CALIFICACIONES - TODO EL CURSO
+### ========================================
+
+### 6. Cerrar calificaciones de todo el curso - Básica Trimestre 1 (sin forzar)
+POST {{baseUrl}}/promedios/cerrar-curso?cursoId=1&anioAcademico=2025&trimestre=1&forzar=false
+Authorization: Bearer {{token}}
+
+###
+
+### 7. Cerrar calificaciones de todo el curso - Básica Trimestre 1 (forzar)
+POST {{baseUrl}}/promedios/cerrar-curso?cursoId=1&anioAcademico=2025&trimestre=1&forzar=true
+Authorization: Bearer {{token}}
+
+###
+
+### 8. Cerrar calificaciones de todo el curso - Bachillerato Periodo 2 (forzar)
+POST {{baseUrl}}/promedios/cerrar-curso?cursoId=5&anioAcademico=2025&periodo=2&forzar=true
+Authorization: Bearer {{token}}
+
+###
+
+### 9. Cerrar calificaciones de todo el curso - Todo el año (forzar)
+POST {{baseUrl}}/promedios/cerrar-curso?cursoId=3&anioAcademico=2025&forzar=true
+Authorization: Bearer {{token}}
+
+###
+
+### ========================================
+### ESCENARIOS DE PRUEBA
+### ========================================
+
+### ESCENARIO 1: Verificar curso completo (debería mostrar advertencias)
+GET {{baseUrl}}/promedios/verificar-cierre?cursoId=1&anioAcademico=2025&trimestre=1
+Authorization: Bearer {{token}}
+
+###
+
+### ESCENARIO 2: Intentar cerrar sin forzar (debería fallar si hay advertencias)
+POST {{baseUrl}}/promedios/cerrar-curso?cursoId=1&anioAcademico=2025&trimestre=1&forzar=false
+Authorization: Bearer {{token}}
+
+###
+
+### ESCENARIO 3: Cerrar forzando (debería funcionar)
+POST {{baseUrl}}/promedios/cerrar-curso?cursoId=1&anioAcademico=2025&trimestre=1&forzar=true
+Authorization: Bearer {{token}}
+
+###
+
+### ESCENARIO 4: Verificar después de cerrar (no debería haber advertencias de alumnos sin calificar)
+GET {{baseUrl}}/promedios/verificar-cierre?cursoId=1&anioAcademico=2025&trimestre=1
+Authorization: Bearer {{token}}
+
+###

@@ -1,5 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  VerificacionCierreResponseDto,
+  AdvertenciaCierreDto,
+  EstadisticasCierreDto,
+  AlumnoSinCalificarDto,
+  EvaluacionFaltanteDto,
+} from './dto/verificacion-cierre.dto';
 
 @Injectable()
 export class PromediosService {
@@ -633,12 +640,743 @@ export class PromediosService {
   }
 
   /**
+   * Verifica el estado de las calificaciones antes de permitir el cierre
+   * Retorna advertencias sobre evaluaciones faltantes y alumnos sin calificar
+   */
+  async verificarEstadoParaCierre(
+    cursoId: number,
+    anioAcademico: string,
+    trimestre?: number,
+    periodo?: number,
+  ): Promise<VerificacionCierreResponseDto> {
+    try {
+      const advertencias: AdvertenciaCierreDto[] = [];
+
+      // Obtener información del curso y grado académico
+      const curso = await this.prisma.curso.findUnique({
+        where: { id_curso: cursoId },
+        include: {
+          gradoAcademico: true,
+        },
+      });
+
+      if (!curso) {
+        return {
+          puedesCerrar: false,
+          advertencias: [
+            {
+              tipo: 'ERROR',
+              mensaje: 'Curso no encontrado',
+            },
+          ],
+          estadisticas: {
+            totalAlumnos: 0,
+            alumnosConTodasLasNotas: 0,
+            alumnosSinNotas: 0,
+            totalEvaluacionesEsperadas: 0,
+            evaluacionesCreadas: 0,
+            totalCalificacionesRegistradas: 0,
+            totalCalificacionesEsperadas: 0,
+          },
+          mensaje: '❌ Curso no encontrado',
+        };
+      }
+
+      if (!curso.id_grado_academico) {
+        return {
+          puedesCerrar: false,
+          advertencias: [
+            {
+              tipo: 'ERROR',
+              mensaje: 'El curso no tiene un grado académico asignado',
+            },
+          ],
+          estadisticas: {
+            totalAlumnos: 0,
+            alumnosConTodasLasNotas: 0,
+            alumnosSinNotas: 0,
+            totalEvaluacionesEsperadas: 0,
+            evaluacionesCreadas: 0,
+            totalCalificacionesRegistradas: 0,
+            totalCalificacionesEsperadas: 0,
+          },
+          mensaje: '❌ El curso no tiene un grado académico asignado',
+        };
+      }
+
+      // Obtener todos los alumnos activos del curso
+      const alumnos = await this.prisma.alumnoCurso.findMany({
+        where: {
+          cursoId,
+          anioAcademico,
+          estado: 'ACTIVO',
+        },
+        include: {
+          alumno: {
+            select: {
+              id_alumno: true,
+              nombre: true,
+              apellido: true,
+            },
+          },
+        },
+      });
+
+      const totalAlumnos = alumnos.length;
+
+      // Obtener todas las asignaturas del curso
+      const asignaturas = await this.prisma.asignatura.findMany({
+        where: { id_curso: cursoId },
+      });
+
+      // 1. VERIFICAR EVALUACIONES FALTANTES
+      const evaluacionesFaltantes = await this.verificarEvaluacionesFaltantes(
+        cursoId,
+        anioAcademico,
+        curso.id_grado_academico,
+        trimestre,
+        periodo,
+      );
+
+      if (evaluacionesFaltantes.length > 0) {
+        advertencias.push({
+          tipo: 'EVALUACIONES_FALTANTES',
+          mensaje: `Hay tipos de evaluación sin crear para ${trimestre ? `el trimestre ${trimestre}` : periodo ? `el periodo ${periodo}` : 'el año'}`,
+          evaluacionesFaltantes,
+        });
+      }
+
+      // 2. VERIFICAR ALUMNOS SIN CALIFICAR
+      const alumnosSinCalificar = await this.verificarAlumnosSinCalificar(
+        alumnos.map((a) => a.alumnoId),
+        cursoId,
+        anioAcademico,
+        trimestre,
+        periodo,
+      );
+
+      if (alumnosSinCalificar.length > 0) {
+        advertencias.push({
+          tipo: 'ALUMNOS_SIN_CALIFICAR',
+          mensaje: `${alumnosSinCalificar.length} alumno(s) no tienen todas las calificaciones`,
+          alumnosSinCalificar,
+        });
+      }
+
+      // 3. CALCULAR ESTADÍSTICAS
+      const evaluacionesCreadas = await this.prisma.evaluacion.count({
+        where: {
+          id_asignatura: { in: asignaturas.map((a) => a.id_asignatura) },
+          anio_academico: anioAcademico,
+          ...(trimestre && { trimestre }),
+          ...(periodo && { periodo }),
+        },
+      });
+
+      // Obtener tipos de evaluación esperados
+      const tiposEvaluacion = await this.prisma.tipo_evaluacion.findMany({
+        where: {
+          id_grado_academico: curso.id_grado_academico,
+          activo: true,
+        },
+      });
+
+      const totalEvaluacionesEsperadas =
+        asignaturas.length * tiposEvaluacion.length;
+
+      // Contar calificaciones registradas
+      const totalCalificacionesRegistradas = await this.prisma.notas.count({
+        where: {
+          id_asignatura: { in: asignaturas.map((a) => a.id_asignatura) },
+          id_alumno: { in: alumnos.map((a) => a.alumnoId) },
+          evaluacion: {
+            anio_academico: anioAcademico,
+            ...(trimestre && { trimestre }),
+            ...(periodo && { periodo }),
+          },
+        },
+      });
+
+      const totalCalificacionesEsperadas = evaluacionesCreadas * totalAlumnos;
+
+      const alumnosConTodasLasNotas = totalAlumnos - alumnosSinCalificar.length;
+
+      const estadisticas: EstadisticasCierreDto = {
+        totalAlumnos,
+        alumnosConTodasLasNotas,
+        alumnosSinNotas: alumnosSinCalificar.length,
+        totalEvaluacionesEsperadas,
+        evaluacionesCreadas,
+        totalCalificacionesRegistradas,
+        totalCalificacionesEsperadas,
+      };
+
+      // 4. DETERMINAR SI PUEDE CERRAR
+      // Puede cerrar si solo hay advertencias menores o el orientador lo autoriza
+      const puedesCerrar = advertencias.length === 0;
+
+      let mensaje = '';
+      if (puedesCerrar) {
+        mensaje =
+          '✅ Todo está en orden. Puedes cerrar las calificaciones de forma segura.';
+      } else {
+        mensaje =
+          '⚠️ Se encontraron advertencias. Revisa la información antes de continuar. Aún puedes cerrar si lo consideras necesario.';
+      }
+
+      return {
+        puedesCerrar,
+        advertencias,
+        estadisticas,
+        mensaje,
+      };
+    } catch (error) {
+      // En caso de error, retornar un estado seguro
+      return {
+        puedesCerrar: false,
+        advertencias: [
+          {
+            tipo: 'ERROR',
+            mensaje: `Error al verificar estado: ${error.message}`,
+          },
+        ],
+        estadisticas: {
+          totalAlumnos: 0,
+          alumnosConTodasLasNotas: 0,
+          alumnosSinNotas: 0,
+          totalEvaluacionesEsperadas: 0,
+          evaluacionesCreadas: 0,
+          totalCalificacionesRegistradas: 0,
+          totalCalificacionesEsperadas: 0,
+        },
+        mensaje: '❌ Error al verificar el estado de las calificaciones',
+      };
+    }
+  }
+
+  /**
+   * Verifica el estado de las calificaciones de UNA ASIGNATURA específica antes de permitir el cierre
+   * Retorna advertencias sobre evaluaciones faltantes y alumnos sin calificar EN ESA ASIGNATURA
+   */
+  async verificarEstadoParaCierreAsignatura(
+    asignaturaId: number,
+    anioAcademico: string,
+    orientadorId: number,
+    trimestre?: number,
+    periodo?: number,
+  ): Promise<VerificacionCierreResponseDto> {
+    try {
+      const advertencias: AdvertenciaCierreDto[] = [];
+
+      // Verificar que la asignatura existe y pertenece al orientador
+      const asignatura = await this.prisma.asignatura.findUnique({
+        where: { id_asignatura: asignaturaId },
+        include: {
+          curso: {
+            include: {
+              gradoAcademico: true,
+            },
+          },
+        },
+      });
+
+      if (!asignatura) {
+        return {
+          puedesCerrar: false,
+          advertencias: [
+            {
+              tipo: 'ERROR',
+              mensaje: 'Asignatura no encontrada',
+            },
+          ],
+          estadisticas: {
+            totalAlumnos: 0,
+            alumnosConTodasLasNotas: 0,
+            alumnosSinNotas: 0,
+            totalEvaluacionesEsperadas: 0,
+            evaluacionesCreadas: 0,
+            totalCalificacionesRegistradas: 0,
+            totalCalificacionesEsperadas: 0,
+          },
+          mensaje: '❌ Asignatura no encontrada',
+        };
+      }
+
+      if (!asignatura.id_curso) {
+        return {
+          puedesCerrar: false,
+          advertencias: [
+            {
+              tipo: 'ERROR',
+              mensaje: 'La asignatura no tiene un curso asignado',
+            },
+          ],
+          estadisticas: {
+            totalAlumnos: 0,
+            alumnosConTodasLasNotas: 0,
+            alumnosSinNotas: 0,
+            totalEvaluacionesEsperadas: 0,
+            evaluacionesCreadas: 0,
+            totalCalificacionesRegistradas: 0,
+            totalCalificacionesEsperadas: 0,
+          },
+          mensaje: '❌ La asignatura no tiene un curso asignado',
+        };
+      }
+
+      // Verificar que el orientador imparte esta asignatura
+      const asignacionOrientador =
+        await this.prisma.asignaturaOrientador.findFirst({
+          where: {
+            id_asignatura: asignaturaId,
+            id_orientador: orientadorId,
+            activo: true,
+          },
+        });
+
+      if (!asignacionOrientador) {
+        return {
+          puedesCerrar: false,
+          advertencias: [
+            {
+              tipo: 'ERROR',
+              mensaje: 'No tienes permiso para cerrar esta asignatura',
+            },
+          ],
+          estadisticas: {
+            totalAlumnos: 0,
+            alumnosConTodasLasNotas: 0,
+            alumnosSinNotas: 0,
+            totalEvaluacionesEsperadas: 0,
+            evaluacionesCreadas: 0,
+            totalCalificacionesRegistradas: 0,
+            totalCalificacionesEsperadas: 0,
+          },
+          mensaje: '❌ No tienes permiso para cerrar esta asignatura',
+        };
+      }
+
+      // Obtener todos los alumnos activos del curso
+      const alumnos = await this.prisma.alumnoCurso.findMany({
+        where: {
+          cursoId: asignatura.id_curso,
+          anioAcademico,
+          estado: 'ACTIVO',
+        },
+        include: {
+          alumno: {
+            select: {
+              id_alumno: true,
+              nombre: true,
+              apellido: true,
+            },
+          },
+        },
+      });
+
+      const totalAlumnos = alumnos.length;
+
+      // Obtener todas las evaluaciones de esta asignatura
+      const evaluaciones = await this.prisma.evaluacion.findMany({
+        where: {
+          id_asignatura: asignaturaId,
+          id_orientador: orientadorId,
+          anio_academico: anioAcademico,
+          ...(trimestre && { trimestre }),
+          ...(periodo && { periodo }),
+        },
+        select: {
+          id_evaluacion: true,
+          nombre: true,
+          trimestre: true,
+          periodo: true,
+          mes: true,
+          anio_academico: true,
+          tipoEvaluacion: {
+            select: {
+              nombre: true,
+            },
+          },
+        },
+      });
+
+      const totalEvaluacionesCreadas = evaluaciones.length;
+
+      // Verificar alumnos sin calificar en esta asignatura
+      const alumnosSinCalificar: AlumnoSinCalificarDto[] = [];
+
+      for (const inscripcion of alumnos) {
+        const alumno = inscripcion.alumno;
+        const calificaciones = await this.prisma.notas.findMany({
+          where: {
+            id_alumno: alumno.id_alumno,
+            id_asignatura: asignaturaId,
+            evaluacion: {
+              anio_academico: anioAcademico,
+              ...(trimestre && { trimestre }),
+              ...(periodo && { periodo }),
+            },
+          },
+          select: {
+            id_evaluacion: true,
+          },
+        });
+
+        const evaluacionesConNota = new Set(
+          calificaciones.map((c) => c.id_evaluacion),
+        );
+        const evaluacionesPendientes = evaluaciones
+          .filter((e) => !evaluacionesConNota.has(e.id_evaluacion))
+          .map((e) => ({
+            tipo: e.tipoEvaluacion.nombre,
+            trimestre: e.trimestre ?? undefined,
+            periodo: e.periodo ?? undefined,
+            mes: e.mes ?? undefined,
+            anioAcademico: e.anio_academico,
+          }));
+
+        if (evaluacionesPendientes.length > 0) {
+          alumnosSinCalificar.push({
+            id_alumno: alumno.id_alumno,
+            nombreCompleto: `${alumno.nombre} ${alumno.apellido}`,
+            evaluacionesPendientes,
+          });
+        }
+      }
+
+      if (alumnosSinCalificar.length > 0) {
+        advertencias.push({
+          tipo: 'ALUMNOS_SIN_CALIFICAR',
+          mensaje: `${alumnosSinCalificar.length} alumno(s) no tienen todas las calificaciones de esta asignatura`,
+          alumnosSinCalificar,
+        });
+      }
+
+      // Contar calificaciones registradas
+      const totalCalificacionesRegistradas = await this.prisma.notas.count({
+        where: {
+          id_asignatura: asignaturaId,
+          id_alumno: { in: alumnos.map((a) => a.alumnoId) },
+          evaluacion: {
+            anio_academico: anioAcademico,
+            ...(trimestre && { trimestre }),
+            ...(periodo && { periodo }),
+          },
+        },
+      });
+
+      const totalCalificacionesEsperadas =
+        totalEvaluacionesCreadas * totalAlumnos;
+      const alumnosConTodasLasNotas = totalAlumnos - alumnosSinCalificar.length;
+
+      const estadisticas: EstadisticasCierreDto = {
+        totalAlumnos,
+        alumnosConTodasLasNotas,
+        alumnosSinNotas: alumnosSinCalificar.length,
+        totalEvaluacionesEsperadas: totalEvaluacionesCreadas,
+        evaluacionesCreadas: totalEvaluacionesCreadas,
+        totalCalificacionesRegistradas,
+        totalCalificacionesEsperadas,
+      };
+
+      const puedesCerrar = advertencias.length === 0;
+
+      let mensaje = '';
+      if (puedesCerrar) {
+        mensaje = `✅ Todo está en orden. Puedes cerrar las calificaciones de ${asignatura.nombre} de forma segura.`;
+      } else {
+        mensaje = `⚠️ Se encontraron advertencias en ${asignatura.nombre}. Revisa la información antes de continuar. Aún puedes cerrar si lo consideras necesario.`;
+      }
+
+      return {
+        puedesCerrar,
+        advertencias,
+        estadisticas,
+        mensaje,
+      };
+    } catch (error) {
+      return {
+        puedesCerrar: false,
+        advertencias: [
+          {
+            tipo: 'ERROR',
+            mensaje: `Error al verificar estado: ${error.message}`,
+          },
+        ],
+        estadisticas: {
+          totalAlumnos: 0,
+          alumnosConTodasLasNotas: 0,
+          alumnosSinNotas: 0,
+          totalEvaluacionesEsperadas: 0,
+          evaluacionesCreadas: 0,
+          totalCalificacionesRegistradas: 0,
+          totalCalificacionesEsperadas: 0,
+        },
+        mensaje: '❌ Error al verificar el estado de las calificaciones',
+      };
+    }
+  }
+
+  /**
+   * Verifica si existen todas las evaluaciones requeridas según el grado académico
+   */
+  private async verificarEvaluacionesFaltantes(
+    cursoId: number,
+    anioAcademico: string,
+    gradoAcademicoId: number,
+    trimestre?: number,
+    periodo?: number,
+  ): Promise<EvaluacionFaltanteDto[]> {
+    const faltantes: EvaluacionFaltanteDto[] = [];
+
+    // Obtener asignaturas del curso
+    const asignaturas = await this.prisma.asignatura.findMany({
+      where: { id_curso: cursoId },
+    });
+
+    // Obtener tipos de evaluación esperados
+    const tiposEvaluacion = await this.prisma.tipo_evaluacion.findMany({
+      where: {
+        id_grado_academico: gradoAcademicoId,
+        activo: true,
+      },
+    });
+
+    // Por cada tipo de evaluación, verificar si existe al menos una evaluación por asignatura
+    for (const tipo of tiposEvaluacion) {
+      const evaluacionesCreadas = await this.prisma.evaluacion.count({
+        where: {
+          id_tipo_evaluacion: tipo.id_tipo_evaluacion,
+          id_asignatura: { in: asignaturas.map((a) => a.id_asignatura) },
+          anio_academico: anioAcademico,
+          ...(trimestre && { trimestre }),
+          ...(periodo && { periodo }),
+        },
+      });
+
+      const esperadas = asignaturas.length;
+
+      if (evaluacionesCreadas < esperadas) {
+        faltantes.push({
+          tipoEvaluacion: tipo.nombre,
+          esperadas,
+          creadas: evaluacionesCreadas,
+        });
+      }
+    }
+
+    return faltantes;
+  }
+
+  /**
+   * Verifica qué alumnos no tienen todas sus calificaciones
+   */
+  private async verificarAlumnosSinCalificar(
+    alumnosIds: number[],
+    cursoId: number,
+    anioAcademico: string,
+    trimestre?: number,
+    periodo?: number,
+  ): Promise<AlumnoSinCalificarDto[]> {
+    const alumnosSinCalificar: AlumnoSinCalificarDto[] = [];
+
+    // Obtener todas las evaluaciones creadas para este curso/período
+    const asignaturas = await this.prisma.asignatura.findMany({
+      where: { id_curso: cursoId },
+    });
+
+    const evaluaciones = await this.prisma.evaluacion.findMany({
+      where: {
+        id_asignatura: { in: asignaturas.map((a) => a.id_asignatura) },
+        anio_academico: anioAcademico,
+        ...(trimestre && { trimestre }),
+        ...(periodo && { periodo }),
+      },
+      select: {
+        id_evaluacion: true,
+        nombre: true,
+        trimestre: true,
+        periodo: true,
+        mes: true,
+        anio_academico: true,
+        tipoEvaluacion: {
+          select: {
+            nombre: true,
+          },
+        },
+      },
+    });
+
+    const totalEvaluaciones = evaluaciones.length;
+
+    // Verificar cada alumno
+    for (const alumnoId of alumnosIds) {
+      const alumno = await this.prisma.alumno.findUnique({
+        where: { id_alumno: alumnoId },
+        select: {
+          id_alumno: true,
+          nombre: true,
+          apellido: true,
+        },
+      });
+
+      if (!alumno) continue;
+
+      // Obtener calificaciones del alumno
+      const calificaciones = await this.prisma.notas.findMany({
+        where: {
+          id_alumno: alumnoId,
+          id_evaluacion: { in: evaluaciones.map((e) => e.id_evaluacion) },
+        },
+        select: {
+          id_evaluacion: true,
+        },
+      });
+
+      // Identificar evaluaciones pendientes
+      const evaluacionesConNota = new Set(
+        calificaciones.map((c) => c.id_evaluacion),
+      );
+      const evaluacionesPendientes = evaluaciones
+        .filter((e) => !evaluacionesConNota.has(e.id_evaluacion))
+        .map((e) => ({
+          tipo: e.tipoEvaluacion.nombre,
+          trimestre: e.trimestre ?? undefined,
+          periodo: e.periodo ?? undefined,
+          mes: e.mes ?? undefined,
+          anioAcademico: e.anio_academico,
+        }));
+
+      if (evaluacionesPendientes.length > 0) {
+        alumnosSinCalificar.push({
+          id_alumno: alumno.id_alumno,
+          nombreCompleto: `${alumno.nombre} ${alumno.apellido}`,
+          evaluacionesPendientes,
+        });
+      }
+    }
+
+    return alumnosSinCalificar;
+  }
+
+  /**
+   * Cierra las calificaciones de UNA ASIGNATURA específica (el orientador marca como finalizado)
+   * Solo puede cerrar las asignaturas que él imparte
+   */
+  async cerrarCalificacionesAsignatura(
+    asignaturaId: number,
+    anioAcademico: string,
+    orientadorId: number,
+    trimestre?: number,
+    periodo?: number,
+    forzar: boolean = false,
+  ) {
+    // Verificar que el orientador imparte esta asignatura
+    const asignacionOrientador =
+      await this.prisma.asignaturaOrientador.findFirst({
+        where: {
+          id_asignatura: asignaturaId,
+          id_orientador: orientadorId,
+          activo: true,
+        },
+      });
+
+    if (!asignacionOrientador) {
+      throw new NotFoundException(
+        'No tienes permiso para cerrar esta asignatura',
+      );
+    }
+
+    // Verificar estado antes de cerrar (si no se fuerza)
+    if (!forzar) {
+      const verificacion = await this.verificarEstadoParaCierreAsignatura(
+        asignaturaId,
+        anioAcademico,
+        orientadorId,
+        trimestre,
+        periodo,
+      );
+
+      if (!verificacion.puedesCerrar) {
+        throw new NotFoundException({
+          message:
+            'No se puede cerrar las calificaciones debido a advertencias. Revisa el estado o usa la opción "forzar".',
+          verificacion,
+        });
+      }
+    }
+
+    // Obtener la asignatura para saber el curso
+    const asignatura = await this.prisma.asignatura.findUnique({
+      where: { id_asignatura: asignaturaId },
+    });
+
+    if (!asignatura || !asignatura.id_curso) {
+      throw new NotFoundException('Asignatura no encontrada');
+    }
+
+    // Obtener todos los alumnos del curso
+    const alumnos = await this.prisma.alumnoCurso.findMany({
+      where: {
+        cursoId: asignatura.id_curso,
+        anioAcademico,
+        estado: 'ACTIVO',
+      },
+      select: {
+        alumnoId: true,
+      },
+    });
+
+    const resultados = {
+      totalAlumnos: alumnos.length,
+      alumnosCerrados: 0,
+      alumnosConError: 0,
+      errores: [] as any[],
+    };
+
+    // Cerrar las calificaciones de cada alumno en esta asignatura
+    for (const inscripcion of alumnos) {
+      try {
+        // Actualizar el promedio final de la asignatura para marcarla como cerrada
+        await this.prisma.promedioFinalAsignatura.updateMany({
+          where: {
+            alumnoId: inscripcion.alumnoId,
+            asignaturaId,
+            anioAcademico,
+          },
+          data: {
+            calificacionesCerradas: true,
+            fechaCierre: new Date(),
+            orientadorQueCerroId: orientadorId,
+          },
+        });
+        resultados.alumnosCerrados++;
+      } catch (error) {
+        resultados.alumnosConError++;
+        resultados.errores.push({
+          alumnoId: inscripcion.alumnoId,
+          error: error.message,
+        });
+      }
+    }
+
+    return {
+      mensaje: `Se cerraron las calificaciones de la asignatura para ${resultados.alumnosCerrados} de ${resultados.totalAlumnos} alumnos`,
+      asignaturaId,
+      orientadorId,
+      ...resultados,
+    };
+  }
+
+  /**
    * Cierra las calificaciones de un alumno (el orientador marca como finalizado)
+   * @param forzar - Si es true, cierra aunque haya advertencias
    */
   async cerrarCalificaciones(
     alumnoId: number,
     cursoId: number,
     anioAcademico: string,
+    forzar: boolean = false,
   ) {
     const promedio = await this.prisma.promedioFinalAlumno.findUnique({
       where: {
@@ -671,6 +1409,76 @@ export class PromediosService {
     });
 
     return actualizado;
+  }
+
+  /**
+   * Cierra las calificaciones de TODO un curso
+   * Retorna resumen de alumnos cerrados y advertencias encontradas
+   */
+  async cerrarCalificacionesCurso(
+    cursoId: number,
+    anioAcademico: string,
+    trimestre?: number,
+    periodo?: number,
+    forzar: boolean = false,
+  ) {
+    // Primero verificar el estado
+    const verificacion = await this.verificarEstadoParaCierre(
+      cursoId,
+      anioAcademico,
+      trimestre,
+      periodo,
+    );
+
+    // Si no puede cerrar y no se está forzando, lanzar error
+    if (!verificacion.puedesCerrar && !forzar) {
+      throw new NotFoundException({
+        message:
+          'No se puede cerrar las calificaciones debido a advertencias. Revisa el estado o usa la opción "forzar".',
+        verificacion,
+      });
+    }
+
+    // Obtener todos los alumnos del curso
+    const alumnos = await this.prisma.alumnoCurso.findMany({
+      where: {
+        cursoId,
+        anioAcademico,
+        estado: 'ACTIVO',
+      },
+    });
+
+    const resultados = {
+      totalAlumnos: alumnos.length,
+      alumnosCerrados: 0,
+      alumnosConError: 0,
+      advertencias: verificacion.advertencias,
+      errores: [] as any[],
+    };
+
+    // Cerrar calificaciones de cada alumno
+    for (const inscripcion of alumnos) {
+      try {
+        await this.cerrarCalificaciones(
+          inscripcion.alumnoId,
+          cursoId,
+          anioAcademico,
+          true, // Forzar porque ya pasamos la verificación general
+        );
+        resultados.alumnosCerrados++;
+      } catch (error) {
+        resultados.alumnosConError++;
+        resultados.errores.push({
+          alumnoId: inscripcion.alumnoId,
+          error: error.message,
+        });
+      }
+    }
+
+    return {
+      mensaje: `Se cerraron las calificaciones de ${resultados.alumnosCerrados} de ${resultados.totalAlumnos} alumnos`,
+      ...resultados,
+    };
   }
 
   /**

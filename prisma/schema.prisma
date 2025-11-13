@@ -383,6 +383,7 @@ model Orientador {
 
   conductas Conducta[] // <== Relación a Conducta (sin cambios)
   evaluaciones Evaluacion[]
+  promediosAsignaturasCerrados PromedioFinalAsignatura[] // Asignaturas cuyas calificaciones cerró este orientador
 
   @@map("orientadores")
 }
@@ -712,17 +713,25 @@ model PromedioFinalAsignatura {
   notaRecuperacion        Float?
   aproboRecuperacion      Boolean?
   
+  // Control de cierre de calificaciones POR ASIGNATURA
+  calificacionesCerradas  Boolean   @default(false) // true cuando el orientador cierra esta asignatura
+  fechaCierre             DateTime?
+  orientadorQueCerroId    Int?      // ID del orientador que cerró las calificaciones
+  
   actualizadoEn   DateTime @updatedAt
   
   // Relaciones
-  alumno          Alumno     @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
-  asignatura      Asignatura @relation(fields: [asignaturaId], references: [id_asignatura], onDelete: Cascade)
+  alumno                  Alumno      @relation(fields: [alumnoId], references: [id_alumno], onDelete: Cascade)
+  asignatura              Asignatura  @relation(fields: [asignaturaId], references: [id_asignatura], onDelete: Cascade)
+  orientadorQueCerro      Orientador? @relation(fields: [orientadorQueCerroId], references: [id_orientador], onDelete: SetNull)
 
   @@unique([alumnoId, asignaturaId, anioAcademico])
   @@index([alumnoId, anioAcademico])
   @@index([asignaturaId, anioAcademico])
   @@index([aprobado])
   @@index([requiereRecuperacion])
+  @@index([calificacionesCerradas])
+  @@index([orientadorQueCerroId])
   @@map("promedios_finales_asignaturas")
 }
 
