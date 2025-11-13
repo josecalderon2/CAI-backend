@@ -952,7 +952,46 @@ export class PromediosService {
             totalCalificacionesRegistradas: 0,
             totalCalificacionesEsperadas: 0,
           },
-          mensaje: '❌ No tienes permiso para cerrar esta asignatura',
+          mensaje: ' No tienes permiso para cerrar esta asignatura',
+          estaCerrado: false,
+        };
+      }
+
+      // VERIFICAR SI YA ESTÁ CERRADO
+      const registrosCerrados = await this.prisma.promedioFinalAsignatura.count(
+        {
+          where: {
+            asignaturaId,
+            anioAcademico,
+            calificacionesCerradas: true,
+          },
+        },
+      );
+
+      const estaCerrado = registrosCerrados > 0;
+
+      // Si ya está cerrado, retornar inmediatamente
+      if (estaCerrado) {
+        return {
+          puedesCerrar: false,
+          advertencias: [
+            {
+              tipo: 'INFO',
+              mensaje:
+                'Las calificaciones de esta asignatura ya están cerradas',
+            },
+          ],
+          estadisticas: {
+            totalAlumnos: 0,
+            alumnosConTodasLasNotas: 0,
+            alumnosSinNotas: 0,
+            totalEvaluacionesEsperadas: 0,
+            evaluacionesCreadas: 0,
+            totalCalificacionesRegistradas: 0,
+            totalCalificacionesEsperadas: 0,
+          },
+          mensaje: `🔒 Las calificaciones de ${asignatura.nombre} ya están cerradas`,
+          estaCerrado: true,
         };
       }
 
@@ -1093,6 +1132,7 @@ export class PromediosService {
         advertencias,
         estadisticas,
         mensaje,
+        estaCerrado: false, // No está cerrado si llegamos hasta aquí
       };
     } catch (error) {
       return {
@@ -1113,6 +1153,7 @@ export class PromediosService {
           totalCalificacionesEsperadas: 0,
         },
         mensaje: '❌ Error al verificar el estado de las calificaciones',
+        estaCerrado: false,
       };
     }
   }
@@ -1539,10 +1580,13 @@ export class PromediosService {
 
   /**
    * Verifica si un alumno puede ser promovido
+   * Si cursoDestinoId es diferente al curso actual Y el alumno reprobó, no puede ser promovido
+   * Si cursoDestinoId es el mismo (repite año), SÍ puede ser promovido aunque haya reprobado
    */
   async verificarAprobacionParaPromocion(
     alumnoId: number,
     anioAcademico: string,
+    cursoDestinoId?: number, // NUEVO: curso al que se va a promover
   ) {
     const inscripcion = await this.prisma.alumnoCurso.findFirst({
       where: {
@@ -1584,13 +1628,35 @@ export class PromediosService {
       };
     }
 
-    if (!promedioFinal.calificacionesCerradas) {
+    // VALIDACIÓN: Verificar que TODAS las asignaturas DEL ALUMNO estén cerradas
+    // (Solo las asignaturas en las que el alumno está inscrito, no todas del curso)
+    const asignaturasSinCerrar =
+      await this.prisma.promedioFinalAsignatura.findMany({
+        where: {
+          alumnoId,
+          anioAcademico,
+          calificacionesCerradas: false,
+        },
+        include: {
+          asignatura: {
+            select: {
+              nombre: true,
+            },
+          },
+        },
+      });
+
+    if (asignaturasSinCerrar.length > 0) {
+      const nombresAsignaturas = asignaturasSinCerrar
+        .map((a) => a.asignatura.nombre)
+        .join(', ');
       return {
         puedePromover: false,
-        motivo: 'Las calificaciones aún no han sido cerradas por el orientador',
+        motivo: `Las siguientes asignaturas del alumno aún no han sido cerradas: ${nombresAsignaturas}`,
       };
     }
 
+    // NUEVA LÓGICA: Solo bloquear por reprobación si está cambiando de curso
     if (!promedioFinal.aprobadoTodasAsignaturas) {
       // Obtener asignaturas reprobadas
       const asignaturasReprobadas =
@@ -1609,13 +1675,29 @@ export class PromediosService {
           },
         });
 
+      // Si cursoDestinoId está definido Y es DIFERENTE al curso actual, bloquear
+      if (cursoDestinoId && cursoDestinoId !== inscripcion.cursoId) {
+        return {
+          puedePromover: false,
+          motivo: `Alumno reprobó ${promedioFinal.asignaturasReprobadas} asignatura(s). No puede avanzar al siguiente grado`,
+          asignaturasReprobadas: asignaturasReprobadas.map((a) => ({
+            asignatura: a.asignatura.nombre,
+            promedio: a.promedioFinal,
+          })),
+        };
+      }
+
+      // Si cursoDestinoId NO está definido O es el MISMO curso, permitir (repite año)
+      // En este caso, retornamos que SÍ puede ser promovido pero con advertencia
       return {
-        puedePromover: false,
-        motivo: `Alumno reprobó ${promedioFinal.asignaturasReprobadas} asignatura(s)`,
+        puedePromover: true,
+        promedioGeneral: promedioFinal.promedioGeneral,
+        estadoFinal: 'REPROBADO',
         asignaturasReprobadas: asignaturasReprobadas.map((a) => ({
           asignatura: a.asignatura.nombre,
           promedio: a.promedioFinal,
         })),
+        advertencia: `El alumno reprobó ${promedioFinal.asignaturasReprobadas} asignatura(s) y repetirá el grado`,
       };
     }
 

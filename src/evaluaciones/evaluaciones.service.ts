@@ -265,12 +265,16 @@ export class EvaluacionesService {
     // Extraer los IDs de las asignaturas
     const asignaturasIds = asignaturasOrientador.map((ao) => ao.id_asignatura);
 
-    // Obtener todas las evaluaciones de esas asignaturas
+    // Obtener el año académico actual
+    const anioActual = new Date().getFullYear().toString();
+
+    // Obtener todas las evaluaciones de esas asignaturas FILTRADAS POR AÑO ACTUAL
     const evaluaciones = await this.prisma.evaluacion.findMany({
       where: {
         id_asignatura: {
           in: asignaturasIds,
         },
+        anio_academico: anioActual, // FILTRAR POR AÑO ACTUAL
       },
       select: this.evaluacionSelect,
       orderBy: [

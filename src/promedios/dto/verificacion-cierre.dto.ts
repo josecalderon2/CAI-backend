@@ -129,4 +129,11 @@ export class VerificacionCierreResponseDto {
     description: 'Mensaje general sobre el estado',
   })
   mensaje: string;
+
+  @ApiProperty({
+    description: 'Indica si las calificaciones ya están cerradas',
+    required: false,
+    default: false,
+  })
+  estaCerrado?: boolean;
 }

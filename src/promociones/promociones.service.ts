@@ -43,10 +43,12 @@ export class PromocionesService {
     } = dto;
 
     // VALIDACIÓN IMPORTANTE: Verificar que el alumno puede ser promovido
+    // Pasar el cursoDestinoId para que la validación sepa si está cambiando de curso
     const verificacion =
       await this.promediosService.verificarAprobacionParaPromocion(
         alumnoId,
         anioActual,
+        cursoDestinoId, // NUEVO: pasar el curso destino
       );
 
     if (!verificacion.puedePromover) {
