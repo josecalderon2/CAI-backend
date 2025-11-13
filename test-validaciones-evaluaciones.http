@@ -1,0 +1,163 @@
+### PRUEBAS DE VALIDACIÓN DE EVALUACIONES
+
+@token = {{login.response.body.access_token}}
+
+### 1. Login como orientador
+# @name login
+POST http://localhost:3000/auth/login
+Content-Type: application/json
+
+{
+  "usuario": "orlando.orientador",
+  "contrasena": "12345678"
+}
+
+### ===============================================
+### PRUEBAS PARA BÁSICA (PRIMARIA/SECUNDARIA)
+### ===============================================
+
+### 2. Obtener tipos de evaluación para una asignatura de PRIMARIA
+GET http://localhost:3000/evaluaciones/tipos-evaluacion/asignatura/1
+Authorization: Bearer {{token}}
+
+### 3. ✅ Crear Examen Trimestral - Trimestre 1 (DEBE FUNCIONAR)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Examen Trimestral 1",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 9,
+  "id_asignatura": 1,
+  "trimestre": 1
+}
+
+### 4. ❌ Intentar crear OTRO Examen Trimestral - Trimestre 1 (DEBE FALLAR)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Examen Trimestral 1 - Repetido",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 9,
+  "id_asignatura": 1,
+  "trimestre": 1
+}
+
+### 5. ✅ Crear Tarea 1 - Mes 1 (DEBE FUNCIONAR - múltiples permitidas)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Tarea Enero 1",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 17,
+  "id_asignatura": 1,
+  "mes": 1,
+  "trimestre": 1
+}
+
+### 6. ✅ Crear Tarea 2 - Mes 1 (DEBE FUNCIONAR - múltiples permitidas)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Tarea Enero 2",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 17,
+  "id_asignatura": 1,
+  "mes": 1,
+  "trimestre": 1
+}
+
+### 7. ❌ Crear Actividad Integradora sin trimestre (DEBE FALLAR)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Actividad Integradora sin trimestre",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 1,
+  "id_asignatura": 1
+}
+
+### ===============================================
+### PRUEBAS PARA BACHILLERATO
+### ===============================================
+
+### 8. Obtener tipos de evaluación para una asignatura de BACHILLERATO
+GET http://localhost:3000/evaluaciones/tipos-evaluacion/asignatura/13
+Authorization: Bearer {{token}}
+
+### 9. ✅ Crear Examen de Periodo - Periodo 1 (DEBE FUNCIONAR)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Examen de Periodo 1",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 7,
+  "id_asignatura": 13,
+  "periodo": 1
+}
+
+### 10. ❌ Intentar crear OTRO Examen de Periodo - Periodo 1 (DEBE FALLAR)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Examen de Periodo 1 - Repetido",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 7,
+  "id_asignatura": 13,
+  "periodo": 1
+}
+
+### 11. ❌ Crear evaluación de Bachillerato sin periodo (DEBE FALLAR)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Tarea sin periodo",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 16,
+  "id_asignatura": 13
+}
+
+### ===============================================
+### PRUEBAS DE VALIDACIÓN DE GRADO ACADÉMICO
+### ===============================================
+
+### 12. ❌ Intentar crear evaluación de BACHILLERATO en asignatura de PRIMARIA (DEBE FALLAR)
+POST http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "nombre": "Examen de Periodo en Primaria",
+  "puntaje_maximo": 10,
+  "puntaje_minimo": 0,
+  "id_tipo_evaluacion": 7,
+  "id_asignatura": 1,
+  "periodo": 1
+}
+
+### 13. Listar todas las evaluaciones
+GET http://localhost:3000/evaluaciones
+Authorization: Bearer {{token}}

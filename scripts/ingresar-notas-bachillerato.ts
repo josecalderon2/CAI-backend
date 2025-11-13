@@ -43,7 +43,7 @@ async function ingresarNotasEjemploBachillerato() {
     // 2. Buscar la asignatura Sociales del curso de Bachillerato
     const asignatura = await prisma.asignatura.findFirst({
       where: {
-        nombre: 'Sociales',
+        nombre: 'Matemáticas',
         curso: {
           nombre: 'Primer Año de Bachillerato',
         },
@@ -51,7 +51,7 @@ async function ingresarNotasEjemploBachillerato() {
     });
 
     if (!asignatura) {
-      console.log(' No se encontró la asignatura Sociales');
+      console.log(' No se encontró la asignatura Matemáticas');
       return;
     }
 

@@ -48,6 +48,36 @@ export class EvaluacionesController {
     return this.evaluacionesService.findByOrientadorAsignaturas(req.user.id);
   }
 
+  @Get('tipos-evaluacion/asignatura/:id_asignatura')
+  @ApiOperation({
+    summary:
+      'Obtener tipos de evaluación válidos para una asignatura específica',
+  })
+  getTiposEvaluacionByAsignatura(
+    @Param('id_asignatura', ParseIntPipe) id_asignatura: number,
+  ) {
+    return this.evaluacionesService.getTiposEvaluacionByAsignatura(
+      id_asignatura,
+    );
+  }
+
+  @Get('porcentajes/asignatura/:id_asignatura')
+  @ApiOperation({
+    summary:
+      'Calcular porcentajes reales de evaluaciones considerando divisiones',
+  })
+  calcularPorcentajes(
+    @Param('id_asignatura', ParseIntPipe) id_asignatura: number,
+    @Req() req: any,
+  ) {
+    // Por ahora usa el año actual, pero podrías recibir estos valores como query params
+    const anioActual = new Date().getFullYear().toString();
+    return this.evaluacionesService.calcularPorcentajesReales(
+      id_asignatura,
+      anioActual,
+    );
+  }
+
   @Get(':id')
   @ApiOperation({
     summary: 'Obtener una evaluación por ID',
@@ -78,5 +108,23 @@ export class EvaluacionesController {
   })
   remove(@Param('id', ParseIntPipe) id: number, @Req() req: any) {
     return this.evaluacionesService.remove(id, req.user.id);
+  }
+
+  @Get(':id/alumnos-con-calificaciones')
+  @ApiOperation({
+    summary: 'Obtener alumnos de una evaluación con sus calificaciones',
+    description:
+      'Retorna todos los alumnos del curso asociado a la evaluación, ' +
+      'incluyendo quiénes ya tienen calificación y quiénes no. ' +
+      'Útil para el formulario de ingreso de notas.',
+  })
+  getAlumnosConCalificaciones(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
+    return this.evaluacionesService.getAlumnosConCalificaciones(
+      id,
+      req.user.id,
+    );
   }
 }

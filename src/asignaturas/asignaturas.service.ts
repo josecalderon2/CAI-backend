@@ -74,7 +74,11 @@ export class AsignaturasService {
               metodoEvaluacion: true,
               tipoAsignatura: true,
               sistemaEvaluacion: true,
-              curso: true,
+              curso: {
+                include: {
+                  gradoAcademico: true,
+                },
+              },
             },
           },
         },
