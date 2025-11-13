@@ -1,0 +1,32 @@
+### Test Dashboard Estadísticas - Backend CAI
+
+@baseUrl = http://localhost:3000
+@token = YOUR_AUTH_TOKEN_HERE
+
+### 1. GET Dashboard General
+# Obtiene estadísticas generales del sistema
+GET {{baseUrl}}/estadisticas/dashboard/general
+Authorization: Bearer {{token}}
+
+###
+
+### 2. GET Tareas Pendientes
+# Obtiene lista de tareas pendientes con prioridades
+GET {{baseUrl}}/estadisticas/dashboard/tareas-pendientes
+Authorization: Bearer {{token}}
+
+###
+
+### 3. GET Resumen Mensual
+# Obtiene resumen de actividades del mes actual
+GET {{baseUrl}}/estadisticas/dashboard/resumen-mensual
+Authorization: Bearer {{token}}
+
+###
+
+### 4. GET Personal Total (Endpoint existente)
+# Obtiene conteo total del personal
+GET {{baseUrl}}/estadisticas/personal/total
+Authorization: Bearer {{token}}
+
+###
