@@ -1,0 +1,181 @@
+### ========================================
+### GUÍA DE REPORTES DE NOTAS
+### ========================================
+
+### Variables globales
+@baseUrl = http://localhost:3000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJBRE1JTklTVFJBVElWTzoxIiwidGlwbyI6IkFETUlOSVNUUkFUSVZPIiwiaWQiOjEsImVtYWlsIjoiYWRtaW5AY29sZWdpby5lZHUiLCJub21icmUiOiJBZGEiLCJyb2xlIjoiQWRtaW4iLCJpYXQiOjE3NjMwNTM4NzksImV4cCI6MTc2MzA4MjY3OX0.6HM-J388unbmgRmKCnWoYeqYhVfeMx17HWc1A64U4Sg
+
+### IDs de ejemplo (obtener con los queries de abajo)
+@alumnoId = 1
+@cursoId = 1
+@asignaturaId = 4
+@evaluacionId = 1
+
+### ========================================
+### OBTENER IDs PARA PRUEBAS
+### ========================================
+
+### Obtener alumnos
+GET {{baseUrl}}/alumnos
+Authorization: Bearer {{token}}
+
+### Obtener cursos
+GET {{baseUrl}}/cursos/all
+Authorization: Bearer {{token}}
+
+### Obtener asignaturas
+GET {{baseUrl}}/asignaturas
+Authorization: Bearer {{token}}
+
+### Obtener evaluaciones
+GET {{baseUrl}}/evaluaciones
+Authorization: Bearer {{token}}
+
+### Obtener grados académicos
+GET {{baseUrl}}/grado-academico
+Authorization: Bearer {{token}}
+
+### ========================================
+### 1. EVALUACIONES POR ASIGNATURA
+### ========================================
+
+### 1.1 Evaluaciones de BÁSICA (usa trimestre)
+GET {{baseUrl}}/reportes-notas/evaluaciones?id_asignatura=4&anio=2025&trimestre=1
+Authorization: Bearer {{token}}
+
+### 1.2 Evaluaciones de BACHILLERATO (usa periodo)
+GET {{baseUrl}}/reportes-notas/evaluaciones?id_asignatura=1&anio=2025&periodo=1
+Authorization: Bearer {{token}}
+
+### 1.3 Todas las evaluaciones del año (sin filtro trimestre/periodo)
+GET {{baseUrl}}/reportes-notas/evaluaciones?id_asignatura={{asignaturaId}}&anio=2025
+Authorization: Bearer {{token}}
+
+### ========================================
+### 2. ALUMNOS CON CALIFICACIONES
+### ========================================
+
+### 2.1 Ver alumnos y sus calificaciones para una evaluación
+GET {{baseUrl}}/reportes-notas/evaluacion/{{evaluacionId}}/alumnos-calificaciones
+Authorization: Bearer {{token}}
+
+### ========================================
+### 3. ALUMNOS PENDIENTES
+### ========================================
+
+### 3.1 Ver qué alumnos no tienen nota registrada
+GET {{baseUrl}}/reportes-notas/evaluacion/{{evaluacionId}}/pendientes
+Authorization: Bearer {{token}}
+
+### ========================================
+### 4. HISTORIAL DE NOTAS
+### ========================================
+
+### 4.1 Todas las notas de un alumno en 2025
+GET {{baseUrl}}/reportes-notas/alumno/{{alumnoId}}/notas?anio=2025
+Authorization: Bearer {{token}}
+
+### 4.2 Todas las notas históricas (todos los años)
+GET {{baseUrl}}/reportes-notas/alumno/{{alumnoId}}/notas
+Authorization: Bearer {{token}}
+
+### ========================================
+### 5. PROMEDIOS DEL ALUMNO
+### ========================================
+
+### 5.1 Ver todos los promedios (mensuales, trimestrales, finales)
+GET {{baseUrl}}/reportes-notas/promedios/alumno/{{alumnoId}}?anio=2025
+Authorization: Bearer {{token}}
+
+### 5.2 Recalcular promedios si están vacíos
+POST {{baseUrl}}/promedios/recalcular/{{alumnoId}}?anioAcademico=2025
+Authorization: Bearer {{token}}
+
+### ========================================
+### 6. RANKING POR CURSO
+### ========================================
+
+### 6.1 Top 10 del curso
+GET {{baseUrl}}/reportes-notas/curso/{{cursoId}}/ranking?anio=2025&top=10
+Authorization: Bearer {{token}}
+
+### 6.2 Top 20 del curso
+GET {{baseUrl}}/reportes-notas/curso/{{cursoId}}/ranking?anio=2025&top=20
+Authorization: Bearer {{token}}
+
+### 6.3 Top 5 del curso
+GET {{baseUrl}}/reportes-notas/curso/{{cursoId}}/ranking?anio=2025&top=5
+Authorization: Bearer {{token}}
+
+### ========================================
+### 7. DISTRIBUCIÓN DE NOTAS
+### ========================================
+
+### 7.1 Estadísticas de notas de una asignatura
+GET {{baseUrl}}/reportes-notas/asignatura/{{asignaturaId}}/distribucion?anio=2025
+Authorization: Bearer {{token}}
+
+### ========================================
+### 8. BOLETA DEL ALUMNO (REPORTE COMPLETO)
+### ========================================
+
+### 8.1 Boleta completa: promedios, asistencia, conductas
+GET {{baseUrl}}/reportes-notas/boleta/alumno/{{alumnoId}}?anio=2025
+Authorization: Bearer {{token}}
+
+### ========================================
+### SCRIPTS DE PREPARACIÓN
+### ========================================
+
+### Ejecutar estos comandos en la terminal ANTES de probar:
+
+# 1. Generar datos de prueba completos
+# npx ts-node scripts/generar-datos-prueba-reportes.ts
+
+# 2. Calcular promedios para todos los alumnos (después de generar notas)
+# curl -X POST "http://localhost:3000/promedios/recalcular/1?anioAcademico=2025" -H "Authorization: Bearer TOKEN"
+# curl -X POST "http://localhost:3000/promedios/recalcular/2?anioAcademico=2025" -H "Authorization: Bearer TOKEN"
+# curl -X POST "http://localhost:3000/promedios/recalcular/3?anioAcademico=2025" -H "Authorization: Bearer TOKEN"
+
+### ========================================
+### NOTAS IMPORTANTES
+### ========================================
+
+# BÁSICA (Primaria/Secundaria):
+# - Usa campo "trimestre" (1, 2, 3)
+# - Evaluaciones mensuales: 1 por mes
+# - Evaluaciones trimestrales: 1 por trimestre
+
+# BACHILLERATO:
+# - Usa campo "periodo" (1, 2, 3, 4)
+# - Todas las evaluaciones: 1 por periodo
+
+# Si los reportes devuelven arrays vacíos:
+# 1. Ejecuta: npx ts-node scripts/generar-datos-prueba-reportes.ts
+# 2. Recalcula promedios con POST /promedios/recalcular/{id}
+# 3. Verifica que existan evaluaciones con GET /evaluaciones
+
+### ========================================
+### TROUBLESHOOTING
+### ========================================
+
+### Verificar que hay evaluaciones
+GET {{baseUrl}}/evaluaciones
+Authorization: Bearer {{token}}
+
+### Verificar tipos de evaluación por grado
+GET {{baseUrl}}/tipos-evaluacion
+Authorization: Bearer {{token}}
+
+### Verificar tipos de evaluación para una asignatura específica
+GET {{baseUrl}}/evaluaciones/tipos-evaluacion/asignatura/{{asignaturaId}}
+Authorization: Bearer {{token}}
+
+### Ver desglose completo de promedios
+GET {{baseUrl}}/promedios/desglose-completo/{{alumnoId}}?anioAcademico=2025
+Authorization: Bearer {{token}}
+
+### Verificar estado de aprobación
+GET {{baseUrl}}/promedios/verificar-aprobacion/{{alumnoId}}?anioAcademico=2025
+Authorization: Bearer {{token}}

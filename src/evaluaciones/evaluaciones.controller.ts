@@ -32,12 +32,15 @@ export class EvaluacionesController {
     return this.evaluacionesService.create(createEvaluacionDto, id_orientador);
   }
 
-  @Get()
+  @Get('anios-disponibles')
   @ApiOperation({
-    summary: 'Obtener todas las evaluaciones',
+    summary: 'Obtener años académicos con evaluaciones/notas disponibles',
+    description:
+      'Retorna todos los años académicos que tienen evaluaciones registradas. ' +
+      'Útil para llenar filtros dinámicamente en reportes de notas.',
   })
-  findAll(@Req() req: any) {
-    return this.evaluacionesService.findAll(req.user.id);
+  getAniosDisponibles() {
+    return this.evaluacionesService.getAniosDisponibles();
   }
 
   @Get('mis-asignaturas/evaluaciones')
@@ -61,6 +64,24 @@ export class EvaluacionesController {
     );
   }
 
+  @Get('asignatura/:id_asignatura')
+  @ApiOperation({
+    summary: 'Obtener evaluaciones de una asignatura específica',
+    description:
+      'Retorna todas las evaluaciones de una asignatura filtradas por año académico. ' +
+      'Útil para dropdowns de evaluaciones en el frontend.',
+  })
+  getEvaluacionesPorAsignatura(
+    @Param('id_asignatura', ParseIntPipe) id_asignatura: number,
+    @Req() req: any,
+  ) {
+    const anioAcademico = req.query.anio || new Date().getFullYear().toString();
+    return this.evaluacionesService.findEvaluacionesPorAsignatura(
+      id_asignatura,
+      anioAcademico,
+    );
+  }
+
   @Get('porcentajes/asignatura/:id_asignatura')
   @ApiOperation({
     summary:
@@ -76,6 +97,14 @@ export class EvaluacionesController {
       id_asignatura,
       anioActual,
     );
+  }
+
+  @Get()
+  @ApiOperation({
+    summary: 'Obtener todas las evaluaciones',
+  })
+  findAll(@Req() req: any) {
+    return this.evaluacionesService.findAll(req.user.id);
   }
 
   @Get(':id')

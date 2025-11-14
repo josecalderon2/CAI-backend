@@ -442,6 +442,50 @@ export class CursosService {
   }
 
   /**
+   * Obtener alumnos de un curso filtrados por año académico
+   * Retorna la lista de alumnos inscritos en el curso para un año específico
+   */
+  async getAlumnosPorCursoYAnio(cursoId: number, anioAcademico: string) {
+    // Verificar que el curso existe
+    await this.findOne(cursoId);
+
+    // Obtener alumnos del curso para el año académico específico
+    const alumnosCurso = await this.prisma.alumnoCurso.findMany({
+      where: {
+        cursoId: cursoId,
+        anioAcademico: anioAcademico,
+        estado: 'ACTIVO', // Solo alumnos activos
+      },
+      include: {
+        alumno: {
+          select: {
+            id_alumno: true,
+            nombre: true,
+            apellido: true,
+          },
+        },
+      },
+      orderBy: {
+        alumno: {
+          apellido: 'asc',
+        },
+      },
+    });
+
+    return {
+      curso_id: cursoId,
+      anio_academico: anioAcademico,
+      total_alumnos: alumnosCurso.length,
+      alumnos: alumnosCurso.map((ac) => ({
+        id_alumno: ac.alumno.id_alumno,
+        nombre: ac.alumno.nombre,
+        apellido: ac.alumno.apellido,
+        fecha_inscripcion: ac.fechaInscripcion,
+      })),
+    };
+  }
+
+  /**
    * Obtiene información de cupos para un curso específico
    * @param id ID del curso
    * @returns Información detallada sobre cupos totales, ocupados y disponibles

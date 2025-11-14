@@ -149,6 +149,31 @@ export class CursosController {
     return this.service.getAlumnosPorCurso(id);
   }
 
+  /**
+   * Obtener alumnos de un curso filtrados por año académico
+   * Retorna la lista de alumnos inscritos en el curso para un año específico
+   */
+  @Get(':id/alumnos-por-anio')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Obtener alumnos de un curso por año académico',
+    description:
+      'Retorna todos los alumnos inscritos en un curso para un año académico específico. ' +
+      'Útil para dropdowns en reportes y boletas.',
+  })
+  @ApiOkResponse({
+    description: 'Lista de alumnos del curso filtrados por año académico',
+  })
+  async getAlumnosPorCursoYAnio(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('anio') anio: string,
+  ) {
+    if (!anio) {
+      anio = new Date().getFullYear().toString();
+    }
+    return this.service.getAlumnosPorCursoYAnio(id, anio);
+  }
+
   @Roles('Admin', 'P.A')
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {

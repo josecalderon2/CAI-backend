@@ -403,6 +403,89 @@ export class EvaluacionesService {
   }
 
   /**
+   * Obtiene todos los años académicos con evaluaciones disponibles
+   */
+  async getAniosDisponibles() {
+    const evaluaciones = await this.prisma.evaluacion.findMany({
+      select: {
+        anio_academico: true,
+      },
+      distinct: ['anio_academico'],
+      orderBy: {
+        anio_academico: 'desc',
+      },
+    });
+
+    const anios = evaluaciones
+      .map((e) => e.anio_academico)
+      .filter((anio) => anio !== null);
+
+    return {
+      total_anios: anios.length,
+      anios: anios,
+    };
+  }
+
+  /**
+   * Obtiene evaluaciones de una asignatura específica filtradas por año académico
+   */
+  async findEvaluacionesPorAsignatura(
+    id_asignatura: number,
+    anioAcademico: string,
+  ) {
+    const asignatura = await this.prisma.asignatura.findUnique({
+      where: { id_asignatura },
+      include: {
+        curso: {
+          include: {
+            gradoAcademico: true,
+          },
+        },
+      },
+    });
+
+    if (!asignatura) {
+      throw new NotFoundException('Asignatura no encontrada');
+    }
+
+    const evaluaciones = await this.prisma.evaluacion.findMany({
+      where: {
+        id_asignatura,
+        anio_academico: anioAcademico,
+      },
+      include: {
+        tipoEvaluacion: true,
+      },
+      orderBy: [
+        { trimestre: 'asc' },
+        { periodo: 'asc' },
+        { mes: 'asc' },
+        { tipoEvaluacion: { nombre: 'asc' } },
+      ],
+    });
+
+    return {
+      asignatura: {
+        id_asignatura: asignatura.id_asignatura,
+        nombre: asignatura.nombre,
+        curso: asignatura.curso?.nombre || 'Sin curso',
+        grado: asignatura.curso?.gradoAcademico?.nombre || 'Sin grado',
+      },
+      anio_academico: anioAcademico,
+      total_evaluaciones: evaluaciones.length,
+      evaluaciones: evaluaciones.map((ev) => ({
+        id_evaluacion: ev.id_evaluacion,
+        nombre: ev.nombre,
+        tipo: ev.tipoEvaluacion.nombre,
+        trimestre: ev.trimestre,
+        periodo: ev.periodo,
+        mes: ev.mes,
+        porcentaje: ev.tipoEvaluacion.porcentaje,
+      })),
+    };
+  }
+
+  /**
    * Obtiene los tipos de evaluación válidos para una asignatura específica
    * basándose en el grado académico del curso al que pertenece la asignatura
    */
