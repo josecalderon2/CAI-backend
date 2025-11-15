@@ -85,7 +85,7 @@ export class CursosController {
     return this.service.findCursosByOrientador(userId);
   }
 
-  @Roles('Admin')
+  @Roles('Admin', 'P.A')
   @Post()
   @ApiCreatedResponse({ description: 'Curso creado' })
   create(@Body() dto: CreateCursoDto) {
