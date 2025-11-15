@@ -11,6 +11,7 @@ import { seedTiposEvaluacion } from './seeds/07-tipos-evaluacion.seed';
 import { seedCursosYAsignaturas } from './seeds/08-cursos-asignaturas.seed';
 import { seedAlumnosInscripciones } from './seeds/09-alumnos-inscripciones.seed';
 import { seedAsistenciasConductasTrimestre3 } from './seeds/10-asistencias-conductas-t3.seed';
+import { seedDatosDemo } from './seeds/11-datos-demo-completos.seed';
 
 const prisma = new PrismaClient();
 
@@ -30,6 +31,7 @@ const SEED_CONFIG = {
   cursosAsignaturas: true,
   alumnosInscripciones: true,
   asistenciasConductasT3: true, // Nuevo seed para datos de prueba trimestre 3
+  datosDemo: true, // Seed completo con datos realistas para DEMO
 };
 
 async function main() {
@@ -99,6 +101,11 @@ async function main() {
     // 10. Asistencias y conductas trimestre 3 (requiere alumnos, cursos, asignaturas, orientadores)
     if (SEED_CONFIG.asistenciasConductasT3) {
       await seedAsistenciasConductasTrimestre3(prisma);
+    }
+
+    // 11. Datos completos para DEMO (requiere todo lo anterior)
+    if (SEED_CONFIG.datosDemo) {
+      await seedDatosDemo(prisma);
     }
 
     console.log('\n🎉 Proceso de seeding completado exitosamente!');

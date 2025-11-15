@@ -1,4 +1,12 @@
-import { Controller, Get, Query, Param, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Param,
+  UseGuards,
+  Req,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiTags,
@@ -214,6 +222,47 @@ export class ReportesNotasController {
     );
   }
 
+  @Get('evaluaciones-pendientes')
+  @Roles('Admin', 'P.A')
+  @ApiOperation({
+    summary:
+      '🔴 SOLO ADMIN/P.A - Lista de evaluaciones con estado de pendientes (filtrable)',
+    description:
+      'Reporte institucional: Lista todas las evaluaciones con su cantidad de alumnos pendientes. ' +
+      'Permite filtrar por curso y/o asignatura para facilitar la navegación',
+  })
+  @ApiQuery({
+    name: 'cursoId',
+    required: false,
+    description: 'ID del curso para filtrar',
+    example: 1,
+    schema: { type: 'integer' },
+  })
+  @ApiQuery({
+    name: 'asignaturaId',
+    required: false,
+    description: 'ID de la asignatura para filtrar',
+    example: 5,
+    schema: { type: 'integer' },
+  })
+  @ApiQuery({
+    name: 'anio',
+    required: false,
+    description: 'Año académico (por defecto el actual)',
+    example: '2025',
+  })
+  async listaEvaluacionesPendientes(
+    @Query('cursoId') cursoId?: string,
+    @Query('asignaturaId') asignaturaId?: string,
+    @Query('anio') anio?: string,
+  ) {
+    return this.reportesService.listaEvaluacionesPendientes(
+      cursoId ? parseInt(cursoId, 10) : undefined,
+      asignaturaId ? parseInt(asignaturaId, 10) : undefined,
+      anio,
+    );
+  }
+
   @Get('evaluacion/:id/pendientes')
   @Roles('Admin', 'P.A')
   @ApiOperation({
@@ -304,5 +353,99 @@ export class ReportesNotasController {
   })
   async boletaAlumno(@Param('id') id: string, @Query('anio') anio?: string) {
     return this.reportesService.boletaAlumno(parseInt(id, 10), anio);
+  }
+
+  @Get('boleta/alumno/:id/mensual')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: '📅 Boleta mensual detallada para entregar a padres',
+    description:
+      '🟢 ORIENTADOR: Genera reporte mensual completo para padres de familia. ' +
+      'Muestra TODAS las evaluaciones y notas de TODAS las asignaturas del mes específico. ' +
+      'Incluye: evaluaciones por asignatura, promedios mensuales, asistencia del mes y conducta del mes. ' +
+      'Perfecto para reportes mensuales que los padres reciben cada mes.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del alumno',
+    example: 1,
+    schema: { type: 'integer' },
+  })
+  @ApiQuery({
+    name: 'mes',
+    required: true,
+    description: 'Mes (1-12): 1=Enero, 2=Febrero, ..., 12=Diciembre',
+    example: 2,
+    schema: { type: 'integer', minimum: 1, maximum: 12 },
+  })
+  @ApiQuery({
+    name: 'anio',
+    required: false,
+    description: 'Año académico',
+    example: '2025',
+  })
+  async boletaMensualAlumno(
+    @Param('id') id: string,
+    @Query('mes') mes: string,
+    @Query('anio') anio?: string,
+  ) {
+    if (!mes) {
+      throw new NotFoundException('El parámetro "mes" es requerido');
+    }
+    return this.reportesService.boletaMensualAlumno(
+      parseInt(id, 10),
+      parseInt(mes, 10),
+      anio,
+    );
+  }
+
+  @Get('boleta/curso/:id')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: '📋 Boletas de todos los alumnos del curso por trimestre/periodo',
+    description:
+      '🟢 ORIENTADOR: Genera boletas de todos los alumnos de sus cursos. ' +
+      'Retorna lista completa de alumnos con sus boletas detalladas del trimestre/periodo. ' +
+      'BÁSICA usa "trimestre" (1-3), BACHILLERATO usa "periodo" (1-4). ' +
+      'Útil para generar reportes masivos o exportar a PDF múltiples boletas.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'ID del curso',
+    example: 1,
+    schema: { type: 'integer' },
+  })
+  @ApiQuery({
+    name: 'anio',
+    required: false,
+    description: 'Año académico',
+    example: '2025',
+  })
+  @ApiQuery({
+    name: 'trimestre',
+    required: false,
+    description: 'Trimestre (1-3) - Solo para BÁSICA (Primaria y Secundaria)',
+    enum: [1, 2, 3],
+    schema: { type: 'integer' },
+  })
+  @ApiQuery({
+    name: 'periodo',
+    required: false,
+    description: 'Periodo (1-4) - Solo para BACHILLERATO',
+    enum: [1, 2, 3, 4],
+    schema: { type: 'integer' },
+  })
+  async boletasPorCurso(
+    @Param('id') id: string,
+    @Query('anio') anio?: string,
+    @Query('trimestre') trimestre?: string,
+    @Query('periodo') periodo?: string,
+  ) {
+    return this.reportesService.boletasPorCurso(
+      parseInt(id, 10),
+      anio,
+      trimestre ? parseInt(trimestre, 10) : undefined,
+      periodo ? parseInt(periodo, 10) : undefined,
+    );
   }
 }
