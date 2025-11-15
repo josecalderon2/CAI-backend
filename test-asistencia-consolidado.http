@@ -1,0 +1,22 @@
+### Test: Resumen trimestral consolidado por curso (CON DETALLE DE ALUMNOS)
+# @name resumen_trimestral_consolidado_curso
+# Este endpoint ahora incluye el detalle de cada alumno en cada trimestre
+# Estructura de respuesta:
+# - trimestres[]: cada uno con totales del curso + array "alumnos" con detalle individual
+# - totales: suma anual del curso
+@baseUrl = http://localhost:3000
+@token = REEMPLAZAR_CON_JWT
+@cursoId = 1
+@anio = 2025
+
+GET {{baseUrl}}/asistencia/resumen/trimestral-consolidado?cursoId={{cursoId}}&anio={{anio}}
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Test: Resumen trimestral consolidado por alumno (asistencia + conducta)
+# @name resumen_trimestral_consolidado_alumno
+@alumnoId = 1
+
+GET {{baseUrl}}/asistencia/resumen/trimestral-consolidado/alumno?cursoId={{cursoId}}&alumnoId={{alumnoId}}&anio={{anio}}
+Authorization: Bearer {{token}}
+Accept: application/json

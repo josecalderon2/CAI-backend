@@ -10,6 +10,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AsistenciaService } from './asistencia.service';
 import { CreateAsistenciaDto } from './dto/create-asistencia.dto';
@@ -101,6 +102,64 @@ export class AsistenciaController {
       fechaHasta: filters.fechaHasta,
       estado: filters.estado,
     });
+  }
+
+  /**
+   * Resumen trimestral consolidado por curso
+   * Retorna conteos por estado (P, E, SP, A) y porcentaje de asistencia por trimestre.
+   * porcentaje_asistencia considera P y E como asistencia efectiva.
+   */
+  @Get('resumen/trimestral-consolidado')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Resumen trimestral consolidado por curso',
+    description:
+      'Consolida asistencia por trimestre para un curso y año académico. ' +
+      'Incluye conteos P/E/SP/A y porcentaje de asistencia ((P + E) / total).',
+  })
+  @ApiOkResponse({ description: 'Resumen consolidado obtenido exitosamente' })
+  resumenTrimestralConsolidado(
+    @Query('cursoId') cursoId: string,
+    @Query('anio') anio?: string,
+  ) {
+    if (!cursoId) {
+      throw new BadRequestException('El parámetro "cursoId" es requerido');
+    }
+    const anioAcademico = anio || new Date().getFullYear().toString();
+    return this.asistenciaService.resumenTrimestralConsolidado(
+      parseInt(cursoId, 10),
+      anioAcademico,
+    );
+  }
+
+  /**
+   * Resumen trimestral consolidado POR ALUMNO (asistencia + conducta)
+   * Filtra por curso, alumno y año. Consolida los 3 trimestres.
+   */
+  @Get('resumen/trimestral-consolidado/alumno')
+  @Roles('Orientador', 'Admin', 'P.A')
+  @ApiOperation({
+    summary: 'Resumen trimestral consolidado por alumno',
+    description:
+      'Devuelve consolidado de asistencia (P,E,SP,A) y conducta (infracciones) por alumno, ' +
+      'agregado por trimestre y totales del año. Requiere cursoId, alumnoId y año académico.',
+  })
+  @ApiOkResponse({ description: 'Resumen consolidado por alumno obtenido' })
+  resumenTrimestralConsolidadoAlumno(
+    @Query('cursoId') cursoId: string,
+    @Query('alumnoId') alumnoId: string,
+    @Query('anio') anio?: string,
+  ) {
+    if (!cursoId)
+      throw new BadRequestException('El parámetro "cursoId" es requerido');
+    if (!alumnoId)
+      throw new BadRequestException('El parámetro "alumnoId" es requerido');
+    const anioAcademico = anio || new Date().getFullYear().toString();
+    return this.asistenciaService.resumenTrimestralConsolidadoAlumno(
+      parseInt(cursoId, 10),
+      parseInt(alumnoId, 10),
+      anioAcademico,
+    );
   }
 
   /**
